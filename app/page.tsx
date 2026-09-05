@@ -3363,7 +3363,8 @@ export default function Page() {
                           width: w + BEZEL * 2,
                           height: h + BEZEL * 2,
                           borderRadius: radius + BEZEL,
-                          background: draftBusy ? DRAFT_GRADIENT(p) : p.inverseSurface,
+                          backgroundColor: p.inverseSurface,
+                          backgroundImage: draftBusy ? DRAFT_GRADIENT(p) : undefined,
                           backgroundSize: draftBusy ? "300% 300%" : undefined,
                           animation: draftBusy ? "m3e-drift 3s ease-in-out infinite" : undefined,
                           boxShadow: on
