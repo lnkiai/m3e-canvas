@@ -356,6 +356,7 @@ export const LANG_FONT: Record<Lang, { family: string; google: string } | null> 
   ja: { family: "'Noto Sans JP'", google: "Noto+Sans+JP:wght@400;500;600;700" },
   zh: { family: "'Noto Sans SC'", google: "Noto+Sans+SC:wght@400;500;600;700" },
   ko: { family: "'Noto Sans KR'", google: "Noto+Sans+KR:wght@400;500;600;700" },
+  ar: { family: "'Noto Sans Arabic'", google: "Noto+Sans+Arabic:wght@400;500;600;700" },
   en: null,
 };
 

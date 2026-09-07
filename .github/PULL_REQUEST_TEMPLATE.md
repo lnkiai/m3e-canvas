@@ -9,7 +9,7 @@
 - [ ] `npm run typecheck` passes
 - [ ] `npm test` passes
 - [ ] `npm run build` passes
-- [ ] New or changed UI strings and prompt text exist in Japanese, English, Chinese and Korean
+- [ ] New or changed UI strings exist in Japanese, English, Chinese, Korean and Arabic; prompt text in the first four
 - [ ] Tried it in the editor (and on a phone, if the change touches the phone editor)
 
 ## Screenshots

@@ -102,7 +102,7 @@ import { MotionPanel, ShapePanel, TypePanel } from "@/components/ThemePanel";
 import { ThemeContext, ensureFontLoaded, ensureLangFontLoaded } from "@/lib/theme";
 import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
-import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
+import { Lang, LangContext, SEED_TEXT, getLang, isLang, isRtl, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
 /** the screens while a model drafts: primary, tertiary and primary container, drifting */
 const DRAFT_GRADIENT = (p: Palette) => `linear-gradient(120deg, ${p.primaryContainer}, ${p.tertiaryContainer}, ${p.primary}, ${p.secondaryContainer}, ${p.primaryContainer})`;
@@ -665,9 +665,16 @@ export default function Page() {
         }
       } else {
         const nl = (navigator.language ?? "").toLowerCase();
-        initialLang = nl.startsWith("zh") ? "zh" : nl.startsWith("ko") ? "ko" : nl.startsWith("ja") ? "ja" : "en";
+        initialLang = nl.startsWith("ar") ? "ar" : nl.startsWith("zh") ? "zh" : nl.startsWith("ko") ? "ko" : nl.startsWith("ja") ? "ja" : "en";
         setLang(initialLang);
         queueMicrotask(() => fitRef.current());
+      }
+      /* ?lang= names the language outright, for a link that must open in one
+       * language whatever the browser or the last visit says */
+      const asked = new URLSearchParams(location.search).get("lang");
+      if (isLang(asked) && asked !== initialLang) {
+        initialLang = asked;
+        setLang(asked);
       }
       setGlobalLang(initialLang);
       initialLangRef.current = initialLang;
@@ -682,6 +689,8 @@ export default function Page() {
 
   useEffect(() => {
     document.documentElement.lang = lang;
+    /* a right-to-left language mirrors the editor: panels, menus and text all follow */
+    document.documentElement.dir = isRtl(lang) ? "rtl" : "ltr";
     /* the editor's own text and the parts both pick up the language's Noto face */
     document.body.style.fontFamily = uiFontFamily(lang);
     ensureLangFontLoaded(lang, () => setWidths({}));

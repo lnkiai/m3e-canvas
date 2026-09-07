@@ -31,12 +31,20 @@ import {
   progressThickness,
 } from "./tokens";
 
-const VARIANT_TEXT: Record<Lang, Record<Variant, string>> = {
+/** The prompt is read by a coding agent, and Arabic has no prompt voice of its
+ *  own yet: an Arabic editor writes its prompt in English, the language those
+ *  agents read best. */
+type PromptLang = Exclude<Lang, "ar">;
+const promptLang = (lang: Lang): PromptLang => (lang === "ar" ? "en" : lang);
+/** a table written in the four prompt languages, with Arabic reading the English */
+const withArabic = <T>(table: Record<PromptLang, T>): Record<Lang, T> => ({ ...table, ar: table.en });
+
+const VARIANT_TEXT: Record<Lang, Record<Variant, string>> = withArabic({
   ja: { filled: "塗りつぶし", tonal: "トーナル", elevated: "エレベーテッド", outlined: "アウトライン", text: "テキスト" },
   en: { filled: "filled", tonal: "tonal", elevated: "elevated", outlined: "outlined", text: "text" },
   zh: { filled: "填充", tonal: "色调", elevated: "浮起", outlined: "描边", text: "文字" },
   ko: { filled: "채움", tonal: "토널", elevated: "돌출", outlined: "윤곽선", text: "텍스트" },
-};
+});
 
 const hasText = (s?: string | null) => !!s && s.trim().length > 0;
 /** what sits at the top of a card: nothing, a picture, or the placeholder with its icon */
@@ -764,14 +772,14 @@ function describeNodes(lines: string[], nodes: LNode[], within: Rect | null, wid
   });
 }
 
-const RAIL_LEAD: Record<Lang, string> = { ja: "左端に", en: "Along the left edge: ", zh: "左缘：", ko: "왼쪽 가장자리에 " };
+const RAIL_LEAD: Record<Lang, string> = withArabic({ ja: "左端に", en: "Along the left edge: ", zh: "左缘：", ko: "왼쪽 가장자리에 " });
 
-const WIDE_RAIL_STYLE: Record<Lang, string> = {
+const WIDE_RAIL_STYLE: Record<Lang, string> = withArabic({
   ja: "M3 Expressive ナビゲーションレール: 折りたたみ時は幅 96dp、アイコンの下にラベル。展開時は幅 220dp、高さ 56dp の項目内でアイコンとラベルを横並びにし、間隔は 8dp。既存のトップアプリバーに合わせ、両モードの開閉状態すべてで背景は surfaceContainer。選択項目は secondaryContainer のピル型インジケータ、アイコンは onSecondaryContainer、ラベルは secondary を優先し、実際の背景（折りたたみ時は surfaceContainer、展開時は secondaryContainer）とのコントラストが 4.5:1 未満なら、それぞれ onSurface / onSecondaryContainer を使う。上部のメニューボタンで開閉する。非モーダル型は本文の横に配置し、モーダル型は展開時にスクリムとともに本文に重ね、背景操作を遮断する。スクリムのタップまたは Escape で閉じる。",
   en: "M3 Expressive navigation rail: 96dp wide when collapsed, with labels below icons. Expanded width is 220dp, with 56dp-high destinations and horizontal icon/label rows separated by 8dp. Match the existing top app bar with a surfaceContainer background in both modes, whether collapsed or expanded. The selected destination uses a secondaryContainer pill, onSecondaryContainer icon, and a label that prefers secondary. If its contrast against the actual background (surfaceContainer when collapsed, secondaryContainer when expanded) is below 4.5:1, use onSurface / onSecondaryContainer respectively. A top menu button toggles expansion. The non-modal variant sits beside the content; the modal variant overlays it with a scrim when expanded and blocks background interaction. Dismiss with a scrim tap or Escape.",
   zh: "M3 Expressive 侧边导航栏：折叠宽 96dp，标签位于图标下方。展开宽 220dp，项目高 56dp，图标与标签横向排列，间距 8dp。沿用现有顶部应用栏配色，两种模式在折叠与展开时均使用 surfaceContainer 背景。选中项用 secondaryContainer 胶囊指示器，图标为 onSecondaryContainer，文字优先使用 secondary；若与实际背景（折叠为 surfaceContainer，展开为 secondaryContainer）的对比度低于 4.5:1，则分别使用 onSurface / onSecondaryContainer。顶部菜单按钮切换展开与折叠。非模态型位于内容旁；模态型展开时带遮罩覆盖内容并阻止背景交互，点击遮罩或按 Escape 关闭。",
   ko: "M3 Expressive 내비게이션 레일: 접으면 너비 96dp, 아이콘 아래에 레이블을 배치한다. 펼치면 너비 220dp, 항목 높이 56dp, 아이콘과 레이블을 8dp 간격으로 가로 배치한다. 기존 상단 앱 바와 맞추어 두 모드의 접힌 상태와 펼친 상태 모두 surfaceContainer 배경을 사용한다. 선택 항목은 secondaryContainer 알약 표시기, onSecondaryContainer 아이콘, 레이블은 secondary를 우선 사용한다. 실제 배경(접힘: surfaceContainer, 펼침: secondaryContainer)과의 대비가 4.5:1 미만이면 각각 onSurface / onSecondaryContainer를 사용한다. 상단 메뉴 버튼으로 펼치기와 접기를 전환한다. 비모달은 콘텐츠 옆에 배치하고 모달은 펼칠 때 스크림과 함께 콘텐츠를 덮어 배경 조작을 차단한다. 스크림을 탭하거나 Escape를 누르면 닫힌다.",
-};
+});
 
 function describeScreen(lines: string[], groups: Group[], frameRect: Rect | null, widths: Record<string, number>, lang: Lang) {
   if (!groups.length) return;
@@ -834,7 +842,7 @@ function paletteLines(p: Palette): string[] {
 
 /** How each kind should look; only the kinds on the canvas are written out.
  *  `boxSheet` is the box note used when at least one box has its handle on. */
-const STYLE_NOTES: Record<Lang, Partial<Record<Kind | "boxSheet", string>>> = {
+const STYLE_NOTES: Record<Lang, Partial<Record<Kind | "boxSheet", string>>> = withArabic({
   ja: {
     button:
       "ボタン: 高さ 56dp のミディアムサイズで、角は完全な丸（ピル型）。塗りつぶしは primary、トーナルは secondaryContainer、アウトラインは outline の 1dp 枠。横に連結したボタングループは 3dp の隙間で並べ、隣り合う内側の角だけ 8dp に小さくし、外側の角は丸のままにする（M3 Expressive の Connected button group）。",
@@ -1015,18 +1023,18 @@ const STYLE_NOTES: Record<Lang, Partial<Record<Kind | "boxSheet", string>>> = {
     radio: "라디오 버튼: 20dp 원형. 선택 시 primary 테두리와 가운데 점, 미선택 시 onSurfaceVariant 테두리. 그룹에서 하나만 선택되며 레이블은 오른쪽 bodyLarge.",
     badge: "배지: 텍스트가 없으면 6dp 점, 있으면 높이 16dp 알약 모양. 배경 error, 텍스트 onError/labelSmall로 아이콘이나 항목 오른쪽 위에 겹쳐 둔다.",
   },
-};
+});
 
 /* ---------- theme: shape, type, motion ---------- */
 
-const FONT_NOTE: Record<Lang, (name: string) => string> = {
+const FONT_NOTE: Record<Lang, (name: string) => string> = withArabic({
   ja: (n) => `書体は ${n} を使う。`,
   en: (n) => `Use ${n} as the typeface.`,
   zh: (n) => `字体使用 ${n}。`,
   ko: (n) => `사용할 글꼴: ${n}.`,
-};
+});
 
-const THEME_NOTES: Record<Lang, { shape: Record<Theme["shape"], string>; emphasized: string; plainType: string; motion: Record<Theme["motion"], string> }> = {
+const THEME_NOTES: Record<Lang, { shape: Record<Theme["shape"], string>; emphasized: string; plainType: string; motion: Record<Theme["motion"], string> }> = withArabic({
   ja: {
     shape: {
       square: "角丸は控えめにする: M3 の shape スケールを全体に小さく取り（ボタン・チップは 8〜12dp、カードや画像は 8dp、ダイアログは 12dp 程度）、ピル型は使わない。",
@@ -1079,7 +1087,7 @@ const THEME_NOTES: Record<Lang, { shape: Record<Theme["shape"], string>; emphasi
       expressive: "모션은 MotionScheme.expressive()를 사용한다. 화면 전환과 상태 변화에 가볍게 튀는 스프링 효과를 적용한다.",
     },
   },
-};
+});
 
 function themeLines(th: Theme, lang: Lang): string[] {
   const n = THEME_NOTES[lang];
@@ -1090,7 +1098,7 @@ function themeLines(th: Theme, lang: Lang): string[] {
 }
 
 /** the closing guidance; the lines that depend on the target are written for the chosen platform */
-const GENERAL: Record<Lang, (string | ((pl: Platform) => string))[]> = {
+const GENERAL: Record<Lang, (string | ((pl: Platform) => string))[]> = withArabic({
   ja: [
     "まず画面の目的から「これは何のアプリか」を判断し、そのカテゴリのアプリとして一般に期待される機能（作成・一覧・詳細・編集・削除・検索・設定など、該当するもの）を、スケッチに描かれていなくても一通り実装する。",
     (pl: Platform) => `データは本物として扱う。ユーザーが作成したデータは${pl === "web" ? "ブラウザに（IndexedDB など）" : "端末に（Room や DataStore など）"}永続化し、${pl === "web" ? "再読み込み" : "再起動"}後も残す。ダミーやサンプルのデータは入れず、何もない状態には空の案内を表示する。入力は検証し、失敗や削除は適切に確認・通知する。`,
@@ -1147,10 +1155,10 @@ const GENERAL: Record<Lang, (string | ((pl: Platform) => string))[]> = {
     "아이콘은 Material Symbols Rounded를 사용한다.",
     (pl: Platform) => `${pl === "web" ? "브라우저" : "에뮬레이터나 실제 기기"} 동작 검증은 필요 없다. 구현 후 ${pl === "web" ? "production build를 실행하고 그 출력" : "서명된 release APK"}을 결과물로 제공한다.`,
   ],
-};
+});
 
 /** notes that differ on the web, where a browser has no status bar or gesture area to inset for */
-const STYLE_NOTES_WEB: Record<Lang, Partial<Record<Kind, string>>> = {
+const STYLE_NOTES_WEB: Record<Lang, Partial<Record<Kind, string>>> = withArabic({
   ko: {
     topAppBar: "상단 앱 바: 높이 64dp, 배경 surface. 제목은 titleLarge, 양쪽 아이콘 버튼은 48dp를 사용한다. 스크롤 시 surfaceContainer로 색상이 바뀌는 표준 동작을 사용한다.",
     bottomNav: "내비게이션 바: 높이 80dp, 배경 surfaceContainer. 선택 항목은 secondaryContainer 알약 표시기(64×32dp), 채운 아이콘과 labelMedium 레이블로 표시한다.",
@@ -1167,7 +1175,7 @@ const STYLE_NOTES_WEB: Record<Lang, Partial<Record<Kind, string>>> = {
     topAppBar: "顶部应用栏：高 64dp，背景为 surface。标题用 titleLarge，左右图标按钮 48dp。滚动时变为 surfaceContainer 的标准行为即可。",
     bottomNav: "导航栏：高 80dp，背景为 surfaceContainer。选中项用 secondaryContainer 的胶囊指示器（宽 64dp、高 32dp）表示，图标为填充样式，标签用 labelMedium。",
   },
-};
+});
 
 /* ---------- fixed phrases ---------- */
 
@@ -1183,7 +1191,7 @@ const sizeLabel = (f: Frame, vp: Viewport, lang: Lang): string | undefined => {
   if (vp !== "mixed") return undefined;
   const { w, h } = frameSizeOf(f);
   const kind = isPhoneFrame(f) ? { ja: "スマホ", en: "phone", zh: "手机", ko: "휴대전화" } : { ja: "デスクトップ", en: "desktop", zh: "桌面", ko: "데스크톱" };
-  return `${kind[lang]} ${w}×${h}`;
+  return `${kind[promptLang(lang)]} ${w}×${h}`;
 };
 
 const PH = {
@@ -1347,6 +1355,7 @@ const PH = {
 };
 
 export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameId?: string, lang: Lang = getLang()): string {
+  lang = promptLang(lang);
   doc = { ...doc, groups: constrainModalRails(doc.groups) };
   const th = normalizeTheme(doc.theme);
   const pal = paletteOf(doc.paletteKey, doc.customPalette, th);
@@ -1363,7 +1372,7 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
     .flatMap((g) => explodeGroup(g, widths));
   const lines: string[] = [];
   const q = quote(lang);
-  const ph = PH[lang];
+  const ph = PH[promptLang(lang)];
 
   const byFrame = new Map<string, Group[]>();
   const loose: Group[] = [];

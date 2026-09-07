@@ -4,17 +4,20 @@ import { Lang, setGlobalLang } from "./i18n";
 import { buildPrompt } from "./prompt";
 import { BACK_TARGET, DEFAULT_THEME, Doc, Item, Platform, defaultTabs, makeItem, paletteOf } from "./tokens";
 
-const LANGS: Lang[] = ["ja", "en", "zh", "ko"];
+/* The four languages the prompt is written in. Arabic is offered by the editor
+ * but has no prompt voice of its own: it writes English, checked below. */
+type PromptLang = Exclude<Lang, "ar">;
+const LANGS: PromptLang[] = ["ja", "en", "zh", "ko"];
 
 /* Section headings in the order buildPrompt must emit them. */
-const SECTIONS: Record<Lang, string[]> = {
+const SECTIONS: Record<PromptLang, string[]> = {
   ja: ["## カラー", "## 形・文字・動き", "## 画面構成", "## 振る舞いと画面遷移", "## 各部品のスタイル", "## 全体の指針"],
   en: ["## Colors", "## Shape, type and motion", "## Layout", "## Behavior and navigation", "## Component styles", "## General guidance"],
   zh: ["## 配色", "## 形状、字体与动效", "## 屏幕结构", "## 行为与屏幕跳转", "## 各组件的样式", "## 整体原则"],
   ko: ["## 색상", "## 모양, 글꼴 및 모션", "## 화면 구성", "## 동작 및 화면 전환", "## 부품별 스타일", "## 전체 지침"],
 };
 
-const PLATFORM_LINE: Record<Lang, Record<Platform, string>> = {
+const PLATFORM_LINE: Record<PromptLang, Record<Platform, string>> = {
   ja: { android: "実装先は Android（ネイティブアプリ）です。", web: "実装先は Web（ブラウザで動くアプリ）です。" },
   en: { android: "Build it for Android, as a native app.", web: "Build it for the web, as an app that runs in the browser." },
   zh: { android: "实现目标是 Android（原生应用）。", web: "实现目标是 Web（在浏览器中运行的应用）。" },
@@ -54,19 +57,29 @@ function build(lang: Lang, platform: Platform = "android", extraItems: Item[] = 
 const lines = (prompt: string) => prompt.split("\n");
 const headings = (prompt: string) => lines(prompt).filter((l) => l.startsWith("## "));
 /* bullet lines between the style heading and the closing guidance heading */
-function styleBullets(prompt: string, lang: Lang) {
+function styleBullets(prompt: string, lang: PromptLang) {
   const ls = lines(prompt);
   const style = ls.indexOf(SECTIONS[lang][4]);
   const general = ls.indexOf(SECTIONS[lang][5]);
   return ls.slice(style + 1, general).filter((l) => l.startsWith("- "));
 }
 
-const QUOTED: Record<Lang, { label: string; others: string[] }> = {
+const QUOTED: Record<PromptLang, { label: string; others: string[] }> = {
   ja: { label: "「Save」", others: ['"Save"', "“Save”"] },
   en: { label: '"Save"', others: ["「Save」", "“Save”"] },
   zh: { label: "“Save”", others: ["「Save」", '"Save"'] },
   ko: { label: '"Save"', others: ["「Save」", "“Save”"] },
 };
+
+describe("buildPrompt for the Arabic editor", () => {
+  afterEach(() => setGlobalLang("ja"));
+
+  it("writes the prompt in English, the language a coding agent reads best", () => {
+    const prompt = build("ar", "web");
+    expect(headings(prompt)).toEqual(SECTIONS.en);
+    expect(prompt).toContain(PLATFORM_LINE.en.web);
+  });
+});
 
 describe("progress track thickness", () => {
   afterEach(() => setGlobalLang("ja"));
@@ -240,7 +253,7 @@ describe("buildPrompt structure", () => {
 describe("buildPrompt for the camera, map and dropdown parts", () => {
   afterEach(() => setGlobalLang("ja"));
 
-  const NOUN: Record<Lang, [camera: string, map: string]> = {
+  const NOUN: Record<PromptLang, [camera: string, map: string]> = {
     ja: ["カメラプレビュー", "地図"],
     en: ["camera preview", "map"],
     zh: ["相机预览", "地图"],
