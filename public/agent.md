@@ -55,7 +55,7 @@ Rough placement is fine. The person presses **Tidy** and bars snap to the edges,
 
 ### Screens (`frames`)
 
-A phone screen is **412 × 892**; a desktop screen is **1280 × 800** (set `w` and `h`). Place screens side by side on the canvas, 80 apart:
+A phone screen is **412 × 892**; a desktop screen is **1280 × 800** (set `w` and `h`). Place screens side by side on the canvas, 80 dp apart:
 
 ```json
 { "id": "home", "name": "Home", "x": 0, "y": 0, "note": "Lists the saved recipes." }
