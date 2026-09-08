@@ -6,7 +6,7 @@ and, if you turn it on, the optional AI helper: with your own API key entered in
 the AI tab, the browser sends the generated description of your whole design
 straight to the provider you chose (OpenAI, Anthropic, Google or DeepSeek) and
 nothing else. The key is kept in this browser's local storage under `m3e:ai` and
-never appears in the prompt, an exported image or the saved document. That keeps
+never appears in the prompt, in an exported image, or in the saved document. That keeps
 the attack surface small, but if you find something, please tell us.
 
 ## Reporting
