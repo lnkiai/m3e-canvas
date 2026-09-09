@@ -2,14 +2,19 @@
 
 import { createContext, useContext } from "react";
 
-export type Lang = "ja" | "en" | "zh" | "ko";
+export type Lang = "ja" | "en" | "zh" | "ko" | "ar";
 export const LANGS: { key: Lang; label: string }[] = [
   { key: "ja", label: "日本語" },
   { key: "en", label: "English" },
   { key: "zh", label: "中文" },
   { key: "ko", label: "한국어" },
+  { key: "ar", label: "العربية" },
 ];
-export const isLang = (v: unknown): v is Lang => v === "ja" || v === "en" || v === "zh" || v === "ko";
+export const isLang = (v: unknown): v is Lang => v === "ja" || v === "en" || v === "zh" || v === "ko" || v === "ar";
+/** the languages written right to left; the editor mirrors its layout for them */
+export const isRtl = (lang: Lang): boolean => lang === "ar";
+/** agent-facing prompts keep the voice of the language the model reads best */
+export const promptLang = (l: Lang): Lang => (l === "ar" ? "en" : l);
 
 /* A module-level copy lets non-React helpers (item defaults, prompt text)
  * follow the language without threading it through every call. */
@@ -27,6 +32,7 @@ export const SEED_TEXT: Record<Lang, { favorite: string; share: string; inbox: s
   en: { favorite: "Favorite", share: "Share", inbox: "Inbox", starred: "Starred", archive: "Archive", supporting: "Supporting text", start: "Get started" },
   zh: { favorite: "收藏", share: "分享", inbox: "收件箱", starred: "已加星标", archive: "归档", supporting: "辅助文本", start: "开始" },
   ko: { favorite: "즐겨찾기", share: "공유", inbox: "받은편지함", starred: "별표 표시", archive: "보관함", supporting: "보조 텍스트", start: "시작하기" },
+  ar: { favorite: "المفضّلة", share: "مشاركة", inbox: "الوارد", starred: "المميّزة بنجمة", archive: "الأرشيف", supporting: "نص مساعد", start: "ابدأ" },
 };
 
 /** ponytail: matches defaults by text; add provenance if authored copies must be distinguished. */
@@ -64,12 +70,14 @@ export const TEXT_TOKEN_TEXT = {
   ja: { onSurface: "標準（オンサーフェス）", onSurfaceVariant: "控えめ（オンサーフェスバリアント）", primary: "プライマリ", secondary: "セカンダリ", onPrimaryContainer: "オンプライマリコンテナ", onSecondaryContainer: "オンセカンダリコンテナ", onTertiaryContainer: "オンターシャリコンテナ", inverseOnSurface: "反転オンサーフェス" },
   zh: { onSurface: "表面文字", onSurfaceVariant: "表面次要文字", primary: "主色", secondary: "次色", onPrimaryContainer: "主色容器文字", onSecondaryContainer: "次色容器文字", onTertiaryContainer: "第三色容器文字", inverseOnSurface: "反色表面文字" },
   ko: { onSurface: "표면 텍스트", onSurfaceVariant: "표면 보조 텍스트", primary: "주 색상", secondary: "보조 색상", onPrimaryContainer: "주 색상 컨테이너 텍스트", onSecondaryContainer: "보조 색상 컨테이너 텍스트", onTertiaryContainer: "세 번째 색상 컨테이너 텍스트", inverseOnSurface: "반전 표면 텍스트" },
+  ar: { onSurface: "نص على السطح", onSurfaceVariant: "نص مساعد على السطح", primary: "أساسي", secondary: "ثانوي", onPrimaryContainer: "نص الحاوية الأساسية", onSecondaryContainer: "نص الحاوية الثانوية", onTertiaryContainer: "نص الحاوية الثالثية", inverseOnSurface: "نص على سطح معكوس" },
 };
 
 export const COLOR_TOKEN_TEXT = {
   ja: { surface: "サーフェス", surfaceContainerLow: "コンテナ（低）", surfaceContainer: "コンテナ", surfaceContainerHigh: "コンテナ（高）", surfaceContainerHighest: "コンテナ（最高）", primaryContainer: "プライマリコンテナ", secondaryContainer: "セカンダリコンテナ", tertiaryContainer: "ターシャリコンテナ", primary: "プライマリ", inverseSurface: "反転サーフェス" },
   zh: { surface: "表面", surfaceContainerLow: "低层容器", surfaceContainer: "容器", surfaceContainerHigh: "高层容器", surfaceContainerHighest: "最高层容器", primaryContainer: "主色容器", secondaryContainer: "次色容器", tertiaryContainer: "第三色容器", primary: "主色", inverseSurface: "反色表面" },
   ko: { surface: "표면", surfaceContainerLow: "낮은 컨테이너", surfaceContainer: "컨테이너", surfaceContainerHigh: "높은 컨테이너", surfaceContainerHighest: "가장 높은 컨테이너", primaryContainer: "주 색상 컨테이너", secondaryContainer: "보조 색상 컨테이너", tertiaryContainer: "세 번째 색상 컨테이너", primary: "주 색상", inverseSurface: "반전 표면" },
+  ar: { surface: "السطح", surfaceContainerLow: "حاوية (منخفضة)", surfaceContainer: "حاوية", surfaceContainerHigh: "حاوية (مرتفعة)", surfaceContainerHighest: "حاوية (الأعلى)", primaryContainer: "حاوية أساسية", secondaryContainer: "حاوية ثانوية", tertiaryContainer: "حاوية ثالثية", primary: "أساسي", inverseSurface: "سطح معكوس" },
 };
 
 /** exported for the parity tests only; read strings through t() */
@@ -402,11 +410,24 @@ export const UI = {
   aiWriteShort: { ja: "AI で書く", en: "Write with AI", zh: "AI 撰写" },
   aiWrite: { ja: "AI に書いてもらう", en: "Let the AI write it", zh: "让 AI 来写" },
   aiSettings: { ja: "AI の設定", en: "AI settings", zh: "AI 设置" },
+  aiBackup: { ja: "予備モデル（任意）", en: "Backup models (optional)", zh: "备用模型（可选）" },
+  aiBackupHint: {
+    ja: "返答が長すぎて途中で切れたとき、未完成の文書を次のモデルが引き継いで完成させます（OpenRouter 推奨）。",
+    en: "When a reply is cut off, the partial document is handed to the next model to finish it (OpenRouter recommended).",
+    zh: "回复过长被截断时，将未完成的文档交给下一个模型继续完成（建议使用 OpenRouter）。",
+  },
+  aiBusyThinking: { ja: "モデルが考えています…", en: "The model is thinking…", zh: "模型正在思考…" },
+  aiBusyCompact: { ja: "返答が長すぎたため、圧縮した設計で再試行しています", en: "Reply was too long — asking for a compact draft", zh: "回复过长，正在以精简稿重试" },
+  aiBusyMinimal: { ja: "それでも長いため、最小の3画面に絞っています", en: "Still too long — falling back to a minimal three-screen draft", zh: "仍然过长，正在退回最小三屏稿" },
+  aiBusyRescue: { ja: "途中まで書かれた文書を {model} に引き継いで完成させています", en: "Handing the partial reply to {model} to finish it", zh: "将未完成的回复交给 {model} 继续完成" },
   aiProvider: { ja: "プロバイダ", en: "Provider", zh: "服务商" },
   aiBaseUrl: { ja: "ベース URL", en: "Base URL", zh: "基础 URL" },
   aiModel: { ja: "モデル ID", en: "Model ID", zh: "模型 ID" },
   aiKey: { ja: "API キー", en: "API key", zh: "API 密钥" },
   aiGetKey: { ja: "キーを取得", en: "Get a key", zh: "获取密钥" },
+  aiCopySettings: { ja: "設定をコピー", en: "Copy settings", zh: "复制设置" },
+  aiImportSettings: { ja: "設定を取り込む", en: "Import settings", zh: "导入设置" },
+  aiImportBad: { ja: "貼り付けた設定を読み込めません", en: "Could not read the pasted settings", zh: "无法读取粘贴的设置" },
   aiKeyHint: {
     ja: "キーはこのブラウザにだけ保存され、プロバイダへ直接送られます。",
     en: "Stored only in this browser and sent straight to the provider.",
@@ -427,6 +448,13 @@ export const UI = {
     en: "Could not connect. Check the URL, the network and the server's CORS settings",
     zh: "无法连接。请检查 URL、网络和服务器的 CORS 设置",
   },
+  aiTest: { ja: "接続テスト", en: "Test connection", zh: "测试连接" },
+  aiTesting: { ja: "接続を確認中…", en: "Checking connection…", zh: "正在测试连接…" },
+  askAiRefine: { ja: "現在のデザインを編集", en: "Edit this design", zh: "修改当前设计" },
+  askAiCutTitle: { ja: "返信が途中で切れました", en: "The reply was cut off", zh: "回复被截断了" },
+  askAiCutHint: { ja: "モデルはデザインの途中まで書き、そこで止まりました。「続きから完成させる」を押すと、その途中の返信をそのまま渡して、最初から描き直すのではなく止まったところから完成させます。", en: "The model wrote part of the design and stopped. Continue sends that partial reply back, so it finishes from exactly where it stopped instead of drawing the start over.", zh: "模型写了部分设计后中断了。点击“继续完成设计”，会把那段未完成的回复原样发回，让它在断点处接着完成，而不是从头重画。" },
+  askAiContinue: { ja: "続きから完成させる", en: "Continue the design", zh: "继续完成设计" },
+  aiTestOk: { ja: "接続できました", en: "Connection OK", zh: "连接成功" },
 } as const satisfies Record<string, Str>;
 
 export type UIKey = keyof typeof UI;
@@ -489,15 +517,91 @@ export const KO: Record<UIKey, string> = {
   emphasizedHint: "제목과 레이블에 더 굵은 M3 Expressive 스타일을 사용합니다.", motionScheme: "모션 방식", motionStandard: "표준", motionExpressive: "익스프레시브",
   motionHint: "익스프레시브는 통통 튀는 스프링 효과입니다. 미리보기 화면 전환과 프롬프트에 반영됩니다.", tryIt: "탭하여 확인",
   tidy: "정리", tidyUndo: "정리 실행 취소", tidyDone: "이미 정돈되어 있습니다", placement: "본문의 세로 배치", placeTop: "위에서부터", placeCenter: "가운데", placeBottom: "아래쪽", placeSpread: "균등", align: "정렬", alignHintOne: "화면 본문 영역(바와 레일을 제외한 여백 안쪽)에 맞춰 정렬합니다.", alignHintMany: "선택한 부품끼리 정렬합니다. 균등 배치는 양끝 부품을 고정합니다.", alignLeft: "왼쪽 정렬", alignCenterH: "가로 가운데 정렬", alignRight: "오른쪽 정렬", distributeH: "가로 균등 배치", alignTop: "위쪽 정렬", alignCenterV: "세로 가운데 정렬", alignBottom: "아래쪽 정렬", distributeV: "세로 균등 배치", description: "설명", screenDescription: "이 화면의 용도",
-  ai: "AI", promptReset: "생성된 프롬프트로 되돌리기", aiWriteShort: "AI로 작성", aiWrite: "AI에게 작성 맡기기", aiSettings: "AI 설정",
+  ai: "AI", promptReset: "생성된 프롬프트로 되돌리기", aiWriteShort: "AI로 작성", aiWrite: "AI에게 작성 맡기기", aiSettings: "AI 설정", aiBackup: "예비 모델(선택)", aiBackupHint: "응답이 길어 중간에 끊기면 미완성 문서를 다음 모델이 이어받아 완성합니다(OpenRouter 권장).", aiBusyThinking: "모델이 생각하고 있습니다…", aiBusyCompact: "응답이 너무 길어 압축된 설계로 다시 시도 중입니다", aiBusyMinimal: "여전히 길어 최소 3개 화면으로 시도 중입니다", aiBusyRescue: "중간까지 작성된 응답을 {model}가 이어받아 완성 중입니다",
   aiProvider: "제공업체", aiBaseUrl: "기본 URL", aiModel: "모델 ID", aiKey: "API 키", aiGetKey: "키 받기",
-  aiKeyHint: "키는 이 브라우저에만 저장되며 제공업체로 직접 전송됩니다.", aiRestore: "AI 수정본과 원본 전환", aiApplied: "적용됨",
+  aiKeyHint: "키는 이 브라우저에만 저장되며 제공업체로 직접 전송됩니다.", aiRestore: "AI 수정본과 원본 전환", aiApplied: "적용됨", aiCopySettings: "설정 복사", aiImportSettings: "설정 가져오기", aiImportBad: "붙여넣은 설정을 읽을 수 없습니다",
   aiSelectScreen: "먼저 화면을 선택하세요", aiNoKey: "AI 탭에 키를 입력하면 사용할 수 있습니다", aiError: "AI 요청에 실패했습니다",
   aiErrorRefusal: "모델이 답변을 거부했습니다", aiErrorJson: "모델의 응답을 읽을 수 없습니다", aiErrorLong: "답변이 너무 길어 중간에 잘렸습니다. 화면 수를 줄여 다시 시도하세요", aiErrorModel: "모델 ID를 입력하세요",
   aiErrorInsecure: "기본 URL은 https를 사용하거나 localhost를 가리켜야 합니다", aiErrorNetwork: "연결할 수 없습니다. URL, 네트워크 및 서버의 CORS 설정을 확인하세요",
+  aiTest: "연결 테스트", aiTesting: "연결 확인 중…", aiTestOk: "연결되었습니다",
+  askAiRefine: "현재 디자인 수정",
+  askAiCutTitle: "응답이 중간에 잘렸습니다",
+  askAiCutHint: "모델이 설계의 일부를 쓰다 멈췄습니다. 계속하기를 누르면 그 중간 답변을 그대로 다시 보내, 처음부터 다시 그리지 않고 중단된 지점부터 이어서 완성합니다.",
+  askAiContinue: "중단된 지점부터 이어서 완성",
 };
 
-export const t = (key: UIKey, lang: Lang = current): string => (lang === "ko" ? KO[key] : UI[key][lang]);
+/** exported for the parity tests only; read strings through t() */
+export const AR: Record<UIKey, string> = {
+  frameSize: "حجم الشاشة", phoneFrame: "هاتف", desktopFrame: "سطح المكتب", columnWidth: "عرض شاشة هاتف", cornerLeft: "الزوايا اليسرى", cornerRight: "الزوايا اليمنى", cornersEach: "كل زاوية على حدة", cornerTl: "أعلى اليسار", cornerTr: "أعلى اليمين", cornerBl: "أسفل اليسار", cornerBr: "أسفل اليمين",
+  filled: "معبّأ", tonal: "لوني", elevated: "مرتفع", outlined: "بإطار", standard: "قياسي", vibrant: "زاهٍ",
+  parts: "المكوّنات", layers: "الطبقات", edit: "تحرير", prompt: "البرومبت", closePanel: "إغلاق اللوحة",
+  search: "بحث", favorites: "المفضّلة", addFavorite: "إضافة إلى المفضّلة", removeFavorite: "إزالة من المفضّلة", clear: "مسح", language: "اللغة",
+  select: "تحديد (V)", hand: "اليد (H / Space)", blank: "لوحة فارغة", phone: "شاشات هاتف", addFrame: "إضافة شاشة", preview: "معاينة (P)",
+  zoomIn: "تكبير (+)", zoomOut: "تصغير (-)", fit: "ملاءمة الكل (0)", undo: "تراجع (Ctrl+Z)", redo: "إعادة (Ctrl+Shift+Z)",
+  clearAll: "مسح اللوحة", clearAllTitle: "هل تريد مسح اللوحة؟", clearAllBody: "ستُحذف كل الشاشات والمكوّنات. يمكن استعادتها بالتراجع (Ctrl+Z).",
+  screen: "الشاشة", screenName: "اسم الشاشة", name: "الاسم", background: "الخلفية", defaultColor: "اللون الافتراضي", export: "تصدير", project: "المشروع",
+  saveProject: "حفظ المشروع", openProject: "فتح مشروع", replaceProjectTitle: "هل تريد فتح هذا المشروع؟",
+  replaceProject: "ستُستبدل اللوحة الحالية. التراجع (Ctrl+Z) يعيدها.",
+  askAi: "اطلب من الذكاء الاصطناعي",
+  askAiHint: "اكتب ما تريد صنعه ثم اضغط «ارسم بالذكاء الاصطناعي»: النموذج المحدّد في تبويب AI يرسم التصميم على اللوحة. أو انسخ التعليمات لوكيل ذكاء اصطناعي مثل Claude Code؛ افتح الرابط الذي يردّ به، أو احفظ JSON الذي يعطيه وحمّله من «فتح مشروع».",
+  askAiGenerate: "ارسم بالذكاء الاصطناعي", askAiGenerating: "جارٍ الرسم…",
+  askAiPasted: "الصقه في وكيل الذكاء الاصطناعي", askAiTitle: "اطلب تصميماً من الذكاء الاصطناعي", askAiCopyTitle: "تعليمات لوكيل ذكاء اصطناعي", askAiGenerateTitle: "يستعمل المفتاح الموجود في تبويب AI", aiSetup: "إعدادات AI", aiSetupHint: "أضف مفتاحاً لترسم هنا مباشرة", aiSetupTitle: "افتح تبويب AI",
+  draftKeep: "اعتماد هذا التصميم", draftUndo: "العودة إلى التصميم السابق",
+  askAiIdea: "ما الذي تريد بناءه (مثال: تطبيق لحفظ الوصفات والبحث فيها)", askAiIdeaFallback: "(اكتب هنا ما تريد بناءه)", askAiCopy: "نسخ التعليمات",
+  askAiText: "اصنع مخطّطاً في M3E Canvas. اقرأ أولاً {url} واتّبعه: ابنِ التصميم بصيغة JSON ثم أجب برابط مشاركة. إن لم تستطع تشغيل الشيفرة فأجب بـJSON داخل كتلة شيفرة (سيُحفظ في ملف ويُفتح). لا حاجة إلى التحقق.\n\nما الذي تريد بناءه: {idea}",
+  selectedTab: "اجعله المحدّد", selectedHint: "النقطة الممتلئة تشير إلى العنصر المعروض كمحدّد في هذه الشاشة.",
+  shareLinkCopy: "نسخ الرابط", shareLinkHint: "رابط يفتح هذا التصميم (بلا صور)",
+  invalidProject: "تعذّر فتح ملف المشروع.", readOnlyTitle: "يجري التحرير في تبويب آخر",
+  readOnlyBody: "هذه اللوحة قيد التحرير في تبويب آخر. أغلق ذلك التبويب ثم أعد تحميل هذه الصفحة للتحرير.",
+  reload: "إعادة التحميل",
+  copied: "تم النسخ", saveImage: "حفظ كصورة", saving: "جارٍ الحفظ…", previewFrom: "معاينة من هذه الشاشة",
+  duplicate: "تكرار", duplicateKey: "تكرار (Ctrl+D)", delete: "حذف (Delete)", deleteSelection: "حذف المحدّد",
+  text: "النص", label: "التسمية", bold: "غامق", action: "الإجراء", supporting: "نص مساعد", tabs: "العناصر", changeIcon: "تغيير الأيقونة",
+  options: "الخيارات", addOption: "إضافة خيار", removeOption: "حذف هذا الخيار", addTab: "إضافة تبويب", removeTab: "حذف هذا التبويب", selectedOption: "اجعله القيمة الأولية (اضغط مرة أخرى لإلغائها)", image: "صورة", pickImage: "اختيار صورة", removeImage: "إزالة الصورة", imageUrl: "رابط الصورة", autoWidth: "عرض النص", icon: "الأيقونة", noIcon: "بلا أيقونة", searchIcons: "بحث في الأيقونات",
+  autoColor: "تلقائي", imageTop: "أعلى", imageLeading: "البداية", imageTrailing: "النهاية", cardLayout: "تخطيط الصورة", noImageLayout: "بلا صورة", textPosition: "موضع النص", textTop: "أعلى", textMiddle: "الوسط", textBottom: "أسفل", textColor: "لون النص",
+  style: "النمط", state: "الحالة", selected: "محدّد", handle: "مقبض (لوحة سفلية)", listSwitch: "مفتاح في النهاية", on: "مفعّل", container: "الحاوية", wavy: "متموّج", determinate: "محدّد المقدار",
+  railState: "حالة الشريط الجانبي", railCollapsed: "مطويّ", railExpanded: "موسّع",
+  railLegacy: "الشريط التقليدي · عرض 80dp", railUpgrade: "استخدام Expressive (96dp)",
+  railStandalone: "أخرج الشريط من المجموعة لتفعيل العرض المنبثق.",
+  railPresentation: "طريقة التوسيع", railStandard: "ضمن التخطيط", railModal: "طبقة منبثقة",
+  expandNavigation: "توسيع التنقل", collapseNavigation: "طيّ التنقل",
+  trackThickness: "سُمك المسار",
+  size: "الحجم", width: "العرض", height: "الارتفاع", fontSize: "حجم الخط", cornerRadius: "استدارة الزوايا", cornerTop: "الزوايا العلوية", cornerBottom: "الزوايا السفلية",
+  screenWidth: "عرض الشاشة", contentWidth: "هوامش جانبية 16dp", halfWidth: "نصف صف (عمودان)", screenHeight: "ارتفاع الشاشة", halfHeight: "نصف الشاشة",
+  tapTo: "النقر يفتح", none: "بلا", goBack: "رجوع", swipeTo: "السحب يفتح", toggle: "زر تبديل", toggleHint: "النقر يبدّل بين التشغيل والإيقاف",
+  thumbCheck: "أيقونة صحّ عند التشغيل", behavior: "السلوك", whenPressed: "عند الضغط…", whatItDoes: "ما يفعله هذا المكوّن…", removeLink: "إزالة الرابط",
+  group: "المجموعة", makeGroup: "تجميع", ungroup: "فكّ التجميع", selectedParts: "محدّدة", groupHint: "يحافظ على التراكب ويتحرك كطبقة واحدة",
+  iconBackground: "خلفية الأيقونة", noBackground: "بلا خلفية", normalState: "عادي", onState: "مفعّل", onStateHint: "النص والأيقونة والنمط عند التشغيل",
+  groupEditNote: "فكّ التجميع لتحرير المكوّنات داخله", openPanel: "فتح اللوحة", colors: "الألوان", templates: "لوحات الألوان", customColor: "مخصّص",
+  seedColor: "اللون الأساس", seedHint: "لون واحد يبني كامل نظام ألوان Material 3. الضبط الدقيق يغيّر أدواراً بعينها.",
+  useThis: "استخدامه", fineTune: "ضبط دقيق", dynamicColor: "لون ديناميكي",
+  dynamicOnHint: "هذه الألوان للمحرّر فقط؛ الهاتف يستعمل ألوان خلفيته.",
+  dynamicOffHint: "عند التفعيل يستعمل الهاتف ألوان خلفيته وتبقى هذه احتياطاً.", closeBtn: "إغلاق", screens: "اختيار الشاشة",
+  noLayers: "لا شيء على هذه الشاشة بعد", showParts: "إظهار المكوّنات داخلها", hideParts: "إخفاء المكوّنات داخلها", lock: "قفل", unlock: "فكّ القفل", lockedGroup: "هذه المجموعة مقفلة. فكّ قفلها من لوحة الطبقات أولاً",
+  brief: "ما هذا التطبيق…", appName: "اسم التطبيق", targetPlatform: "الهدف", targetAndroid: "بناؤه كتطبيق Android أصلي",
+  targetWeb: "بناؤه كتطبيق ويب يعمل في المتصفح", copyPrompt: "نسخ البرومبت", back: "رجوع", close: "إغلاق (Esc)", cancel: "إلغاء", ok: "موافق",
+  leading: "البداية", trailing: "النهاية", home: "الرئيسية", screenN: "الشاشة", copySuffix: " نسخة", mobileNote: "الميزات الكاملة في متصفح الحاسوب",
+  addButton: "إضافة زر", done: "تم", theme: "السمة", settings: "السمة والإعدادات", shape: "الشكل", typography: "الخط", motion: "الحركة",
+  brightness: "السطوع", light: "فاتح", dark: "داكن", contrast: "التباين", bothModes: "كلاهما", contrastStandard: "قياسي", contrastMedium: "متوسط", contrastHigh: "عالٍ",
+  shapeScale: "درجة استدارة الزوايا", shapeSquare: "مربّع", shapeRounded: "مستدير", shapeFull: "كامل الاستدارة",
+  shapeHint: "يغيّر الزوايا الافتراضية لكل المكوّنات دفعة واحدة. الاستدارة التي كتبتها على مكوّن بعينه تبقى كما هي.", fontFamily: "نوع الخط", emphasized: "مؤكَّد",
+  emphasizedHint: "العناوين والتسميات تستعمل أنماط M3 Expressive الأثقل.", motionScheme: "نظام الحركة", motionStandard: "قياسي", motionExpressive: "تعبيري",
+  motionHint: "التعبيري نابض مرن. يحرّك انتقالات المعاينة والبرومبت.", tryIt: "انقر للتجربة",
+  tidy: "ترتيب", tidyUndo: "التراجع عن الترتيب", tidyDone: "مرتّب أصلاً", placement: "موضع المحتوى عمودياً", placeTop: "من الأعلى", placeCenter: "في الوسط", placeBottom: "في الأسفل", placeSpread: "موزَّع", align: "محاذاة", alignHintOne: "يحاذي المكوّن مع محتوى الشاشة، داخل الهوامش وبعيداً عن الأشرطة.", alignHintMany: "يحاذي المكوّنات المحدّدة بعضها مع بعض. التوزيع المتساوي يثبّت الطرفين.", alignLeft: "محاذاة لليسار", alignCenterH: "توسيط أفقي", alignRight: "محاذاة لليمين", distributeH: "توزيع أفقي", alignTop: "محاذاة للأعلى", alignCenterV: "توسيط عمودي", alignBottom: "محاذاة للأسفل", distributeV: "توزيع عمودي", description: "الوصف", screenDescription: "الغرض من هذه الشاشة",
+  ai: "AI", promptReset: "العودة إلى البرومبت المولَّد", aiWriteShort: "كتابة بالذكاء الاصطناعي", aiWrite: "دع الذكاء الاصطناعي يكتبه", aiSettings: "إعدادات AI", aiBackup: "نماذج احتياطية (اختياري)", aiBackupHint: "عندما يُقطع الرد لطوله، يتسلّم النموذج التالي المستند غير المكتمل ليكمله (يُنصح بـ OpenRouter).", aiBusyThinking: "النموذج يفكّر…", aiBusyCompact: "الرد طويل جداً — أطلب مسودة مضغوطة", aiBusyMinimal: "ما زال طويلاً — أرجع إلى مسودة مصغّرة من ثلاث شاشات", aiBusyRescue: "أُسلّم الرد الجزئي إلى {model} لإكماله",
+  aiProvider: "المزوّد", aiBaseUrl: "العنوان الأساسي", aiModel: "معرّف النموذج", aiKey: "مفتاح API", aiGetKey: "الحصول على مفتاح",
+  aiKeyHint: "يُحفظ في هذا المتصفح فقط ويُرسل مباشرة إلى المزوّد.", aiRestore: "التبديل بين صياغة الذكاء الاصطناعي والأصل", aiApplied: "تم التطبيق", aiCopySettings: "نسخ الإعدادات", aiImportSettings: "استيراد الإعدادات", aiImportBad: "تعذّرت قراءة الإعدادات الملصقة",
+  aiSelectScreen: "اختر شاشة أولاً", aiNoKey: "أضف مفتاحاً في تبويب AI لاستعمال هذا", aiError: "فشل طلب الذكاء الاصطناعي",
+  aiErrorRefusal: "رفض النموذج الإجابة", aiErrorJson: "تعذّرت قراءة ردّ النموذج", aiErrorLong: "الردّ طويل فقُطع. جرّب شاشات أقل", aiErrorModel: "أدخل معرّف النموذج",
+  aiErrorInsecure: "يجب أن يستعمل العنوان الأساسي https أو يشير إلى localhost", aiErrorNetwork: "تعذّر الاتصال. تحقق من العنوان والشبكة وإعدادات CORS في الخادم",
+  aiTest: "اختبار الاتصال", aiTesting: "جارٍ فحص الاتصال…", aiTestOk: "الاتصال جيد",
+  askAiRefine: "عدّل هذا التصميم",
+  askAiCutTitle: "قُطع الرد أثناء الكتابة",
+  askAiCutHint: "كتب النموذج جزءاً من التصميم ثم توقّف. «أكمل التصميم» يعيد إرسال هذا الجزء كما هو، فيُكمل من نقطة التوقف تماماً بدل إعادة الرسم من البداية.",
+  askAiContinue: "أكمل التصميم من حيث توقّف",
+};
+
+export const t = (key: UIKey, lang: Lang = current): string => (lang === "ko" ? KO[key] : lang === "ar" ? AR[key] : UI[key][lang]);
 
 /* ---- part defaults and nouns ---- */
 
@@ -645,6 +749,41 @@ export const KIND_TEXT: Record<
     radio: { noun: "라디오 버튼", label: "옵션" },
     badge: { noun: "배지", label: "3" },
   },
+  ar: {
+    box: { noun: "صندوق" },
+    button: { noun: "زر", label: "زر" },
+    iconButton: { noun: "زر أيقونة" },
+    fab: { noun: "زر عائم (FAB)" },
+    extendedFab: { noun: "زر عائم موسّع", label: "إنشاء" },
+    chip: { noun: "شريحة", label: "شريحة" },
+    topAppBar: { noun: "شريط التطبيق العلوي", label: "العنوان" },
+    bottomNav: { noun: "شريط التنقل" },
+    navRail: { noun: "شريط التنقل الجانبي" },
+    searchBar: { noun: "شريط البحث", label: "بحث" },
+    card: { noun: "بطاقة", label: "عنوان البطاقة", supporting: "النص المساعد يُكتب هنا." },
+    listItem: { noun: "عنصر قائمة", label: "عنصر قائمة", supporting: "نص مساعد" },
+    dialog: { noun: "مربّع حوار", label: "تأكيد", supporting: "هل تريد المتابعة؟" },
+    snackbar: { noun: "شريط إشعار", label: "تم الحفظ", supporting: "تراجع" },
+    textField: { noun: "حقل نص", label: "التسمية" },
+    select: { noun: "قائمة منسدلة", label: "التسمية" },
+    switch: { noun: "مفتاح", label: "الإشعارات" },
+    checkbox: { noun: "خانة اختيار", label: "أوافق" },
+    slider: { noun: "شريط تمرير" },
+    text: { noun: "نص", label: "عنوان" },
+    image: { noun: "صورة" },
+    camera: { noun: "كاميرا" },
+    map: { noun: "خريطة" },
+    divider: { noun: "فاصل" },
+    loadingIndicator: { noun: "مؤشر تحميل" },
+    linearProgress: { noun: "مؤشر تقدّم خطّي" },
+    circularProgress: { noun: "مؤشر تقدّم دائري" },
+    splitButton: { noun: "زر مقسوم", label: "إرسال" },
+    fabMenu: { noun: "قائمة زر عائم" },
+    toolbar: { noun: "شريط أدوات" },
+    tabs: { noun: "تبويبات" },
+    radio: { noun: "زر اختيار", label: "خيار" },
+    badge: { noun: "شارة", label: "3" },
+  },
 };
 
 /** default labels of a tab row */
@@ -653,6 +792,7 @@ export const TAB_LABELS: Record<Lang, string[]> = {
   en: ["For you", "Following", "Trending", "New", "Saved"],
   zh: ["推荐", "关注", "热门", "最新", "已保存"],
   ko: ["추천", "팔로잉", "인기", "새 항목", "저장됨"],
+  ar: ["لك", "المتابَعون", "الرائج", "الجديد", "المحفوظ"],
 };
 
 /** default entries of a FAB menu */
@@ -662,6 +802,7 @@ export const SELECT_OPTIONS: Record<Lang, string[]> = {
   en: ["Option 1", "Option 2", "Option 3"],
   zh: ["选项 1", "选项 2", "选项 3"],
   ko: ["옵션 1", "옵션 2", "옵션 3"],
+  ar: ["الخيار 1", "الخيار 2", "الخيار 3"],
 };
 
 export const FAB_MENU_TABS: Record<Lang, { icon: string; label: string }[]> = {
@@ -693,6 +834,13 @@ export const FAB_MENU_TABS: Record<Lang, { icon: string; label: string }[]> = {
     { icon: "attach_file", label: "파일" },
     { icon: "event", label: "일정" },
   ],
+  ar: [
+    { icon: "edit", label: "ملاحظة" },
+    { icon: "photo_camera", label: "صورة" },
+    { icon: "mic", label: "صوت" },
+    { icon: "attach_file", label: "ملف" },
+    { icon: "event", label: "موعد" },
+  ],
 };
 
 export const NAV_TABS: Record<Lang, { icon: string; label: string }[]> = {
@@ -719,6 +867,12 @@ export const NAV_TABS: Record<Lang, { icon: string; label: string }[]> = {
     { icon: "search", label: "검색" },
     { icon: "favorite", label: "저장됨" },
     { icon: "settings", label: "설정" },
+  ],
+  ar: [
+    { icon: "home", label: "الرئيسية" },
+    { icon: "search", label: "بحث" },
+    { icon: "favorite", label: "المحفوظ" },
+    { icon: "settings", label: "الإعدادات" },
   ],
 };
 
@@ -759,6 +913,15 @@ export const TRANSITION_TEXT: Record<Lang, Record<string, string>> = {
     expand: "확대",
     none: "애니메이션 없음",
   },
+  ar: {
+    slide: "انزلاق من اليمين",
+    slideLeft: "انزلاق من اليسار",
+    slideUp: "انزلاق من الأسفل",
+    slideDown: "انزلاق من الأعلى",
+    fade: "تلاشٍ",
+    expand: "تمدّد",
+    none: "بلا حركة",
+  },
 };
 
 export const SWIPE_TEXT: Record<Lang, Record<string, string>> = {
@@ -766,4 +929,5 @@ export const SWIPE_TEXT: Record<Lang, Record<string, string>> = {
   en: { left: "swiping left", right: "swiping right", up: "swiping up", down: "swiping down" },
   zh: { left: "向左滑动", right: "向右滑动", up: "向上滑动", down: "向下滑动" },
   ko: { left: "왼쪽으로 스와이프", right: "오른쪽으로 스와이프", up: "위로 스와이프", down: "아래로 스와이프" },
+  ar: { left: "السحب إلى اليسار", right: "السحب إلى اليمين", up: "السحب إلى الأعلى", down: "السحب إلى الأسفل" },
 };

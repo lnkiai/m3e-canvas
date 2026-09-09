@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  COLOR_TOKEN_TEXT, FAB_MENU_TABS, KIND_TEXT, KO, LANGS, NAV_TABS, SEED_TEXT, TEXT_TOKEN_TEXT,
-  SWIPE_TEXT, TAB_LABELS, TRANSITION_TEXT, UI, t, type UIKey,
+  AR, COLOR_TOKEN_TEXT, FAB_MENU_TABS, KIND_TEXT, KO, LANGS, NAV_TABS, SEED_TEXT, TEXT_TOKEN_TEXT,
+  SWIPE_TEXT, TAB_LABELS, TRANSITION_TEXT, UI, t, type Lang, type UIKey,
 } from "./i18n";
 import { KIND_ORDER, LANG_FONT, SWIPE_DIRS, TRANSITIONS } from "./tokens";
 
 const ui: Record<UIKey, Record<string, string>> = UI;
-const ko: Record<UIKey, string> = KO;
+/* Languages added after the main table was written live in a table of their
+ * own, keyed the same way; the main table keeps only the first three. */
+const side: Partial<Record<Lang, Record<UIKey, string>>> = { ko: KO, ar: AR };
+const sideLangs = Object.keys(side) as Lang[];
 const keys = Object.keys(ui) as UIKey[];
 const languages = LANGS.map(({ key }) => key);
 const sortedKeys = (value: object) => Object.keys(value).sort();
@@ -39,23 +42,23 @@ describe("UI dictionary parity", () => {
   });
 
   it("offers each supported language exactly once with a nonblank display label", () => {
-    expect([...languages].sort()).toEqual(["en", "ja", "ko", "zh"]);
+    expect([...languages].sort()).toEqual(["ar", "en", "ja", "ko", "zh"]);
     for (const { key, label } of LANGS) nonemptyStrings(label, `LANGS.${key}`);
   });
 
-  it("gives Korean exactly the same keys as the main UI dictionary", () => {
+  it.each(sideLangs)("gives %s, kept in its own table, exactly the same keys as the main UI dictionary", (lang) => {
     expect(keys.length).toBeGreaterThan(0);
-    expect(sortedKeys(ko)).toEqual([...keys].sort());
+    expect(sortedKeys(side[lang]!)).toEqual([...keys].sort());
   });
 
-  it("gives every main UI key all and only the non-Korean languages", () => {
-    const expected = languages.filter((lang) => lang !== "ko").sort();
+  it("gives every main UI key all and only the languages kept in the main table", () => {
+    const expected = languages.filter((lang) => !sideLangs.includes(lang)).sort();
     for (const key of keys) expect(sortedKeys(ui[key]), key).toEqual(expected);
   });
 
   it.each(LANGS)("returns a nonblank translation for every UI key in $key", ({ key: lang }) => {
     for (const key of keys) {
-      const stored = lang === "ko" ? ko[key] : ui[key][lang];
+      const stored = side[lang]?.[key] ?? ui[key][lang];
       nonemptyStrings(stored, `UI.${key}.${lang}`);
       expect(t(key, lang), `${key}.${lang}`).toBe(stored);
     }

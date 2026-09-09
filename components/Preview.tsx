@@ -565,7 +565,7 @@ function Screen({
       /* the scrim and the pointer guard follow the rail itself, so a peek shows the modal
        * state as authored; the root's inert keeps a non-interactive screen from acting on it */
       onPointerDown={(e) => { if (hasModal) e.stopPropagation(); }}
-      style={{ position: "absolute", inset: 0, background: p[frame.bg ?? "surface"], overflow: "hidden", outline: "none" }}
+      style={{ position: "absolute", inset: 0, background: p[frame.bg ?? "surface"], overflow: "hidden", outline: "none", direction: "ltr" }}
     >
       <AnimatePresence>
         {hasModal && <motion.button

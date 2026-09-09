@@ -95,14 +95,14 @@ import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
-import { draftDesign } from "@/lib/ai";
+import { ChainError, DraftProgress, draftDesign, refineDesign, resumeDraft, resumeRefine } from "@/lib/ai";
 import { ShareDialog } from "@/components/ShareMenu";
 import { ColorPanel } from "@/components/ColorPanel";
 import { MotionPanel, ShapePanel, TypePanel } from "@/components/ThemePanel";
 import { ThemeContext, ensureFontLoaded, ensureLangFontLoaded } from "@/lib/theme";
 import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
-import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
+import { Lang, LangContext, SEED_TEXT, getLang, isLang, isRtl, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
 /** the screens while a model drafts: primary, tertiary and primary container, drifting */
 const DRAFT_GRADIENT = (p: Palette) => `linear-gradient(120deg, ${p.primaryContainer}, ${p.tertiaryContainer}, ${p.primary}, ${p.secondaryContainer}, ${p.primaryContainer})`;
@@ -385,6 +385,11 @@ export default function Page() {
   const [ideaText, setIdeaText] = useState("");
   /** a model is drafting a design right now */
   const [draftBusy, setDraftBusy] = useState(false);
+  /** what the drafting model reports it is doing right now, shown under the spinner */
+  const [draftStatus, setDraftStatus] = useState("");
+  /** when a model run is cut off mid-document, the best partial reply waits here so the author can
+   *  continue from where it stopped; doc/widths snapshot what a refine was editing */
+  const [draftCut, setDraftCut] = useState<{ mode: "draft" | "refine"; idea: string; doc?: Doc; widths?: Record<string, number>; fragment: string } | null>(null);
   /** the design a draft replaced, kept until the author keeps or undoes the draft */
   const [draftBefore, setDraftBefore] = useState<Doc | null>(null);
   const draftBeforeRef = useRef<Doc | null>(null);
@@ -665,9 +670,16 @@ export default function Page() {
         }
       } else {
         const nl = (navigator.language ?? "").toLowerCase();
-        initialLang = nl.startsWith("zh") ? "zh" : nl.startsWith("ko") ? "ko" : nl.startsWith("ja") ? "ja" : "en";
+        initialLang = nl.startsWith("ar") ? "ar" : nl.startsWith("zh") ? "zh" : nl.startsWith("ko") ? "ko" : nl.startsWith("ja") ? "ja" : "en";
         setLang(initialLang);
         queueMicrotask(() => fitRef.current());
+      }
+      /* ?lang= names the language outright, for a link that must open in one
+       * language whatever the browser or the last visit says */
+      const asked = new URLSearchParams(location.search).get("lang");
+      if (isLang(asked) && asked !== initialLang) {
+        initialLang = asked;
+        setLang(asked);
       }
       setGlobalLang(initialLang);
       initialLangRef.current = initialLang;
@@ -682,6 +694,8 @@ export default function Page() {
 
   useEffect(() => {
     document.documentElement.lang = lang;
+    /* a right-to-left language mirrors the editor: panels, menus and text all follow */
+    document.documentElement.dir = isRtl(lang) ? "rtl" : "ltr";
     /* the editor's own text and the parts both pick up the language's Noto face */
     document.body.style.fontFamily = uiFontFamily(lang);
     ensureLangFontLoaded(lang, () => setWidths({}));
@@ -1676,8 +1690,9 @@ export default function Page() {
   useEffect(() => {
     if (!resizing) return;
     const move = (e: PointerEvent) => {
-      if (resizing === "left") setLeftW(clamp(e.clientX, RAIL_W + 244, 480));
-      else setRightW(clamp(window.innerWidth - e.clientX, 280, 480));
+      const rtl = isRtl(lang);
+      if (resizing === "left") setLeftW(clamp(rtl ? window.innerWidth - e.clientX : e.clientX, RAIL_W + 244, 480));
+      else setRightW(clamp(rtl ? e.clientX : window.innerWidth - e.clientX, 280, 480));
     };
     const up = () => setResizing(null);
     window.addEventListener("pointermove", move);
@@ -1686,7 +1701,7 @@ export default function Page() {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
     };
-  }, [resizing]);
+  }, [resizing, lang]);
 
   /* ---------- editing ---------- */
   const primaryId = selectedIds[selectedIds.length - 1] ?? null;
@@ -2198,24 +2213,74 @@ export default function Page() {
     } catch {}
   };
 
-  const startDraft = async (idea: string) => {
+  const draftStatusText = (p: DraftProgress): string => {
+    const key = p.phase === "draft" ? "aiBusyThinking" : p.phase === "compact" ? "aiBusyCompact" : p.phase === "minimal" ? "aiBusyMinimal" : "aiBusyRescue";
+    return p.phase === "rescue" ? t(key, lang).replace("{model}", p.model) : `${t(key, lang)} · ${p.model}`;
+  };
+
+  const ensureGuide = async () => {
+    if (guideRef.current === null) {
+      const res = await fetch(`${BASE_PATH}/agent.md`);
+      if (!res.ok) throw new Error("guide");
+      guideRef.current = await res.text();
+    }
+  };
+
+  /** the whole model run shared by "Draft with AI", "Edit this design" and their continuations:
+   *  fetch the guide, run the chain, put the reply on the canvas. The author's Stop button aborts
+   *  `aiAbortRef`; a run whose reply was cut off keeps the partial reply in `draftCut` so the
+   *  author can ask the same chain to continue from exactly where it stopped. */
+  const runWhole = async (mode: "draft" | "refine", idea: string, doc?: Doc, widths?: Record<string, number>, resumeFragment?: string) => {
     setShareOpen(false);
+    setDraftCut(null);
     setDraftBusy(true);
+    setDraftStatus("");
+    aiAbortRef.current?.abort();
+    const ac = new AbortController();
+    aiAbortRef.current = ac;
     try {
-      if (guideRef.current === null) {
-        const res = await fetch(`${BASE_PATH}/agent.md`);
-        if (!res.ok) throw new Error("guide");
-        guideRef.current = await res.text();
-      }
-      const next = await draftDesign(aiSettings, guideRef.current, idea, lang);
+      await ensureGuide();
+      const guide = guideRef.current!;
+      const progress = (p: DraftProgress) => setDraftStatus(draftStatusText(p));
+      const next = resumeFragment
+        ? mode === "draft"
+          ? await resumeDraft(aiSettings, guide, idea, lang, resumeFragment, ac.signal, progress)
+          : await resumeRefine(aiSettings, guide, doc!, widths!, idea, lang, resumeFragment, ac.signal, progress)
+        : mode === "draft"
+          ? await draftDesign(aiSettings, guide, idea, lang, ac.signal, progress)
+          : await refineDesign(aiSettings, guide, doc!, widths!, idea, lang, ac.signal, progress);
+      if (ac.signal.aborted) return;
       arrive(next);
     } catch (e) {
+      if (ac.signal.aborted) return;
+      if (e instanceof ChainError && e.kind === "long" && e.fragment.trim().length > 0) {
+        // the reply stopped mid-document: offer to continue from the partial reply instead of failing
+        setDraftCut({ mode, idea, doc, widths, fragment: e.fragment });
+        return;
+      }
       const m = e instanceof Error ? e.message : "";
       showToast(m === "json" ? t("aiErrorJson", lang) : m === "refusal" ? t("aiErrorRefusal", lang) : m === "long" ? t("aiErrorLong", lang) : t("aiError", lang), 3200, "error");
     } finally {
       setDraftBusy(false);
     }
   };
+
+  /** stops the model that is drafting, editing or continuing a design; also dismisses the continue offer */
+  const cancelDraft = () => {
+    aiAbortRef.current?.abort();
+    setDraftCut(null);
+  };
+
+  /** runs the same request again, handing the model the partial reply of the cut-off run */
+  const continueDraft = () => {
+    const cut = draftCut;
+    if (cut) void runWhole(cut.mode, cut.idea, cut.doc, cut.widths, cut.fragment);
+  };
+
+  const startDraft = (idea: string) => void runWhole("draft", idea);
+
+  /** applies one targeted change to the design that is on the canvas right now */
+  const startRefine = (change: string) => void runWhole("refine", change, doc, widthsRef.current);
   /** true after a kept draft until the author undoes something, so the header's undo also sits by the opener */
   const [quickUndo, setQuickUndo] = useState(false);
   const keepDraft = () => {
@@ -3389,7 +3454,7 @@ export default function Page() {
               }}
             >
               {!leftOpen && railHover ? (
-                <IconBtn icon="left_panel_open" p={p} on onClick={() => setLeftOpen(true)} title={t("openPanel", lang)} size={40} />
+                <IconBtn icon={isRtl(lang) ? "right_panel_open" : "left_panel_open"} p={p} on onClick={() => setLeftOpen(true)} title={t("openPanel", lang)} size={40} />
               ) : (
                 <div
                   onClick={() => !leftOpen && setLeftOpen(true)}
@@ -3439,7 +3504,7 @@ export default function Page() {
                   {t(LEFT_TABS.find((x) => x.key === leftTab)?.title ?? "parts", lang)}
                 </span>
                 <IconBtn
-                  icon="left_panel_close"
+                  icon={isRtl(lang) ? "right_panel_close" : "left_panel_close"}
                   p={p}
                   onClick={() => setLeftOpen(false)}
                   title={t("closePanel", lang)}
@@ -3515,7 +3580,7 @@ export default function Page() {
                 position: "absolute",
                 top: 0,
                 bottom: 0,
-                right: -3,
+                insetInlineEnd: -3,
                 width: 6,
                 cursor: "col-resize",
                 zIndex: 5,
@@ -3559,6 +3624,8 @@ export default function Page() {
                 willChange: "transform",
                 visibility: viewReady ? "visible" : "hidden",
                 fontFamily: fontFamilyOf(theme.font, lang),
+                /* the design surface keeps the authoring direction: UI language (rtl) must not reflow authored frames/rows */
+                direction: "ltr",
               }}
             >
               {frame === "phone" &&
@@ -3643,9 +3710,93 @@ export default function Page() {
                           {groups.some((g) => frameOf.get(g.id) === f.id && modalRailOf(g)) && (
                             <div aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.32)", pointerEvents: "none", zIndex: 1 }} />
                           )}
-                          {draftBusy && (
+                          {(draftBusy || draftCut) && (
                             <div style={{ position: "absolute", inset: 0, zIndex: 90, background: canvasBg, display: "grid", placeItems: "center" }}>
-                              <LoadingIndicator size={96} color="url(#m3e-drafting)" />
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "0 32px", textAlign: "center", maxWidth: 440 }}>
+                                {draftCut ? (
+                                  <>
+                                    <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4, color: p.onSurface }}>{t("askAiCutTitle", lang)}</div>
+                                    <div style={{ fontSize: 13, lineHeight: 1.6, color: p.onSurfaceVariant }}>{t("askAiCutHint", lang)}</div>
+                                    <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                                      <button
+                                        onClick={continueDraft}
+                                        title={t("askAiContinue", lang)}
+                                        className="m3-press"
+                                        style={{
+                                          height: 40,
+                                          padding: "0 20px",
+                                          borderRadius: 20,
+                                          border: "none",
+                                          background: p.primary,
+                                          color: p.onPrimary,
+                                          fontSize: 13,
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 8,
+                                        }}
+                                      >
+                                        <span style={{ display: "inline-flex" }}>
+                                          <Icon name="redo" size={18} />
+                                        </span>
+                                        {t("askAiContinue", lang)}
+                                      </button>
+                                      <button
+                                        onClick={cancelDraft}
+                                        title={t("cancel", lang)}
+                                        className="m3-press"
+                                        style={{
+                                          height: 40,
+                                          padding: "0 20px",
+                                          borderRadius: 20,
+                                          border: "none",
+                                          background: p.surfaceContainerHighest,
+                                          color: p.onSurface,
+                                          fontSize: 13,
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                        }}
+                                      >
+                                        {t("cancel", lang)}
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <LoadingIndicator size={96} color="url(#m3e-drafting)" />
+                                    {draftStatus && (
+                                      <div role="status" style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: p.onSurface, maxWidth: 320 }}>
+                                        {draftStatus}
+                                      </div>
+                                    )}
+                                    <button
+                                      onClick={cancelDraft}
+                                      title={t("cancel", lang)}
+                                      className="m3-press"
+                                      style={{
+                                        height: 40,
+                                        padding: "0 20px",
+                                        borderRadius: 20,
+                                        border: "none",
+                                        background: p.surfaceContainerHighest,
+                                        color: p.onSurface,
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                      }}
+                                    >
+                                      <span style={{ display: "inline-flex" }}>
+                                        <Icon name="stop" size={18} />
+                                      </span>
+                                      {t("cancel", lang)}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -3977,10 +4128,10 @@ export default function Page() {
 
           {!rightOpen && !isMobile && (
             <div
-              style={{ position: "absolute", right: 20, top: 20, zIndex: 45 }}
+              style={{ position: "absolute", insetInlineEnd: 20, top: 20, zIndex: 45 }}
             >
               <IconBtn
-                icon="right_panel_open"
+                icon={isRtl(lang) ? "left_panel_open" : "right_panel_open"}
                 p={p}
                 on
                 onClick={() => setRightOpen(true)}
@@ -4003,7 +4154,7 @@ export default function Page() {
                 position: "absolute",
                 top: 0,
                 bottom: 0,
-                left: -3,
+                insetInlineStart: -3,
                 width: 6,
                 cursor: "col-resize",
                 zIndex: 5,
@@ -4030,7 +4181,7 @@ export default function Page() {
                 />
               </div>
               <IconBtn
-                icon="right_panel_close"
+                icon={isRtl(lang) ? "left_panel_close" : "right_panel_close"}
                 p={p}
                 onClick={() => setRightOpen(false)}
                 title={t("closePanel", lang)}
@@ -4130,6 +4281,8 @@ export default function Page() {
           open={shareOpen}
           onClose={() => setShareOpen(false)}
           onDraft={(idea) => void startDraft(idea)}
+          onRefine={(change) => void startRefine(change)}
+          canRefine={frames.length > 0}
           onSetupAi={() => {
             setShareOpen(false);
             setLeftOpen(true);

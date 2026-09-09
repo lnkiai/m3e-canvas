@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { complete, hasKey, isSecureUrl, type AiSettings, type Provider } from "./ai";
+import { ChainError, complete, draftDesign, hasKey, isSecureUrl, resumeDraft, type AiSettings, type Provider } from "./ai";
 
 const settings = (over: Partial<AiSettings> = {}): AiSettings =>
   ({ provider: "openai", baseUrl: "https://api.example.test", model: "test-model", key: "test-key", ...over });
 
+/** the fork's draft runner uses a fixed public-style endpoint; kept apart from the `settings` helper */
+const SETTINGS = { provider: "openai", baseUrl: "https://api.openai.com/v1", model: "gpt-x", key: "sk-test" } as const;
+
 const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+
+const chatBody = (finishReason: string, content?: string) => jsonResponse({ choices: [{ finish_reason: finishReason, message: { content } }] });
+
+const EMPTY_DOC = JSON.stringify({ frames: [], groups: [] });
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -132,5 +139,115 @@ describe("hasKey and isSecureUrl", () => {
     expect(isSecureUrl("http://127.0.0.1:8080/v1")).toBe(true);
     expect(isSecureUrl("http://[::1]:8080/v1")).toBe(true);
     expect(isSecureUrl("http://api.example.test/v1")).toBe(false);
+  });
+});
+
+describe("draftDesign", () => {
+  it("falls back to a compressed prompt when the first reply is cut off as too long", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      if (bodies.length === 1) return chatBody("length");
+      return chatBody("stop", EMPTY_DOC);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const doc = await draftDesign(SETTINGS, "GUIDE", "a notes app", "en");
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(doc).toEqual({ frames: [], groups: [] });
+    const firstUser = (bodies[0] as { messages: { content: string }[] }).messages[1].content;
+    const secondUser = (bodies[1] as { messages: { content: string }[] }).messages[1].content;
+    expect(firstUser).not.toContain("previous reply was cut off");
+    expect(secondUser).toContain("previous reply was cut off");
+    expect(secondUser).toContain("compact enough to fit");
+  });
+
+  it("escalates to a minimal three-screen request when compression is still too long", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      if (bodies.length <= 2) return chatBody("length");
+      return chatBody("stop", EMPTY_DOC);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const doc = await draftDesign(SETTINGS, "GUIDE", "a notes app", "en");
+
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(doc).toEqual({ frames: [], groups: [] });
+    const thirdUser = (bodies[2] as { messages: { content: string }[] }).messages[1].content;
+    expect(thirdUser).toContain("exactly three screens");
+  });
+
+  it("hands the cut-off partial reply to a backup model from OpenRouter", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      if (bodies.length <= 3) return chatBody("length"); // the main model is cut off three times
+      return chatBody("stop", EMPTY_DOC); // the backup model takes over and finishes
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const doc = await draftDesign({ ...SETTINGS, backupModels: ["gpt-y"] }, "GUIDE", "a notes app", "en");
+
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(doc).toEqual({ frames: [], groups: [] });
+    const models = bodies.map((b) => (b as { model: string }).model);
+    expect(models).toEqual(["gpt-x", "gpt-x", "gpt-x", "gpt-y"]);
+    const fourthUser = (bodies[3] as { messages: { content: string }[] }).messages[1].content;
+    expect(fourthUser).toContain("cut off or could not be read");
+  });
+
+  it("keeps a single round trip when the first reply already fits", async () => {
+    const fetch = vi.fn(async () => chatBody("stop", EMPTY_DOC));
+    vi.stubGlobal("fetch", fetch);
+
+    const doc = await draftDesign(SETTINGS, "GUIDE", "a notes app", "en");
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(doc).toEqual({ frames: [], groups: [] });
+  });
+
+  it("reports what the drafting model is doing while it works", async () => {
+    const seen: { phase: string; model: string }[] = [];
+    const fetch = vi.fn(async () => chatBody("stop", EMPTY_DOC));
+    vi.stubGlobal("fetch", fetch);
+
+    await draftDesign(SETTINGS, "GUIDE", "a notes app", "en", undefined, (p) => seen.push(p));
+
+    expect(seen).toEqual([{ phase: "draft", model: "gpt-x" }]);
+  });
+});
+
+describe("cut-off replies that wait for a continuation", () => {
+  it("resumes a cut-off run by handing the partial document to the model", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return chatBody("stop", EMPTY_DOC);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const partial = '{"frames":[],"groups":['; // the reply stopped mid-document
+    const doc = await resumeDraft(SETTINGS, "GUIDE", "a notes app", "en", partial);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(doc).toEqual({ frames: [], groups: [] });
+    const user = (bodies[0] as { messages: { content: string }[] }).messages[1].content;
+    expect(user).toContain("cut off or could not be read");
+    expect(user).toContain(partial); // the model's memory of where the last reply stopped
+  });
+
+  it("throws a ChainError carrying the last partial reply when every attempt is cut off", async () => {
+    const partial = '{"frames":[],"groups":[';
+    const fetch = vi.fn(async () => chatBody("length", partial));
+    vi.stubGlobal("fetch", fetch);
+
+    const err = await draftDesign(SETTINGS, "GUIDE", "a notes app", "en").catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChainError);
+    expect((err as ChainError).kind).toBe("long");
+    expect((err as ChainError).fragment).toBe(partial);
   });
 });

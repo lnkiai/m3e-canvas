@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Palette } from "@/lib/tokens";
 import { t, useLang } from "@/lib/i18n";
-import { AiSettings, PROVIDERS, Provider, providerSpec } from "@/lib/ai";
+import { AiSettings, PROVIDERS, Provider, hasKey, probeProvider, providerSpec } from "@/lib/ai";
 import { Icon } from "./M3Node";
 
 /** the message shown for a failed request, mapped from the error codes lib/ai throws */
@@ -11,8 +11,10 @@ export function aiErrorText(e: unknown, lang: ReturnType<typeof useLang>): strin
   const m = e instanceof Error ? e.message : String(e);
   if (m === "refusal") return t("aiErrorRefusal", lang);
   if (m === "json" || m === "empty") return t("aiErrorJson", lang);
+  if (m === "long") return t("aiErrorLong", lang);
   if (m === "model") return t("aiErrorModel", lang);
   if (m === "insecure") return t("aiErrorInsecure", lang);
+  if (m === "key") return t("aiNoKey", lang);
   if (/failed to fetch|networkerror|load failed/i.test(m)) return t("aiErrorNetwork", lang);
   return `${t("aiError", lang)}: ${m}`;
 }
@@ -164,9 +166,63 @@ function ProviderGroup({ value, onChange, p }: { value: Provider; onChange: (k: 
 export function AiPanel({ p, settings, onSettings }: { p: Palette; settings: AiSettings; onSettings: (s: AiSettings) => void }) {
   const lang = useLang();
   const spec = providerSpec(settings.provider);
+  const [test, setTest] = useState<"idle" | "busy" | "ok" | "fail">("idle");
+  const [testDetail, setTestDetail] = useState("");
+  /** a settings copy is in the clipboard, or a pasted one could not be read */
+  const [copied, setCopied] = useState(false);
+  const [importBad, setImportBad] = useState(false);
+  const copySettings = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(settings));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+  const importSettings = async () => {
+    setImportBad(false);
+    try {
+      const raw = await navigator.clipboard.readText();
+      const v = JSON.parse(raw) as { provider?: string; baseUrl?: string; model?: string; key?: string; backupModels?: unknown };
+      const pr = PROVIDERS.find((p) => p.key === v.provider);
+      if (!pr) throw new Error();
+      change({
+        provider: pr.key,
+        baseUrl: typeof v.baseUrl === "string" && v.baseUrl.trim() ? v.baseUrl : pr.baseUrl,
+        model: typeof v.model === "string" && v.model.trim() ? v.model : pr.model,
+        key: typeof v.key === "string" ? v.key : "",
+        backupModels: Array.isArray(v.backupModels) ? v.backupModels.filter((x): x is string => typeof x === "string").slice(0, 2) : [],
+      });
+    } catch {
+      setImportBad(true);
+      window.setTimeout(() => setImportBad(false), 4000);
+    }
+  };
+  /* editing any setting invalidates the previous probe result */
+  const change = (s: AiSettings) => {
+    if (test !== "idle") {
+      setTest("idle");
+      setTestDetail("");
+    }
+    onSettings(s);
+  };
   const pick = (k: Provider) => {
     const s = providerSpec(k);
-    onSettings({ ...settings, provider: k, baseUrl: s.baseUrl, model: s.model });
+    /* backup models only make sense when several models share one endpoint and key (OpenRouter) */
+    change({ ...settings, provider: k, baseUrl: s.baseUrl, model: s.model, backupModels: k === "openrouter" ? settings.backupModels ?? [] : [] });
+  };
+  const runTest = async () => {
+    setTest("busy");
+    setTestDetail("");
+    try {
+      const n = await probeProvider(settings);
+      setTest("ok");
+      setTestDetail(String(n));
+    } catch (e) {
+      if ((e as Error)?.name !== "AbortError") {
+        setTest("fail");
+        setTestDetail(aiErrorText(e, lang));
+      } else setTest("idle");
+    }
   };
   return (
     <div className="no-scrollbar" style={{ height: "100%", overflowY: "auto", padding: "12px 12px 20px" }}>
@@ -179,11 +235,33 @@ export function AiPanel({ p, settings, onSettings }: { p: Palette; settings: AiS
           </div>
           <div>
             <Label p={p}>{t("aiModel", lang)}</Label>
-            <Input label={t("aiModel", lang)} value={settings.model} onChange={(model) => onSettings({ ...settings, model })} placeholder={spec.model || "model"} p={p} />
+            <Input label={t("aiModel", lang)} value={settings.model} onChange={(model) => change({ ...settings, model })} placeholder={spec.model || "model"} p={p} />
           </div>
+          {settings.provider === "openrouter" && (
+            <div>
+              <Label p={p}>{t("aiBackup", lang)}</Label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[0, 1].map((i) => (
+                  <Input
+                    key={i}
+                    label={`${t("aiBackup", lang)} ${i + 1}`}
+                    value={(settings.backupModels ?? [])[i] ?? ""}
+                    onChange={(backup) => {
+                      const list = [...(settings.backupModels ?? []), "", ""].slice(0, 2);
+                      list[i] = backup;
+                      change({ ...settings, backupModels: list });
+                    }}
+                    placeholder="openrouter/…"
+                    p={p}
+                  />
+                ))}
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: p.onSurfaceVariant, marginTop: 8, padding: "0 4px" }}>{t("aiBackupHint", lang)}</div>
+            </div>
+          )}
           <div>
             <Label p={p}>{t("aiBaseUrl", lang)}</Label>
-            <Input label={t("aiBaseUrl", lang)} value={settings.baseUrl} onChange={(baseUrl) => onSettings({ ...settings, baseUrl })} placeholder={spec.baseUrl} p={p} />
+            <Input label={t("aiBaseUrl", lang)} value={settings.baseUrl} onChange={(baseUrl) => change({ ...settings, baseUrl })} placeholder={spec.baseUrl} p={p} />
           </div>
           <div>
             <Label
@@ -198,8 +276,101 @@ export function AiPanel({ p, settings, onSettings }: { p: Palette; settings: AiS
             >
               {t("aiKey", lang)}
             </Label>
-            <Input label={t("aiKey", lang)} value={settings.key} onChange={(key) => onSettings({ ...settings, key })} placeholder="sk-…" p={p} type="password" />
+            <Input label={t("aiKey", lang)} value={settings.key} onChange={(key) => change({ ...settings, key })} placeholder="sk-…" p={p} type="password" />
             <div style={{ fontSize: 12, lineHeight: 1.5, color: p.onSurfaceVariant, marginTop: 8, padding: "0 4px" }}>{t("aiKeyHint", lang)}</div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", padding: "0 4px" }}>
+            <button
+              className="m3-press"
+              onClick={copySettings}
+              title={t("aiCopySettings", lang)}
+              aria-label={t("aiCopySettings", lang)}
+              style={{
+                height: 36,
+                padding: "0 14px 0 10px",
+                borderRadius: 18,
+                border: "none",
+                background: p.surfaceContainerHigh,
+                color: p.onSurface,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ display: "inline-flex", color: copied ? p.primary : undefined }}>
+                <Icon name={copied ? "check" : "content_copy"} size={17} />
+              </span>
+              {t("aiCopySettings", lang)}
+            </button>
+            <button
+              className="m3-press"
+              onClick={importSettings}
+              title={t("aiImportSettings", lang)}
+              aria-label={t("aiImportSettings", lang)}
+              style={{
+                height: 36,
+                padding: "0 14px 0 10px",
+                borderRadius: 18,
+                border: "none",
+                background: p.surfaceContainerHigh,
+                color: p.onSurface,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ display: "inline-flex" }}>
+                <Icon name="content_paste" size={17} />
+              </span>
+              {t("aiImportSettings", lang)}
+            </button>
+          </div>
+          {importBad && (
+            <div style={{ fontSize: 12, color: p.error, padding: "0 4px" }} role="alert">
+              {t("aiImportBad", lang)}
+            </div>
+          )}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", padding: "0 4px" }}>
+            <button
+              className="m3-press"
+              onClick={runTest}
+              disabled={test === "busy" || !hasKey(settings)}
+              title={!hasKey(settings) ? t("aiNoKey", lang) : undefined}
+              aria-label={test === "busy" ? t("aiTesting", lang) : t("aiTest", lang)}
+              style={{
+                height: 40,
+                padding: "0 16px 0 12px",
+                borderRadius: 20,
+                border: "none",
+                background: test === "busy" ? p.surfaceContainerHighest : p.surfaceContainerHigh,
+                color: p.onSurface,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: test === "busy" || !hasKey(settings) ? "default" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                opacity: test === "busy" || !hasKey(settings) ? 0.6 : 1,
+              }}
+            >
+              <span className={test === "busy" ? "m3-spin" : undefined} style={{ display: "inline-flex" }}>
+                <Icon name={test === "busy" ? "progress_activity" : "wifi_tethering"} size={18} />
+              </span>
+              {test === "busy" ? t("aiTesting", lang) : t("aiTest", lang)}
+            </button>
+            {test === "ok" && (
+              <span style={{ fontSize: 12, fontWeight: 600, color: p.primary }}>
+                ✓ {t("aiTestOk", lang)}
+                {testDetail ? ` · ${testDetail}` : ""}
+              </span>
+            )}
+            {test === "fail" && <span style={{ fontSize: 12, color: p.error }}>{testDetail}</span>}
           </div>
         </div>
       </div>

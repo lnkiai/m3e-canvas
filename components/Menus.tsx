@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Palette } from "@/lib/tokens";
-import { LANGS, Lang, t, useLang } from "@/lib/i18n";
+import { isRtl, LANGS, Lang, t, useLang } from "@/lib/i18n";
 import { IconBtn } from "./ui";
 import { Icon } from "./M3Node";
 
@@ -40,10 +40,14 @@ export function Popover({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
+  const lang = useLang();
+  const rtl = isRtl(lang);
   const anchor: React.CSSProperties =
     side === "down"
       ? { top: size + 8, right: 0, transformOrigin: "top right" }
-      : { left: size + 8, bottom: 0, transformOrigin: "bottom left" };
+      : rtl
+        ? { right: size + 8, bottom: 0, transformOrigin: "bottom right" }
+        : { left: size + 8, bottom: 0, transformOrigin: "bottom left" };
   const hidden = side === "down" ? { opacity: 0, y: -6, scale: 0.96 } : { opacity: 0, x: -6, scale: 0.96 };
   return (
     <div ref={ref} style={{ position: "relative" }}>

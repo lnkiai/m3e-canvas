@@ -61,6 +61,8 @@ export function ShareDialog({
   onClose,
   onDraft,
   onSetupAi,
+  onRefine,
+  canRefine,
 }: {
   p: Palette;
   doc: Doc;
@@ -73,6 +75,8 @@ export function ShareDialog({
   /** the idea, for the author's own model to draft */
   onDraft: (idea: string) => void;
   /** opens the AI settings so a key can be entered */
+  onRefine: (change: string) => void;
+  canRefine: boolean;
   onSetupAi: () => void;
 }) {
   const lang = useLang();
@@ -230,7 +234,31 @@ export function ShareDialog({
                   : pill("key", t("aiSetup", lang), onSetupAi, { primary: true, corners: "right", title: t("aiSetupTitle", lang) })}
               </div>
             </div>
+            {aiReady && canRefine && (
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => onRefine(idea)}
+                disabled={!idea.trim()}
+                title={t("askAiRefine", lang)}
+                className="m3-press"
+                style={{
+                  height: 40,
+                  padding: "0 16px",
+                  borderRadius: 20,
+                  border: `1px solid ${p.outlineVariant}`,
+                  background: "transparent",
+                  color: p.primary,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: idea.trim() ? "pointer" : "default",
+                  opacity: idea.trim() ? 1 : 0.5,
+                }}
+              >
+                {t("askAiRefine", lang)}
+              </button>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={onClose}
                 title={t("closeBtn", lang)}

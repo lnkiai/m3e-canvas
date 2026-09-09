@@ -12,6 +12,7 @@ const SECTIONS: Record<Lang, string[]> = {
   en: ["## Colors", "## Shape, type and motion", "## Layout", "## Behavior and navigation", "## Component styles", "## General guidance"],
   zh: ["## 配色", "## 形状、字体与动效", "## 屏幕结构", "## 行为与屏幕跳转", "## 各组件的样式", "## 整体原则"],
   ko: ["## 색상", "## 모양, 글꼴 및 모션", "## 화면 구성", "## 동작 및 화면 전환", "## 부품별 스타일", "## 전체 지침"],
+  ar: ["## Colors", "## Shape, type and motion", "## Layout", "## Behavior and navigation", "## Component styles", "## General guidance"],
 };
 
 const PLATFORM_LINE: Record<Lang, Record<Platform, string>> = {
@@ -19,6 +20,7 @@ const PLATFORM_LINE: Record<Lang, Record<Platform, string>> = {
   en: { android: "Build it for Android, as a native app.", web: "Build it for the web, as an app that runs in the browser." },
   zh: { android: "实现目标是 Android（原生应用）。", web: "实现目标是 Web（在浏览器中运行的应用）。" },
   ko: { android: "Android 네이티브 앱으로 구현한다.", web: "브라우저에서 실행되는 웹 앱으로 구현한다." },
+  ar: { android: "Build it for Android, as a native app.", web: "Build it for the web, as an app that runs in the browser." },
 };
 
 /* One phone screen with a top app bar, a connected pair of buttons (one with a
@@ -66,13 +68,14 @@ const QUOTED: Record<Lang, { label: string; others: string[] }> = {
   en: { label: '"Save"', others: ["「Save」", "“Save”"] },
   zh: { label: "“Save”", others: ["「Save」", '"Save"'] },
   ko: { label: '"Save"', others: ["「Save」", "“Save”"] },
+  ar: { label: '"Save"', others: ["「Save」", "“Save”"] },
 };
 
 describe("progress track thickness", () => {
   afterEach(() => setGlobalLang("ja"));
 
   it.each(LANGS)("describes the selected thickness, including the legacy default, in %s", (lang) => {
-    const label = { ja: "トラックの太さ", en: "track thickness", zh: "轨道粗细", ko: "트랙 두께" }[lang];
+    const label = { ja: "トラックの太さ", en: "track thickness", zh: "轨道粗细", ko: "트랙 두께", ar: "track thickness" }[lang];
     for (const kind of ["linearProgress", "circularProgress"] as const) {
       for (const trackThickness of [undefined, 4, 6, 8] as const) {
         const doc = fixture();
@@ -99,12 +102,14 @@ describe("card image placement", () => {
     en: { top: "on top", leading: "filling the leading side", trailing: "filling the trailing side", background: "as a full-bleed background" },
     zh: { top: "顶部是", leading: "左侧（全高）是", trailing: "右侧（全高）是", background: "整张卡片的背景是" },
     ko: { top: "위쪽에", leading: "앞쪽(전체 높이)에", trailing: "뒤쪽(전체 높이)에", background: "배경 전체에" },
+    ar: { top: "on top", leading: "filling the leading side", trailing: "filling the trailing side", background: "as a full-bleed background" },
   };
   const SIZED: Record<Lang, { top: string; side: string }> = {
     ja: { top: "（高さ 96dp）", side: "（幅 96dp）" },
     en: { top: "(96dp tall)", side: "(96dp wide)" },
     zh: { top: "（高 96dp）", side: "（宽 96dp）" },
     ko: { top: "(높이 96dp)", side: "(너비 96dp)" },
+    ar: { top: "(96dp tall)", side: "(96dp wide)" },
   };
   /* the screen-layout section alone — the card's own style note also names the placements —
    * for a card standing in its own group so its full sentence is written out */
@@ -131,8 +136,8 @@ describe("card image placement", () => {
   });
 
   it.each(LANGS)("mentions a text position or color only when it differs from the automatic one in %s", (lang) => {
-    const color: Record<Lang, string> = { ja: "文字色 primary", en: "text in primary", zh: "文字颜色 primary", ko: "텍스트 색상 primary" };
-    const bottom: Record<Lang, string> = { ja: "文字は下寄せ", en: "text aligned to the bottom", zh: "文字底部对齐", ko: "텍스트 아래 정렬" };
+    const color: Record<Lang, string> = { ja: "文字色 primary", en: "text in primary", zh: "文字颜色 primary", ko: "텍스트 색상 primary", ar: "text in primary" };
+    const bottom: Record<Lang, string> = { ja: "文字は下寄せ", en: "text aligned to the bottom", zh: "文字底部对齐", ko: "텍스트 아래 정렬", ar: "text aligned to the bottom" };
     expect(cardLayout(lang, {})).not.toContain(color[lang]);
     expect(cardLayout(lang, { textColor: "primary" })).toContain(color[lang]);
     expect(cardLayout(lang, { contentAlign: "end" })).toContain(bottom[lang]);
@@ -185,10 +190,10 @@ describe("navigation rail expansion", () => {
   });
 
   it.each(LANGS)("exports only the selected rail state and presentation in %s", (lang) => {
-    const expandedText = { ja: "展開状態", en: "NavigationRail, expanded,", zh: "展开状态", ko: "펼친 상태" }[lang];
-    const collapsedText = { ja: "折りたたみ状態", en: "NavigationRail, collapsed,", zh: "折叠状态", ko: "접힌 상태" }[lang];
-    const modalText = { ja: "モーダル型：展開時", en: "modal overlay:", zh: "模态覆盖：", ko: "모달 오버레이:" }[lang];
-    const nonModalText = { ja: "非モーダル型：現在", en: "non-modal layout:", zh: "非模态布局：", ko: "비모달 레이아웃:" }[lang];
+    const expandedText = { ja: "展開状態", en: "NavigationRail, expanded,", zh: "展开状态", ko: "펼친 상태", ar: "NavigationRail, expanded," }[lang];
+    const collapsedText = { ja: "折りたたみ状態", en: "NavigationRail, collapsed,", zh: "折叠状态", ko: "접힌 상태", ar: "NavigationRail, collapsed," }[lang];
+    const modalText = { ja: "モーダル型：展開時", en: "modal overlay:", zh: "模态覆盖：", ko: "모달 오버레이:", ar: "modal overlay:" }[lang];
+    const nonModalText = { ja: "非モーダル型：現在", en: "non-modal layout:", zh: "非模态布局：", ko: "비모달 레이아웃:", ar: "non-modal layout:" }[lang];
     for (const platform of ["android", "web"] as const) {
       for (const railExpanded of [false, true]) {
         for (const railModal of [false, true]) {
@@ -208,7 +213,7 @@ describe("navigation rail expansion", () => {
           expect(layout).not.toContain(railModal ? nonModalText : modalText);
           expect(layout).toContain(`${railExpanded ? 220 : 96}dp`);
           expect(layout).toContain(railModal ? "ModalWideNavigationRail" : "WideNavigationRail");
-          expect(layout).toContain({ ja: "「Saved」が選択状態", en: '"Saved" is selected', zh: "“Saved”为选中状态", ko: '"Saved" 선택됨' }[lang]);
+          expect(layout).toContain({ ja: "「Saved」が選択状態", en: '"Saved" is selected', zh: "“Saved”为选中状态", ko: '"Saved" 선택됨', ar: '"Saved" is selected' }[lang]);
           const styles = styleBullets(prompt, lang).join("\n");
           expect(styles).toContain("220dp");
           expect(styles).toContain("96dp");
@@ -306,6 +311,7 @@ describe("buildPrompt for the camera, map and dropdown parts", () => {
     en: ["camera preview", "map"],
     zh: ["相机预览", "地图"],
     ko: ["카메라 미리보기", "지도"],
+    ar: ["camera preview", "map"],
   };
 
   function screen(lang: Lang, items: Item[]) {
@@ -350,7 +356,7 @@ describe("scrollable tab rows in the prompt", () => {
     frames: [{ id: "f", name: "Home", x: 0, y: 0 }],
     groups: [{ id: "g", x: 0, y: 100, axis: "x", items: [withTabs(n)] }],
   });
-  const marker: Record<Lang, string> = { ja: "横にスクロールするタブ", en: "horizontally scrolling tab row", zh: "可横向滚动", ko: "가로로 스크롤되는 탭" };
+  const marker: Record<Lang, string> = { ja: "横にスクロールするタブ", en: "horizontally scrolling tab row", zh: "可横向滚动", ko: "가로로 스크롤되는 탭", ar: "horizontally scrolling tab row" };
 
   it.each(LANGS)("says a row of seven tabs scrolls in %s, and a row of five does not", (lang) => {
     expect(buildPrompt(doc(7), {}, undefined, lang)).toContain(marker[lang]);
