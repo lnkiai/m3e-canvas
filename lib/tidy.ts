@@ -155,16 +155,25 @@ function rowsOf(units: Unit[]): Unit[][] {
   return out;
 }
 
-const isRail = (u: Unit) => u.kind === "navRail";
-const isTop = (u: Unit) => u.kind === "topAppBar" || u.kind === "tabs";
-const isBottomBar = (u: Unit) => u.kind === "bottomNav" || (u.kind === "box" && !!u.checked);
-const isFloatingBottom = (u: Unit) => u.kind === "toolbar" || u.kind === "snackbar";
-const isFab = (u: Unit) => u.kind === "fab" || u.kind === "extendedFab" || u.kind === "fabMenu";
-const isOverlay = (u: Unit) => u.kind === "dialog";
+/** the only fields the classifiers below read; a Unit and a bare part both satisfy it */
+type Placement = { kind: string; checked?: boolean };
+
+const isRail = (u: Placement) => u.kind === "navRail";
+const isTop = (u: Placement) => u.kind === "topAppBar" || u.kind === "tabs";
+const isBottomBar = (u: Placement) => u.kind === "bottomNav" || (u.kind === "box" && !!u.checked);
+const isFloatingBottom = (u: Placement) => u.kind === "toolbar" || u.kind === "snackbar";
+const isFab = (u: Placement) => u.kind === "fab" || u.kind === "extendedFab" || u.kind === "fabMenu";
+const isOverlay = (u: Placement) => u.kind === "dialog";
 /** a line of text, and the small controls that pair with one across a row */
-const isLabel = (u: Unit) => u.kind === "text";
-const isControl = (u: Unit) => u.kind === "switch" || u.kind === "checkbox" || u.kind === "radio" || u.kind === "iconButton";
-const isAnchored = (u: Unit) => isRail(u) || isTop(u) || isBottomBar(u) || isFloatingBottom(u) || isFab(u) || isOverlay(u);
+const isLabel = (u: Placement) => u.kind === "text";
+const isControl = (u: Placement) => u.kind === "switch" || u.kind === "checkbox" || u.kind === "radio" || u.kind === "iconButton";
+const isAnchored = (u: Placement) => isRail(u) || isTop(u) || isBottomBar(u) || isFloatingBottom(u) || isFab(u) || isOverlay(u);
+
+/** Whether Tidy stacks this run in the body, rather than pinning it to an edge, floating it
+ *  above the bottom bar or centring it. A run takes its place from its first part, as the
+ *  clusters do. Placing a part outside Tidy reads the same split, so the two cannot
+ *  disagree about what shapes the body and what fills it. */
+export const isBodyRun = (g: Group) => !isAnchored({ kind: g.items[0].kind, checked: g.items[0].checked });
 
 /** where a unit sits horizontally, so tidying keeps a right-aligned part on the right.
  *  Judged from the edges, so a part already on the margin reads the same way after tidying. */
