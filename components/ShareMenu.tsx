@@ -74,9 +74,10 @@ export function ShareDialog({
   onClose: () => void;
   /** the idea, for the author's own model to draft */
   onDraft: (idea: string) => void;
-  /** opens the AI settings so a key can be entered */
+  /** the change to apply to the design that is on the canvas */
   onRefine: (change: string) => void;
   canRefine: boolean;
+  /** opens the AI settings so a key can be entered */
   onSetupAi: () => void;
 }) {
   const lang = useLang();

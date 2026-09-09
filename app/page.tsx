@@ -445,6 +445,8 @@ export default function Page() {
   const projectFileRef = useRef<HTMLInputElement>(null);
   const aiNoteTimer = useRef<number | null>(null);
   const aiAbortRef = useRef<AbortController | null>(null);
+  /** drafts and edits use their own controller so stopping one never cuts a screen-notes request (or vice versa) */
+  const draftAbortRef = useRef<AbortController | null>(null);
 
   const p = paletteOf(paletteKey, customPalette, theme);
   /* corner helpers read the shape scale outside React; keep it current before anything renders */
@@ -2218,9 +2220,9 @@ export default function Page() {
     return p.phase === "rescue" ? t(key, lang).replace("{model}", p.model) : `${t(key, lang)} · ${p.model}`;
   };
 
-  const ensureGuide = async () => {
+  const ensureGuide = async (signal?: AbortSignal) => {
     if (guideRef.current === null) {
-      const res = await fetch(`${BASE_PATH}/agent.md`);
+      const res = await fetch(`${BASE_PATH}/agent.md`, { signal });
       if (!res.ok) throw new Error("guide");
       guideRef.current = await res.text();
     }
@@ -2228,18 +2230,18 @@ export default function Page() {
 
   /** the whole model run shared by "Draft with AI", "Edit this design" and their continuations:
    *  fetch the guide, run the chain, put the reply on the canvas. The author's Stop button aborts
-   *  `aiAbortRef`; a run whose reply was cut off keeps the partial reply in `draftCut` so the
+   *  `draftAbortRef`; a run whose reply was cut off keeps the partial reply in `draftCut` so the
    *  author can ask the same chain to continue from exactly where it stopped. */
   const runWhole = async (mode: "draft" | "refine", idea: string, doc?: Doc, widths?: Record<string, number>, resumeFragment?: string) => {
     setShareOpen(false);
     setDraftCut(null);
     setDraftBusy(true);
     setDraftStatus("");
-    aiAbortRef.current?.abort();
+    draftAbortRef.current?.abort();
     const ac = new AbortController();
-    aiAbortRef.current = ac;
+    draftAbortRef.current = ac;
     try {
-      await ensureGuide();
+      await ensureGuide(ac.signal);
       const guide = guideRef.current!;
       const progress = (p: DraftProgress) => setDraftStatus(draftStatusText(p));
       const next = resumeFragment
@@ -2261,13 +2263,15 @@ export default function Page() {
       const m = e instanceof Error ? e.message : "";
       showToast(m === "json" ? t("aiErrorJson", lang) : m === "refusal" ? t("aiErrorRefusal", lang) : m === "long" ? t("aiErrorLong", lang) : t("aiError", lang), 3200, "error");
     } finally {
+      if (draftAbortRef.current === ac) draftAbortRef.current = null;
       setDraftBusy(false);
     }
   };
 
   /** stops the model that is drafting, editing or continuing a design; also dismisses the continue offer */
   const cancelDraft = () => {
-    aiAbortRef.current?.abort();
+    draftAbortRef.current?.abort();
+    draftAbortRef.current = null;
     setDraftCut(null);
   };
 
@@ -2567,6 +2571,7 @@ export default function Page() {
   useEffect(
     () => () => {
       aiAbortRef.current?.abort();
+      draftAbortRef.current?.abort();
       if (aiNoteTimer.current) window.clearTimeout(aiNoteTimer.current);
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
     },
@@ -3710,95 +3715,6 @@ export default function Page() {
                           {groups.some((g) => frameOf.get(g.id) === f.id && modalRailOf(g)) && (
                             <div aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.32)", pointerEvents: "none", zIndex: 1 }} />
                           )}
-                          {(draftBusy || draftCut) && (
-                            <div style={{ position: "absolute", inset: 0, zIndex: 90, background: canvasBg, display: "grid", placeItems: "center" }}>
-                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "0 32px", textAlign: "center", maxWidth: 440 }}>
-                                {draftCut ? (
-                                  <>
-                                    <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4, color: p.onSurface }}>{t("askAiCutTitle", lang)}</div>
-                                    <div style={{ fontSize: 13, lineHeight: 1.6, color: p.onSurfaceVariant }}>{t("askAiCutHint", lang)}</div>
-                                    <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                                      <button
-                                        onClick={continueDraft}
-                                        title={t("askAiContinue", lang)}
-                                        className="m3-press"
-                                        style={{
-                                          height: 40,
-                                          padding: "0 20px",
-                                          borderRadius: 20,
-                                          border: "none",
-                                          background: p.primary,
-                                          color: p.onPrimary,
-                                          fontSize: 13,
-                                          fontWeight: 600,
-                                          cursor: "pointer",
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: 8,
-                                        }}
-                                      >
-                                        <span style={{ display: "inline-flex" }}>
-                                          <Icon name="redo" size={18} />
-                                        </span>
-                                        {t("askAiContinue", lang)}
-                                      </button>
-                                      <button
-                                        onClick={cancelDraft}
-                                        title={t("cancel", lang)}
-                                        className="m3-press"
-                                        style={{
-                                          height: 40,
-                                          padding: "0 20px",
-                                          borderRadius: 20,
-                                          border: "none",
-                                          background: p.surfaceContainerHighest,
-                                          color: p.onSurface,
-                                          fontSize: 13,
-                                          fontWeight: 600,
-                                          cursor: "pointer",
-                                        }}
-                                      >
-                                        {t("cancel", lang)}
-                                      </button>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <LoadingIndicator size={96} color="url(#m3e-drafting)" />
-                                    {draftStatus && (
-                                      <div role="status" style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: p.onSurface, maxWidth: 320 }}>
-                                        {draftStatus}
-                                      </div>
-                                    )}
-                                    <button
-                                      onClick={cancelDraft}
-                                      title={t("cancel", lang)}
-                                      className="m3-press"
-                                      style={{
-                                        height: 40,
-                                        padding: "0 20px",
-                                        borderRadius: 20,
-                                        border: "none",
-                                        background: p.surfaceContainerHighest,
-                                        color: p.onSurface,
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        cursor: "pointer",
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 8,
-                                      }}
-                                    >
-                                      <span style={{ display: "inline-flex" }}>
-                                        <Icon name="stop" size={18} />
-                                      </span>
-                                      {t("cancel", lang)}
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -3956,6 +3872,95 @@ export default function Page() {
                 />
               )}
             </div>
+                          {(draftBusy || draftCut) && (
+                            <div style={{ position: "absolute", inset: 0, zIndex: 90, background: canvasBg, display: "grid", placeItems: "center" }}>
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "0 32px", textAlign: "center", maxWidth: 440 }}>
+                                {draftCut ? (
+                                  <>
+                                    <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4, color: p.onSurface }}>{t("askAiCutTitle", lang)}</div>
+                                    <div style={{ fontSize: 13, lineHeight: 1.6, color: p.onSurfaceVariant }}>{t("askAiCutHint", lang)}</div>
+                                    <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                                      <button
+                                        onClick={continueDraft}
+                                        title={t("askAiContinue", lang)}
+                                        className="m3-press"
+                                        style={{
+                                          height: 40,
+                                          padding: "0 20px",
+                                          borderRadius: 20,
+                                          border: "none",
+                                          background: p.primary,
+                                          color: p.onPrimary,
+                                          fontSize: 13,
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 8,
+                                        }}
+                                      >
+                                        <span style={{ display: "inline-flex" }}>
+                                          <Icon name="redo" size={18} />
+                                        </span>
+                                        {t("askAiContinue", lang)}
+                                      </button>
+                                      <button
+                                        onClick={cancelDraft}
+                                        title={t("cancel", lang)}
+                                        className="m3-press"
+                                        style={{
+                                          height: 40,
+                                          padding: "0 20px",
+                                          borderRadius: 20,
+                                          border: "none",
+                                          background: p.surfaceContainerHighest,
+                                          color: p.onSurface,
+                                          fontSize: 13,
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                        }}
+                                      >
+                                        {t("cancel", lang)}
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <LoadingIndicator size={96} color="url(#m3e-drafting)" />
+                                    {draftStatus && (
+                                      <div role="status" style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: p.onSurface, maxWidth: 320 }}>
+                                        {draftStatus}
+                                      </div>
+                                    )}
+                                    <button
+                                      onClick={cancelDraft}
+                                      title={t("cancel", lang)}
+                                      className="m3-press"
+                                      style={{
+                                        height: 40,
+                                        padding: "0 20px",
+                                        borderRadius: 20,
+                                        border: "none",
+                                        background: p.surfaceContainerHighest,
+                                        color: p.onSurface,
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                      }}
+                                    >
+                                      <span style={{ display: "inline-flex" }}>
+                                        <Icon name="stop" size={18} />
+                                      </span>
+                                      {t("cancel", lang)}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
           </div>
 
           {draftBusy && (

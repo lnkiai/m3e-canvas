@@ -182,14 +182,20 @@ describe("draftDesign", () => {
 
   it("hands the cut-off partial reply to a backup model from OpenRouter", async () => {
     const bodies: Record<string, unknown>[] = [];
+    const partial = '{"frames":[{"id":"f-home","name":"Home"}],"groups":['; // the reply stopped mid-document
     const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
       bodies.push(JSON.parse(String(init?.body)));
-      if (bodies.length <= 3) return chatBody("length"); // the main model is cut off three times
+      if (bodies.length <= 3) return chatBody("length", partial); // the main model is cut off three times
       return chatBody("stop", EMPTY_DOC); // the backup model takes over and finishes
     });
     vi.stubGlobal("fetch", fetch);
 
-    const doc = await draftDesign({ ...SETTINGS, backupModels: ["gpt-y"] }, "GUIDE", "a notes app", "en");
+    const doc = await draftDesign(
+      { ...SETTINGS, provider: "openrouter", baseUrl: "https://openrouter.ai/api/v1", backupModels: ["gpt-y"] },
+      "GUIDE",
+      "a notes app",
+      "en",
+    );
 
     expect(fetch).toHaveBeenCalledTimes(4);
     expect(doc).toEqual({ frames: [], groups: [] });
@@ -197,6 +203,7 @@ describe("draftDesign", () => {
     expect(models).toEqual(["gpt-x", "gpt-x", "gpt-x", "gpt-y"]);
     const fourthUser = (bodies[3] as { messages: { content: string }[] }).messages[1].content;
     expect(fourthUser).toContain("cut off or could not be read");
+    expect(fourthUser).toContain(partial); // the backup model sees exactly where the run stopped
   });
 
   it("keeps a single round trip when the first reply already fits", async () => {

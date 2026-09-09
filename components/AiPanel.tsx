@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Palette } from "@/lib/tokens";
 import { t, useLang } from "@/lib/i18n";
 import { AiSettings, PROVIDERS, Provider, hasKey, probeProvider, providerSpec } from "@/lib/ai";
@@ -171,7 +171,12 @@ export function AiPanel({ p, settings, onSettings }: { p: Palette; settings: AiS
   /** a settings copy is in the clipboard, or a pasted one could not be read */
   const [copied, setCopied] = useState(false);
   const [importBad, setImportBad] = useState(false);
+  /* a probe left running while a setting changed must not report for the old settings */
+  const probeAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => probeAbort.current?.abort(), []);
   const copySettings = async () => {
+    /* the copy carries the API key: ask before it lands on the shared clipboard */
+    if (settings.key.trim() && !window.confirm(t("aiCopyKeyConfirm", lang))) return;
     try {
       await navigator.clipboard.writeText(JSON.stringify(settings));
       setCopied(true);
@@ -197,8 +202,10 @@ export function AiPanel({ p, settings, onSettings }: { p: Palette; settings: AiS
       window.setTimeout(() => setImportBad(false), 4000);
     }
   };
-  /* editing any setting invalidates the previous probe result */
+  /* editing any setting invalidates the previous probe result and stops a probe still running */
   const change = (s: AiSettings) => {
+    probeAbort.current?.abort();
+    probeAbort.current = null;
     if (test !== "idle") {
       setTest("idle");
       setTestDetail("");
@@ -211,17 +218,27 @@ export function AiPanel({ p, settings, onSettings }: { p: Palette; settings: AiS
     change({ ...settings, provider: k, baseUrl: s.baseUrl, model: s.model, backupModels: k === "openrouter" ? settings.backupModels ?? [] : [] });
   };
   const runTest = async () => {
+    probeAbort.current?.abort();
+    const ac = new AbortController();
+    probeAbort.current = ac;
     setTest("busy");
     setTestDetail("");
+    /* a silently hanging endpoint must not leave the button busy forever */
+    const timer = window.setTimeout(() => ac.abort(), 20000);
     try {
-      const n = await probeProvider(settings);
+      const n = await probeProvider(settings, ac.signal);
+      if (probeAbort.current !== ac) return;
       setTest("ok");
       setTestDetail(String(n));
     } catch (e) {
+      if (probeAbort.current !== ac) return;
       if ((e as Error)?.name !== "AbortError") {
         setTest("fail");
         setTestDetail(aiErrorText(e, lang));
       } else setTest("idle");
+    } finally {
+      window.clearTimeout(timer);
+      if (probeAbort.current === ac) probeAbort.current = null;
     }
   };
   return (

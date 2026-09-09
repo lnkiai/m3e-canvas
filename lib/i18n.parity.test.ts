@@ -123,7 +123,7 @@ describe("LANG_FONT coverage", () => {
   });
 
   it.each([
-    ["ja", "JP"], ["zh", "SC"], ["ko", "KR"],
+    ["ja", "JP"], ["zh", "SC"], ["ko", "KR"], ["ar", "Arabic"],
   ] as const)("supplies the matching Noto font family and download query for %s", (lang, script) => {
     const font = LANG_FONT[lang];
     expect(font).not.toBeNull();

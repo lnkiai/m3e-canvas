@@ -1,4 +1,4 @@
-import { KIND_TEXT, Lang, SWIPE_TEXT, TRANSITION_TEXT, getLang } from "./i18n";
+import { KIND_TEXT, Lang, SWIPE_TEXT, TRANSITION_TEXT, getLang, promptLang as promptLangBase } from "./i18n";
 import { constrainModalRails } from "./rail";
 import {
   CONTENT_W,
@@ -38,7 +38,8 @@ import {
  * Korean). Arabic reads the English voice, so the templates stay untranslated
  * and nothing is written twice. */
 type PromptLang = Exclude<Lang, "ar">;
-const promptLang = (lang: Lang): PromptLang => (lang === "ar" ? "en" : lang);
+/* the Arabic->English voice mapping lives in i18n so both consumers stay in step */
+const promptLang = (lang: Lang): PromptLang => promptLangBase(lang) as PromptLang; // ar never reaches the tables, but the type of promptLangBase stays wide for i18n consumers
 /** adds the Arabic voice as a pointer at the English one for the data tables */
 function withArabic<T>(table: Record<PromptLang, T>): Record<Lang, T> {
   return { ...table, ar: table.en };

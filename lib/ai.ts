@@ -122,7 +122,7 @@ export async function complete(s: AiSettings, system: string, user: string, sign
   if (s.key.trim()) headers.authorization = `Bearer ${s.key.trim()}`;
   if (s.provider === "openrouter" && typeof window !== "undefined") {
     /* optional attribution OpenRouter uses for its leaderboards */
-    headers["HTTP-Referer"] = window.location.href;
+    headers["HTTP-Referer"] = window.location.href.split("#")[0]; // the #hash holds the design; it is not for the provider
     headers["X-Title"] = "M3E Canvas";
   }
   const res = await fetch(`${base}/chat/completions`, {
@@ -164,7 +164,7 @@ export async function probeProvider(s: AiSettings, signal?: AbortSignal): Promis
   } else {
     if (s.key.trim()) headers.authorization = `Bearer ${s.key.trim()}`;
     if (s.provider === "openrouter" && typeof window !== "undefined") {
-      headers["HTTP-Referer"] = window.location.href;
+      headers["HTTP-Referer"] = window.location.href.split("#")[0]; // the #hash holds the design; it is not for the provider
       headers["X-Title"] = "M3E Canvas";
     }
   }
@@ -302,7 +302,6 @@ export type DraftProgress = { phase: DraftPhase; model: string };
  * the previous one stopped — one more model per hand-off. A complete reply that does not parse as a
  * document is asked once more, as pure JSON, before it counts as a failure. */
 const HUGE_REPLY_CHARS = 80_000;
-const MAX_FRAGMENT = 40_000;
 const COMPACT_REPLY = [
   "Your previous reply was cut off because it exceeded the output limit.",
   "Reply again with the same design, compact enough to fit:",
@@ -355,7 +354,8 @@ async function chainModel(s: AiSettings, model: string, system: string, userFor:
           retried = true;
           continue;
         }
-        return { ok: false, fail: { kind: "json", fragment: text } };
+        // a cut the endpoint did not report: keep it so Continue can resume from here
+        return { ok: false, fail: { kind: partial ? "long" : "json", fragment: partial || text } };
       }
       partial = text; // a cut the endpoint did not report
       break;
@@ -372,7 +372,7 @@ const rescueExtra = (fragment: string, lastTry: boolean) =>
       : "There is no usable partial text: redraft the same design so it fits in one reply, with short labels and one-sentence notes.",
     lastTry ? "If you cannot produce a valid document, fall back to exactly three screens with at most two parts each and no notes." : "",
     "No prose, no markdown fence. Output the JSON document only.",
-    fragment.length ? `Partial document:\n\n\`\`\`json\n${fragment.slice(0, MAX_FRAGMENT)}\n\`\`\`` : "",
+    fragment.length ? `Partial document:\n\n\`\`\`json\n${fragment}\n\`\`\`` : "",
   ]
     .filter((l) => l !== "")
     .join("\n");
