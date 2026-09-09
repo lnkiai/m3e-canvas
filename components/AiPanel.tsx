@@ -5,6 +5,7 @@ import { Palette } from "@/lib/tokens";
 import { t, useLang } from "@/lib/i18n";
 import { AiSettings, PROVIDERS, Provider, providerSpec } from "@/lib/ai";
 import { Icon } from "./M3Node";
+import { Toggle } from "./ui";
 
 /** the message shown for a failed request, mapped from the error codes lib/ai throws */
 export function aiErrorText(e: unknown, lang: ReturnType<typeof useLang>): string {
@@ -160,8 +161,35 @@ function ProviderGroup({ value, onChange, p }: { value: Provider; onChange: (k: 
   );
 }
 
-/** The AI tab of the left rail: the provider settings. The actions live with each screen on the right. */
-export function AiPanel({ p, settings, onSettings }: { p: Palette; settings: AiSettings; onSettings: (s: AiSettings) => void }) {
+/** What WebMCP is doing on this page: how many of the editor's operations the browser's
+ *  agent can see, and the switch that stops offering them. */
+export type McpState = { supported: boolean; enabled: boolean; tools: number };
+
+function McpSection({ p, mcp, onEnabled }: { p: Palette; mcp: McpState; onEnabled: (on: boolean) => void }) {
+  const lang = useLang();
+  /* a page that registered nothing must not read as a page that is working */
+  const offering = mcp.supported && mcp.enabled && mcp.tools > 0;
+  const status = mcp.supported ? (mcp.enabled ? t("mcpReady", lang).replace("{n}", String(mcp.tools)) : null) : t("mcpUnsupported", lang);
+  return (
+    <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${p.outlineVariant}` }}>
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.4, color: p.onSurfaceVariant, padding: "0 6px 12px" }}>{t("mcp", lang)}</div>
+      <div style={{ padding: "0 4px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* a browser without the API has nothing to switch; the note below says so */}
+        {mcp.supported && <Toggle grow on={mcp.enabled} onChange={onEnabled} p={p} icon="handyman" label={t("mcpEnable", lang)} />}
+        <div style={{ fontSize: 12, lineHeight: 1.5, color: p.onSurfaceVariant, padding: "0 4px" }}>{t("mcpHint", lang)}</div>
+        {status && (
+          <div style={{ fontSize: 12, lineHeight: 1.5, color: offering ? p.primary : p.onSurfaceVariant, padding: "0 4px", fontWeight: offering ? 600 : 400 }} role="status">
+            {status}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The AI tab of the left rail: the provider settings, then the tools this page offers
+ *  the browser's own agent. The per-screen actions live with each screen on the right. */
+export function AiPanel({ p, settings, onSettings, mcp, onMcpEnabled }: { p: Palette; settings: AiSettings; onSettings: (s: AiSettings) => void; mcp: McpState; onMcpEnabled: (on: boolean) => void }) {
   const lang = useLang();
   const spec = providerSpec(settings.provider);
   const pick = (k: Provider) => {
@@ -202,6 +230,7 @@ export function AiPanel({ p, settings, onSettings }: { p: Palette; settings: AiS
             <div style={{ fontSize: 12, lineHeight: 1.5, color: p.onSurfaceVariant, marginTop: 8, padding: "0 4px" }}>{t("aiKeyHint", lang)}</div>
           </div>
         </div>
+        <McpSection p={p} mcp={mcp} onEnabled={onMcpEnabled} />
       </div>
     </div>
   );

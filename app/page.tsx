@@ -87,12 +87,13 @@ import { PartsPalette } from "@/components/PartsPalette";
 import { PromptPanel } from "@/components/PromptPanel";
 import { GitHubLink, Mode, Toolbar } from "@/components/Toolbar";
 import { LangMenu } from "@/components/Menus";
-import { AiActionKey, AiPanel, aiErrorText } from "@/components/AiPanel";
+import { AiActionKey, AiPanel, McpState, aiErrorText } from "@/components/AiPanel";
 import { TidyState } from "@/components/ui";
 import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
 import { barSlotOf, bodyRect, carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
 import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
 import { isProject, readProject, saveProject } from "@/lib/project";
+import { AddPartSpec, EditorToolApi, PartBox, agentSize, agentSlot, editorTools, getModelContext, loadWebMcpEnabled, registerTools, saveWebMcpEnabled } from "@/lib/webmcp";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
 import { draftDesign } from "@/lib/ai";
@@ -1727,17 +1728,20 @@ export default function Page() {
     };
   };
 
-  const patchSelected = (patch: Partial<Item>) => {
-    if (!primaryId) return;
-    const id = primaryId;
+  /** One part edited on the inspector's terms: a locked group refuses a resize, a rail
+   *  reflows the screen around it, and a lone part keeps whatever it was lined up with.
+   *  False when the edit was refused. */
+  const patchItem = (id: string, patch: Partial<Item>, collapse = true): boolean => {
     /* a rail state change resizes it too, so it counts as a resize for the lock */
     const resizes = "size" in patch || "size2" in patch || "railExpanded" in patch || "railModal" in patch;
     /* a resize would reflow and move the locked group; other edits leave its layout alone */
     if (resizes && groupsRef.current.some((g) => g.locked && g.items.some((it) => it.id === id))) {
       showToast(lockedGroupMsg());
-      return;
+      return false;
     }
-    snapshotFor(id + ":" + Object.keys(patch).join(","));
+    /* a drag or a held key is one undo step; a caller that arrives complete asks for its own */
+    if (collapse) snapshotFor(id + ":" + Object.keys(patch).join(","));
+    else snapshot();
     setGroups((prev) =>
       "railExpanded" in patch || "railModal" in patch ? updateRail(prev, framesRef.current, widthsRef.current, id, patch) : prev.map((g) => {
         const idx = g.items.findIndex((it) => it.id === id);
@@ -1756,18 +1760,17 @@ export default function Page() {
     if (dragRef.current?.item.id === id) {
       dragRef.current.item = { ...dragRef.current.item, ...patch };
     }
+    return true;
   };
 
-  const deleteSelected = useCallback(() => {
-    if (selectedIds.length === 0) return;
-    const ids = new Set(selectedIds);
-    /* nothing deletable when every selected part sits in a locked group: no snapshot, keep the selection */
-    if (groupsRef.current.every((g) => g.locked || !g.items.some((it) => ids.has(it.id)))) {
-      showToast(lockedGroupMsg());
-      return;
-    }
-    snapshot();
-    setGroups((prev) =>
+  const patchSelected = (patch: Partial<Item>) => {
+    if (primaryId) patchItem(primaryId, patch);
+  };
+
+  /** The groups with `ids` gone: a locked group keeps its parts, a run closes the gap
+   *  they leave at its head, and a group emptied out drops away. */
+  const withoutItems = useCallback(
+    (prev: Group[], ids: Set<string>) =>
       prev
         .map((g) => {
           /* Delete / Backspace leaves a locked group and its parts alone */
@@ -1786,9 +1789,21 @@ export default function Page() {
           return { ...g, x, y, items: items.filter((it) => !ids.has(it.id)) };
         })
         .filter((g) => g.items.length > 0),
-    );
+    [],
+  );
+
+  const deleteSelected = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    const ids = new Set(selectedIds);
+    /* nothing deletable when every selected part sits in a locked group: no snapshot, keep the selection */
+    if (groupsRef.current.every((g) => g.locked || !g.items.some((it) => ids.has(it.id)))) {
+      showToast(lockedGroupMsg());
+      return;
+    }
+    snapshot();
+    setGroups((prev) => withoutItems(prev, ids));
     setSelectedIds([]);
-  }, [selectedIds, snapshot]);
+  }, [selectedIds, snapshot, setGroups, withoutItems]);
 
   const duplicateSelected = useCallback(() => {
     if (!selected) return;
@@ -2887,6 +2902,139 @@ export default function Page() {
   const docRef = useRef(doc);
   docRef.current = doc;
 
+  /* ---------- webmcp: the browser's agent works the canvas ---------- */
+
+  /** Places one part on a screen the way the palette's drop does, minus the drag: sized for
+   *  the screen, at the slot `agentSlot` picks, pulled inside the edges, and selected so the
+   *  author sees it land. The slot is worked out inside the updater, so two calls in one task
+   *  do not both aim at the same gap. */
+  const addPartForAgent = (spec: AddPartSpec): { item: Item; frame: Frame; at: PartBox } | null => {
+    const frames = framesRef.current;
+    const target = spec.screen ? frames.find((f) => f.id === spec.screen || f.name === spec.screen) : frames[0];
+    if (!target) return null;
+    const item = makeItem(spec.kind);
+    if (spec.label !== undefined) item.label = spec.label;
+    if (spec.supporting !== undefined) item.supporting = spec.supporting;
+    if (spec.icon !== undefined) item.icon = spec.icon;
+    if (spec.variant !== undefined) item.variant = spec.variant;
+    const widths = widthsRef.current;
+    const groups = groupsRef.current;
+    const sized = agentSize(item, target, groups, frames, widths);
+    const { x, y } = agentSlot(sized, target, groups, frames, widths);
+    const placed = pullInto({ id: uid(), x, y, axis: "x" as Axis, items: [sized] }, target, widths);
+    snapshot();
+    tidyRef.current = null;
+    setGroups((gs) => [...gs, placed]);
+    setSelectedIds([sized.id]);
+    setSelectedFrameId(null);
+    const box = sizeOf(sized, widths);
+    return { item: sized, frame: target, at: { x: placed.x, y: placed.y, w: box.w, h: box.h } };
+  };
+
+  /** Every operation a tool may reach. Each goes through the editor's own path, so an agent's
+   *  change is one undo away exactly like the author's. Reading the live document from a ref is
+   *  safe because the spec runs each tool execution as its own task, and React has flushed the
+   *  previous call's state by the time the next task starts. */
+  const mcpApi: EditorToolApi = {
+    doc: () => docRef.current,
+    widths: () => widthsRef.current,
+    lang: () => getLang(),
+    prompt: (frameId) => (frameId ? buildPrompt(docRef.current, widthsRef.current, frameId, getLang()) : effectivePrompt(docRef.current, widthsRef.current, getLang())),
+    addPart: addPartForAgent,
+    updatePart: (id, patch) => {
+      const before = groupsRef.current.flatMap((g) => g.items).find((it) => it.id === id);
+      if (!before) return null;
+      /* a refused edit leaves the author's selection where it was */
+      if (!patchItem(id, patch, false)) throw new Error("that part sits in a locked group; unlock it in the Layers panel first");
+      setSelectedIds([id]);
+      setSelectedFrameId(null);
+      return { ...before, ...patch };
+    },
+    deletePart: (id) => {
+      const g = groupsRef.current.find((x) => x.items.some((it) => it.id === id));
+      if (!g || g.locked) return false;
+      snapshot();
+      setGroups((prev) => withoutItems(prev, new Set([id])));
+      setSelectedIds((prev) => prev.filter((x) => x !== id));
+      return true;
+    },
+    addScreen: (name) => {
+      const frame: Frame = { id: uid(), name: name?.trim() || `${t("screenN")} ${framesRef.current.length + 1}`, x: nextFrameX(), y: framesRef.current[0]?.y ?? 0 };
+      snapshot();
+      setFrames((fs) => [...fs, frame]);
+      setSelectedFrameId(frame.id);
+      setSelectedIds([]);
+      return frame;
+    },
+    updateScreen: (id, patch) => {
+      const before = framesRef.current.find((f) => f.id === id);
+      if (!before) return null;
+      snapshot();
+      setFrames((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+      /* a new place asks for a new layout, so the last tidy is no longer the one to undo */
+      if (patch.place !== undefined && patch.place !== before.place) tidyRef.current = null;
+      return { ...before, ...patch };
+    },
+    tidyScreen: (id) => {
+      const f = framesRef.current.find((x) => x.id === id);
+      if (!f) return false;
+      const after = tidyFrame(groupsRef.current, f, framesRef.current, widthsRef.current);
+      if (!after) return false;
+      snapshot();
+      tidyRef.current = { frameId: f.id, before: groupsRef.current, after };
+      setGroups(after);
+      return true;
+    },
+    /* one snapshot for the whole call, so a scheme and an axis set together undo together */
+    setTheme: (patch, palette) => {
+      snapshot(true);
+      if (palette) setPaletteKey(palette);
+      if (Object.keys(patch).length) setTheme((prev) => ({ ...prev, ...patch }));
+    },
+    setAppInfo: ({ title: next, brief: nextBrief }) => {
+      snapshot(true);
+      if (next !== undefined) setTitle(next);
+      if (nextBrief !== undefined) setBrief(nextBrief);
+    },
+    undo,
+  };
+  /** the same operations, for the tools registered on an earlier render */
+  const mcpApiRef = useRef(mcpApi);
+  mcpApiRef.current = mcpApi;
+
+  /* Nothing is offered until the stored answer has been read, so a browser told to keep
+   * its tools to itself never registers them, not even for a tick. Reading storage in a
+   * state initializer would disagree with the prerendered markup. */
+  const [mcp, setMcp] = useState<McpState>({ supported: false, enabled: false, tools: 0 });
+  useEffect(() => {
+    setMcp((s) => ({ ...s, supported: !!getModelContext(), enabled: loadWebMcpEnabled() }));
+  }, []);
+
+  /* The tools are registered once, and again when the language changes, because the browser
+   * shows each tool's title in its own UI. Aborting the controller unregisters them all. */
+  useEffect(() => {
+    const ctx = getModelContext();
+    /* a read-only tab saves nothing, so it offers nothing either */
+    if (!ctx || !mcp.enabled || isMobile || editAccess !== "editable") return;
+    const ac = new AbortController();
+    let live = true;
+    registerTools(editorTools(() => mcpApiRef.current), ctx, ac.signal).then((names) => {
+      if (live) setMcp((s) => ({ ...s, tools: names.length }));
+    });
+    return () => {
+      live = false;
+      ac.abort();
+      setMcp((s) => ({ ...s, tools: 0 }));
+    };
+    /* the operations are reached through mcpApiRef, so an edit must not rebuild the toolbox */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mcp.enabled, lang, isMobile, editAccess]);
+
+  const setMcpEnabled = (on: boolean) => {
+    saveWebMcpEnabled(on);
+    setMcp((s) => ({ ...s, enabled: on }));
+  };
+
   /** arrows from tappable parts to the frames they open */
   const links = useMemo(() => {
     if (frame !== "phone") return [];
@@ -3476,7 +3624,7 @@ export default function Page() {
                 ) : leftTab === "motion" ? (
                   <MotionPanel p={p} theme={theme} onChange={patchTheme} />
                 ) : leftTab === "ai" ? (
-                  <AiPanel p={p} settings={aiSettings} onSettings={updateAiSettings} />
+                  <AiPanel p={p} settings={aiSettings} onSettings={updateAiSettings} mcp={mcp} onMcpEnabled={setMcpEnabled} />
                 ) : (
                   <LayersPanel
                     p={p}

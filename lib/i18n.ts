@@ -426,6 +426,32 @@ export const UI = {
     en: "Could not connect. Check the URL, the network and the server's CORS settings",
     zh: "无法连接。请检查 URL、网络和服务器的 CORS 设置",
   },
+  // webmcp: the browser's own agent works the canvas through the editor's operations
+  mcp: { ja: "ブラウザのエージェント", en: "Browser agent", zh: "浏览器智能体" },
+  mcpEnable: { ja: "この画面の操作を渡す", en: "Offer the editor's tools", zh: "开放编辑器操作" },
+  mcpHint: {
+    ja: "WebMCP に対応したブラウザのエージェントが、部品の追加や整列、テーマの変更をこのエディタと同じ手順で行えます。変更は取り消し履歴に残ります。",
+    en: "A WebMCP-capable browser agent can add parts, tidy screens and change the theme through the same operations the editor uses. Every change lands on the undo stack.",
+    zh: "支持 WebMCP 的浏览器智能体可以通过编辑器自身的操作添加组件、整理屏幕并修改主题。所有更改都会进入撤销记录。",
+  },
+  mcpReady: { ja: "{n} 個の操作を渡しています", en: "{n} tools offered", zh: "已开放 {n} 项操作" },
+  mcpUnsupported: {
+    ja: "このブラウザは WebMCP に未対応です。対応ブラウザで開くと自動で有効になります。",
+    en: "This browser does not offer WebMCP yet. The tools appear on their own in one that does.",
+    zh: "此浏览器尚不支持 WebMCP。在支持的浏览器中打开即会自动启用。",
+  },
+  mcpToolListKinds: { ja: "部品の一覧", en: "List the parts", zh: "列出组件" },
+  mcpToolGetDocument: { ja: "下書きを読む", en: "Read the sketch", zh: "读取草图" },
+  mcpToolGetPrompt: { ja: "プロンプトを取得", en: "Get the prompt", zh: "获取提示词" },
+  mcpToolAddPart: { ja: "部品を置く", en: "Add a part", zh: "添加组件" },
+  mcpToolUpdatePart: { ja: "部品を変更", en: "Change a part", zh: "修改组件" },
+  mcpToolDeletePart: { ja: "部品を削除", en: "Delete a part", zh: "删除组件" },
+  mcpToolAddScreen: { ja: "画面を追加", en: "Add a screen", zh: "添加屏幕" },
+  mcpToolUpdateScreen: { ja: "画面を変更", en: "Change a screen", zh: "修改屏幕" },
+  mcpToolTidyScreen: { ja: "画面を整える", en: "Tidy a screen", zh: "整理屏幕" },
+  mcpToolSetTheme: { ja: "テーマを設定", en: "Set the theme", zh: "设置主题" },
+  mcpToolSetAppInfo: { ja: "アプリの説明を設定", en: "Set the app details", zh: "设置应用信息" },
+  mcpToolUndo: { ja: "元に戻す", en: "Undo one step", zh: "撤销一步" },
 } as const satisfies Record<string, Str>;
 
 export type UIKey = keyof typeof UI;
@@ -493,6 +519,13 @@ export const KO: Record<UIKey, string> = {
   aiSelectScreen: "먼저 화면을 선택하세요", aiNoKey: "AI 탭에 키를 입력하면 사용할 수 있습니다", aiError: "AI 요청에 실패했습니다",
   aiErrorRefusal: "모델이 답변을 거부했습니다", aiErrorJson: "모델의 응답을 읽을 수 없습니다", aiErrorLong: "답변이 너무 길어 중간에 잘렸습니다. 화면 수를 줄여 다시 시도하세요", aiErrorModel: "모델 ID를 입력하세요",
   aiErrorInsecure: "기본 URL은 https를 사용하거나 localhost를 가리켜야 합니다", aiErrorNetwork: "연결할 수 없습니다. URL, 네트워크 및 서버의 CORS 설정을 확인하세요",
+  mcp: "브라우저 에이전트", mcpEnable: "에디터 동작 제공", mcpReady: "{n}개의 동작을 제공하고 있습니다",
+  mcpHint: "WebMCP를 지원하는 브라우저 에이전트가 에디터와 같은 동작으로 부품을 추가하고 화면을 정리하며 테마를 바꿀 수 있습니다. 모든 변경은 실행 취소 기록에 남습니다.",
+  mcpUnsupported: "이 브라우저는 아직 WebMCP를 지원하지 않습니다. 지원하는 브라우저에서 열면 자동으로 사용됩니다.",
+  mcpToolListKinds: "부품 목록", mcpToolGetDocument: "스케치 읽기", mcpToolGetPrompt: "프롬프트 가져오기",
+  mcpToolAddPart: "부품 추가", mcpToolUpdatePart: "부품 변경", mcpToolDeletePart: "부품 삭제",
+  mcpToolAddScreen: "화면 추가", mcpToolUpdateScreen: "화면 변경", mcpToolTidyScreen: "화면 정리",
+  mcpToolSetTheme: "테마 설정", mcpToolSetAppInfo: "앱 정보 설정", mcpToolUndo: "한 단계 실행 취소",
 };
 
 export const t = (key: UIKey, lang: Lang = current): string => (lang === "ko" ? KO[key] : UI[key][lang]);
