@@ -2110,6 +2110,8 @@ export default function Page() {
 
   const clearAll = () => {
     setConfirmClear(false);
+    /* an empty canvas is still a canvas: a draft that lands after a clear must not refill it */
+    cancelDraft();
     if (groupsRef.current.length === 0 && framesRef.current.length === 0)
       return;
     setDraftBefore(null);
