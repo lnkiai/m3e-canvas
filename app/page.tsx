@@ -3073,7 +3073,7 @@ export default function Page() {
       const instantG = instantRef.current.has(g.id);
       const allOn = g.items.every((it) => selectedSet.has(it.id));
       const corners = freeRadii(g, widths);
-      /* hidden runs are connected too: only their members may lift above siblings when selected */
+      /* Hidden runs need the same compact selection ring as connected groups. */
       const runIds = new Set(
         explodeGroup(g, widths)
           .filter((r) => r.items.length > 1)
@@ -3085,8 +3085,7 @@ export default function Page() {
           initial={false}
           animate={{ x: g.x - ox, y: g.y - oy }}
           transition={instantG ? INSTANT : OPEN}
-          /* keep any selection lift inside the group, so canvas-wide layer order is preserved */
-          style={{ position: "absolute", left: 0, top: 0, zIndex: modalRail ? 2 : undefined, isolation: "isolate" }}
+          style={{ position: "absolute", left: 0, top: 0, zIndex: modalRail ? 2 : undefined }}
         >
           {layoutOf(g, widths).map((pl) => (
             <div key={pl.item.id} style={{ position: "absolute", left: pl.x - g.x, top: pl.y - g.y }}>
@@ -3155,8 +3154,6 @@ export default function Page() {
           flexDirection: g.axis === "x" ? "row" : "column",
           alignItems: g.axis === "x" ? "center" : "stretch",
           gap: GAP,
-          /* keep any selection lift inside the run, so canvas-wide layer order is preserved */
-          isolation: "isolate",
         }}
       >
         {cells.map((c, r) => {

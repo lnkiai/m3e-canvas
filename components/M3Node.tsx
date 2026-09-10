@@ -1336,7 +1336,7 @@ export function M3Node({
   pressed?: boolean;
   dragging?: boolean;
   selected?: boolean;
-  /** the part sits in a connected run (non-free group, or a hidden run inside a free group) */
+  /** Connected parts need their selection ring to fit inside the run gap. */
   inRun?: boolean;
   interactive?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
@@ -1379,19 +1379,14 @@ export function M3Node({
         display: measured ? "inline-flex" : "block",
         alignItems: "center",
         overflow: clips ? "hidden" : "visible",
-        /* the selection ring sticks out 5px (3px offset + 2px ring); in a run the next
-           sibling sits 3px away and would overpaint that edge — lift the selected part.
-           Runs never overlap, so the lift only beats the sibling that hides the ring.
-           Lone parts in free groups may overlap by design: keep their layer order. */
-        position: selected && inRun ? "relative" : undefined,
-        zIndex: selected && inRun ? 1 : undefined,
         cursor: !interactive ? "default" : dragging ? "grabbing" : "grab",
         userSelect: "none",
         touchAction: "none",
         boxSizing: "border-box",
         boxShadow: shadowOf(item),
         outline: selected ? `2px solid ${palette.primary}` : "2px solid transparent",
-        outlineOffset: 3,
+        /* Fit the 2px ring inside the 3px run gap, including adjacent multi-selection. */
+        outlineOffset: inRun ? 1 : 3,
         /* a part that changes width with its screen eases the way the screen does */
         transition: measured ? "outline-color 120ms" : `outline-color 120ms, width ${SETTLE_MS}ms cubic-bezier(0.2, 0, 0, 1)`,
         flex: "0 0 auto",
