@@ -140,6 +140,13 @@ describe("one retry for a reply that is not valid JSON", () => {
   const reply = (content: string) => jsonResponse({ choices: [{ finish_reason: "stop", message: { content } }] });
   const trailingComma = `{"groups": [], "frames": [{"id": "frame", "name": "Home", "x": 0, "y": 0},]}`;
 
+  it("uses a reply that parses with a single request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(reply(JSON.stringify(project)));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(draftDesign(settings(), "guide text", "a notes app", "en")).resolves.toMatchObject({ frames: [{ id: "frame" }] });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("asks once more with the reminder and answers", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(reply(trailingComma))
