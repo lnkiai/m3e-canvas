@@ -261,6 +261,8 @@ export async function editDesign(s: AiSettings, guide: string, doc: Doc, instruc
     "Reply with the JSON document only: no share link, no prose, no markdown fence, no explanation.",
     "",
     guide,
+    "",
+    "The share-link steps in the guide are for a coding agent: your reply here is the JSON document itself, nothing else.",
   ].join("\n");
   const user = [
     "This is the design as it is now:",
