@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { complete, hasKey, isSecureUrl, type AiSettings, type Provider } from "./ai";
+import { complete, hasKey, isSecureUrl, loadAiSettings, PROVIDERS, providerSpec, saveAiSettings, type AiSettings, type Provider } from "./ai";
 
 const settings = (over: Partial<AiSettings> = {}): AiSettings =>
   ({ provider: "openai", baseUrl: "https://api.example.test", model: "test-model", key: "test-key", ...over });
@@ -132,5 +132,47 @@ describe("hasKey and isSecureUrl", () => {
     expect(isSecureUrl("http://127.0.0.1:8080/v1")).toBe(true);
     expect(isSecureUrl("http://[::1]:8080/v1")).toBe(true);
     expect(isSecureUrl("http://api.example.test/v1")).toBe(false);
+  });
+});
+
+describe("the OpenRouter provider", () => {
+  it("is offered with the OpenAI-compatible base URL and its keys page", () => {
+    const spec = PROVIDERS.find((p) => p.key === "openrouter");
+    expect(spec?.baseUrl).toBe("https://openrouter.ai/api/v1");
+    expect(spec?.keysUrl).toBe("https://openrouter.ai/keys");
+    expect(spec?.model.trim().length).toBeGreaterThan(0);
+    expect(providerSpec("openrouter").label).toBe("OpenRouter");
+  });
+
+  it("round-trips through the saved settings", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    saveAiSettings({ provider: "openrouter", baseUrl: "https://openrouter.ai/api/v1", model: "openrouter/auto", key: "test-key" });
+    expect(loadAiSettings()).toMatchObject({ provider: "openrouter", model: "openrouter/auto", key: "test-key" });
+  });
+
+  it("sends the attribution headers without the design hash", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ choices: [{ finish_reason: "stop", message: { content: "ok" } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("window", { location: { href: "https://m3e.example/#p=design" } });
+    await expect(complete(settings({ provider: "openrouter", baseUrl: "https://openrouter.ai/api/v1" }), "s", "u")).resolves.toBe("ok");
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.headers["HTTP-Referer"]).toBe("https://m3e.example/");
+    expect(init.headers["HTTP-Referer"]).not.toContain("#");
+    expect(init.headers["X-Title"]).toBe("M3E Canvas");
+  });
+
+  it("leaves the other providers without attribution headers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ choices: [{ finish_reason: "stop", message: { content: "ok" } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("window", { location: { href: "https://m3e.example/#p=design" } });
+    await complete(settings(), "s", "u");
+    const headers = fetchMock.mock.calls[0][1].headers;
+    expect(headers).not.toHaveProperty("HTTP-Referer");
+    expect(headers).not.toHaveProperty("X-Title");
   });
 });

@@ -8,7 +8,7 @@ import { Lang } from "./i18n";
  * prompt and a fixed JSON answer shape, and the result is only applied after the
  * author has looked at it. Coordinates are never touched by the model. */
 
-export type Provider = "claude" | "openai" | "gemini" | "deepseek";
+export type Provider = "claude" | "openai" | "gemini" | "deepseek" | "openrouter";
 
 export type AiSettings = {
   provider: Provider;
@@ -22,6 +22,7 @@ export const PROVIDERS: { key: Provider; label: string; baseUrl: string; model: 
   { key: "claude", label: "Claude", baseUrl: "https://api.anthropic.com", model: "claude-sonnet-5", keysUrl: "https://console.anthropic.com/settings/keys" },
   { key: "gemini", label: "Gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-3.8-flash", keysUrl: "https://aistudio.google.com/apikey" },
   { key: "deepseek", label: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-v4-flash", keysUrl: "https://platform.deepseek.com/api_keys" },
+  { key: "openrouter", label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "openrouter/auto", keysUrl: "https://openrouter.ai/keys" },
 ];
 
 export const providerSpec = (k: Provider) => PROVIDERS.find((p) => p.key === k) ?? PROVIDERS[0];
@@ -104,6 +105,11 @@ export async function complete(s: AiSettings, system: string, user: string, sign
   }
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (s.key.trim()) headers.authorization = `Bearer ${s.key.trim()}`;
+  if (s.provider === "openrouter" && typeof window !== "undefined") {
+    /* optional attribution OpenRouter uses for its leaderboards; the #hash holds the design, so it stays here */
+    headers["HTTP-Referer"] = window.location.href.split("#")[0];
+    headers["X-Title"] = "M3E Canvas";
+  }
   const res = await fetch(`${base}/chat/completions`, {
     method: "POST",
     signal,
