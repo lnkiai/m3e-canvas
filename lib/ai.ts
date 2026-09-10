@@ -252,3 +252,26 @@ export async function draftDesign(s: AiSettings, guide: string, idea: string, la
   return j;
 }
 
+/** Applies an instruction to the design as it is: the model reads the same guide a draft reads
+ *  and gets the document itself, and answers with the whole document, so the change can be
+ *  reviewed and undone like a draft. */
+export async function editDesign(s: AiSettings, guide: string, doc: Doc, instruction: string, lang: Lang, signal?: AbortSignal): Promise<Doc> {
+  const system = [
+    "You edit M3E Canvas designs. Follow the guide below exactly.",
+    "Reply with the JSON document only: no share link, no prose, no markdown fence, no explanation.",
+    "",
+    guide,
+  ].join("\n");
+  const user = [
+    "This is the design as it is now:",
+    JSON.stringify(doc),
+    "",
+    `Apply this change: ${instruction.trim()}`,
+    `Write every label, title and note in ${LANG_NAME[lang]}.`,
+    "Keep everything the change does not ask for as it is, and keep every part id.",
+  ].join("\n");
+  const j = parseJsonObject(await complete(s, system, user, signal, 12000));
+  if (!isProject(j)) throw new Error("json");
+  return j;
+}
+

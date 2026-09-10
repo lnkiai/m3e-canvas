@@ -49,7 +49,7 @@ Works with any AI coding tool that takes a prompt, such as Claude Code, Codex, G
 - **Tidy** – one button snaps bars to the edges, the FAB to the corner, joins neighbouring list items and buttons, and stacks the rest on 16dp margins. Press it again to undo.
 - **Optional AI helper** – bring your own key (OpenAI, Claude, Gemini or DeepSeek) and let the model write a part's behavior note or a screen's description, in your language. Each rewrite can be undone. The key stays in your browser and the request goes straight to the provider; there is no server in between.
 - **Export** – copy the prompt (edit it by hand first if you like) or save a screen as a PNG.
-- **Share links and AI drafts (beta)** – copy a link that opens your design on anyone's canvas, or copy an instruction for Claude Code, Codex or another coding agent: it reads [agent.md](public/agent.md), sketches what you described, and replies with such a link.
+- **Share links and AI drafts (beta)** – copy a link that opens your design on anyone's canvas, or copy an instruction for Claude Code, Codex or another coding agent: it reads [agent.md](public/agent.md), sketches what you described, and replies with such a link. With a key in the AI tab, the same dialog drafts the design on the canvas, and Edit this design applies what you typed to the design you already have.
 - **Alignment guides**, undo/redo, keyboard shortcuts, seven color themes, a favorites row in the parts panel, and everything is saved in your browser (localStorage).
 - **Phone-friendly** – on a phone you get one fixed screen and a buttons-only editor: tap the plus to add a button, tap a button to move it, and edit its text, icon and style in a bottom sheet. The full multi-screen editor is for desktop browsers.
 
@@ -141,7 +141,7 @@ Claude Code、Codex、Gemini CLI、Cursor など、プロンプトを受け取�
 - **整える** – ボタンひとつでバーを端に、FAB を隅に寄せ、隣り合うリスト項目やボタンをつなげ、残りを余白 16dp で積み直します。もう一度押すと元に戻ります。
 - **AI 補助（任意）** – 自分のキー（OpenAI、Claude、Gemini、DeepSeek）を入れると、部品の動作や画面の説明を UI の言語で書いてもらえます。書き換えは元に戻せます。キーはブラウザ内にだけ保存され、リクエストはプロバイダへ直接送られます（間にサーバーはありません）。
 - **書き出し** – プロンプトのコピー（手で編集してからも可）、画面の PNG 保存。
-- **共有リンクと AI の下書き（ベータ）** – 設計を相手のキャンバスで開けるリンクをコピーできます。Claude Code や Codex などのコーディングエージェント向けの指示もコピーでき、エージェントが [agent.md](public/agent.md) を読んでスケッチを作り、そのリンクで返してきます。
+- **共有リンクと AI の下書き（ベータ）** – 設計を相手のキャンバスで開けるリンクをコピーできます。Claude Code や Codex などのコーディングエージェント向けの指示もコピーでき、エージェントが [agent.md](public/agent.md) を読んでスケッチを作り、そのリンクで返してきます。AI タブのキーがあれば、同じダイアログでキャンバスに設計を描かせ、「このデザインを編集」で今の設計に書いた指示をあてられます。
 - **補助線スナップ**、Undo/Redo、キーボードショートカット、7 種のカラーテーマ、お気に入り部品。作業内容はブラウザ（localStorage）に自動保存されます。
 - **スマホでも** – スマホでは 1 画面固定のボタン専用エディタになります。プラスでボタンを追加し、タップして動かし、ボトムシートでテキスト・アイコン・スタイルを編集できます。複数画面のフル機能は PC のブラウザ向けです。
 
@@ -200,7 +200,7 @@ MIT © lnkiai
 - **整理** – 一键把栏贴到边缘、FAB 放到角落、相邻的列表项和按钮连成一组，其余组件按 16dp 边距重新堆叠。再按一次即可撤销。
 - **AI 辅助（可选）** – 填入自己的密钥（OpenAI、Claude、Gemini 或 DeepSeek），让模型用界面语言写出组件的行为或屏幕的说明。每次改写都可以撤销。密钥只保存在浏览器中，请求直接发送给服务商，中间没有服务器。
 - **导出** – 复制提示词（也可先手动编辑），或把屏幕保存为 PNG。
-- **分享链接与 AI 草图（测试版）** – 复制一个能在他人画布上打开你设计的链接；也可以复制给 Claude Code、Codex 等编程代理的指令，代理会阅读 [agent.md](public/agent.md)、画出你描述的草图，并以这样的链接回复。
+- **分享链接与 AI 草图（测试版）** – 复制一个能在他人画布上打开你设计的链接；也可以复制给 Claude Code、Codex 等编程代理的指令，代理会阅读 [agent.md](public/agent.md)、画出你描述的草图，并以这样的链接回复。在 AI 标签页填入密钥后，同一个对话框可以直接在画布上生成设计，也可以用“编辑此设计”把你写的内容应用到当前的设计。
 - **对齐辅助线**、撤销／重做、键盘快捷键、收藏组件，所有内容自动保存在浏览器（localStorage）中。
 - **手机也能用** – 在手机上是一个固定屏幕、只有按钮的简易编辑器：点加号添加按钮，点按钮移动，在底部面板里编辑文字、图标和样式。多屏幕的完整功能请在电脑浏览器中使用。
 
@@ -259,7 +259,7 @@ Claude Code, Codex, Gemini CLI, Cursor 등 프롬프트를 받을 수 있는 AI 
 - **정리** – 버튼 하나로 바를 가장자리에, FAB를 모서리에 붙이고, 이웃한 목록 항목과 버튼을 연결하며, 나머지를 16dp 여백으로 다시 쌓습니다. 한 번 더 누르면 되돌립니다.
 - **AI 도우미(선택)** – 자신의 키(OpenAI, Claude, Gemini, DeepSeek)를 넣으면 부품의 동작이나 화면 설명을 UI 언어로 써 줍니다. 고쳐 쓴 내용은 되돌릴 수 있습니다. 키는 브라우저에만 저장되고 요청은 제공업체로 직접 전송됩니다(중간 서버 없음).
 - **내보내기** – 프롬프트 복사(직접 편집한 뒤에도 가능), 화면의 PNG 저장.
-- **공유 링크와 AI 초안(베타)** – 설계를 다른 사람의 캔버스에서 여는 링크를 복사할 수 있습니다. Claude Code, Codex 같은 코딩 에이전트용 지시도 복사할 수 있으며, 에이전트가 [agent.md](public/agent.md)를 읽고 스케치를 만들어 그런 링크로 답합니다.
+- **공유 링크와 AI 초안(베타)** – 설계를 다른 사람의 캔버스에서 여는 링크를 복사할 수 있습니다. Claude Code, Codex 같은 코딩 에이전트용 지시도 복사할 수 있으며, 에이전트가 [agent.md](public/agent.md)를 읽고 스케치를 만들어 그런 링크로 답합니다. AI 탭에 키가 있으면 같은 대화상자에서 캔버스에 설계를 그리고, '이 디자인 편집'으로 지금 디자인에 적은 내용을 적용할 수 있습니다.
 - **정렬 안내선**, 실행 취소/다시 실행, 키보드 단축키, 7가지 색상 테마, 즐겨찾기 부품. 작업 내용은 브라우저(localStorage)에 자동 저장됩니다.
 - **휴대전화에서도** – 휴대전화에서는 화면 하나가 고정된 버튼 전용 편집기가 됩니다. 플러스로 버튼을 추가하고, 탭해서 옮기고, 하단 시트에서 텍스트·아이콘·스타일을 편집합니다. 여러 화면을 다루는 전체 기능은 데스크톱 브라우저용입니다.
 

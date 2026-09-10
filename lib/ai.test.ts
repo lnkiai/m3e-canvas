@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { complete, hasKey, isSecureUrl, type AiSettings, type Provider } from "./ai";
+import { complete, editDesign, hasKey, isSecureUrl, type AiSettings, type Provider } from "./ai";
+import type { Doc } from "./tokens";
 
 const settings = (over: Partial<AiSettings> = {}): AiSettings =>
   ({ provider: "openai", baseUrl: "https://api.example.test", model: "test-model", key: "test-key", ...over });
@@ -132,5 +133,25 @@ describe("hasKey and isSecureUrl", () => {
     expect(isSecureUrl("http://127.0.0.1:8080/v1")).toBe(true);
     expect(isSecureUrl("http://[::1]:8080/v1")).toBe(true);
     expect(isSecureUrl("http://api.example.test/v1")).toBe(false);
+  });
+});
+
+describe("editDesign", () => {
+  const current: Doc = { title: "Sketch", brief: "A small app", paletteKey: "purple", frame: "phone", groups: [], frames: [{ id: "frame", name: "Home", x: 0, y: 0 }] };
+  const reply = (content: string) => jsonResponse({ choices: [{ finish_reason: "stop", message: { content } }] });
+
+  it("sends the guide and the design as it is and returns what came back", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(reply(JSON.stringify({ ...current, title: "Edited" })));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(editDesign(settings(), "guide text", current, "make the header taller", "en")).resolves.toMatchObject({ title: "Edited" });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages[0].content).toContain("guide text");
+    expect(body.messages[1].content).toContain('"id":"frame"');
+    expect(body.messages[1].content).toContain("make the header taller");
+  });
+
+  it("rejects a reply that is not a document", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(reply('{"groups": 1}')));
+    await expect(editDesign(settings(), "guide text", current, "make the header taller", "en")).rejects.toThrow("json");
   });
 });

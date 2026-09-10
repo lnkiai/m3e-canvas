@@ -60,6 +60,7 @@ export function ShareDialog({
   open,
   onClose,
   onDraft,
+  onEdit,
   onSetupAi,
 }: {
   p: Palette;
@@ -72,6 +73,8 @@ export function ShareDialog({
   onClose: () => void;
   /** the idea, for the author's own model to draft */
   onDraft: (idea: string) => void;
+  /** the typed instruction, for the author's own model to apply to the design on the canvas */
+  onEdit: (instruction: string) => void;
   /** opens the AI settings so a key can be entered */
   onSetupAi: () => void;
 }) {
@@ -114,10 +117,10 @@ export function ShareDialog({
   };
 
   /* a connected pair, the way the canvas draws connected buttons: outer corners round, inner ones tight */
-  const pill = (icon: string, label: string, onClick: () => void, opts?: { primary?: boolean; disabled?: boolean; corners?: "left" | "right"; title?: string }) => {
+  const pill = (icon: string, label: string, onClick: () => void, opts?: { primary?: boolean; disabled?: boolean; corners?: "left" | "middle" | "right"; title?: string }) => {
     const outer = 20;
     const inner = 8;
-    const radius = opts?.corners === "left" ? `${outer}px ${inner}px ${inner}px ${outer}px` : opts?.corners === "right" ? `${inner}px ${outer}px ${outer}px ${inner}px` : outer;
+    const radius = opts?.corners === "left" ? `${outer}px ${inner}px ${inner}px ${outer}px` : opts?.corners === "right" ? `${inner}px ${outer}px ${outer}px ${inner}px` : opts?.corners === "middle" ? `${inner}px` : outer;
     return (
       <button
         onClick={onClick}
@@ -225,9 +228,14 @@ export function ShareDialog({
               </span>
               <div style={{ display: "inline-flex", gap: 3, flex: "0 0 auto" }}>
                 {pill(copied === "ask" ? "check" : "content_copy", copied === "ask" ? t("copied", lang) : t("askAiCopy", lang), copyAsk, { corners: "left", title: t("askAiCopyTitle", lang) })}
-                {aiReady
-                  ? pill("auto_awesome", t("askAiGenerate", lang), () => onDraft(idea), { primary: true, disabled: !idea.trim(), corners: "right", title: t("askAiGenerateTitle", lang) })
-                  : pill("key", t("aiSetup", lang), onSetupAi, { primary: true, corners: "right", title: t("aiSetupTitle", lang) })}
+                {aiReady ? (
+                  <>
+                    {pill("auto_awesome", t("askAiGenerate", lang), () => onDraft(idea), { primary: true, disabled: !idea.trim(), corners: "middle", title: t("askAiGenerateTitle", lang) })}
+                    {pill("edit", t("askAiEdit", lang), () => onEdit(idea), { disabled: !idea.trim(), corners: "right", title: t("askAiEditTitle", lang) })}
+                  </>
+                ) : (
+                  pill("key", t("aiSetup", lang), onSetupAi, { primary: true, corners: "right", title: t("aiSetupTitle", lang) })
+                )}
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>

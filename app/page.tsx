@@ -95,7 +95,7 @@ import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
-import { draftDesign } from "@/lib/ai";
+import { draftDesign, editDesign } from "@/lib/ai";
 import { ShareDialog } from "@/components/ShareMenu";
 import { ColorPanel } from "@/components/ColorPanel";
 import { MotionPanel, ShapePanel, TypePanel } from "@/components/ThemePanel";
@@ -2198,17 +2198,22 @@ export default function Page() {
     } catch {}
   };
 
-  const startDraft = async (idea: string) => {
+  /** the guide the model reads, fetched once: the same file a coding agent reads */
+  const loadGuide = async () => {
+    if (guideRef.current === null) {
+      const res = await fetch(`${BASE_PATH}/agent.md`);
+      if (!res.ok) throw new Error("guide");
+      guideRef.current = await res.text();
+    }
+    return guideRef.current;
+  };
+
+  /** one model call: a draft and an edit share the busy state and the error toast */
+  const runAiAction = async (run: (guide: string) => Promise<Doc>) => {
     setShareOpen(false);
     setDraftBusy(true);
     try {
-      if (guideRef.current === null) {
-        const res = await fetch(`${BASE_PATH}/agent.md`);
-        if (!res.ok) throw new Error("guide");
-        guideRef.current = await res.text();
-      }
-      const next = await draftDesign(aiSettings, guideRef.current, idea, lang);
-      arrive(next);
+      arrive(await run(await loadGuide()));
     } catch (e) {
       const m = e instanceof Error ? e.message : "";
       showToast(m === "json" ? t("aiErrorJson", lang) : m === "refusal" ? t("aiErrorRefusal", lang) : m === "long" ? t("aiErrorLong", lang) : t("aiError", lang), 3200, "error");
@@ -2216,6 +2221,11 @@ export default function Page() {
       setDraftBusy(false);
     }
   };
+
+  const startDraft = (idea: string) => runAiAction((guide) => draftDesign(aiSettings, guide, idea, lang));
+
+  /** applies the typed instruction to the design on the canvas, through the same review flow */
+  const startEdit = (instruction: string) => runAiAction((guide) => editDesign(aiSettings, guide, doc, instruction, lang));
   /** true after a kept draft until the author undoes something, so the header's undo also sits by the opener */
   const [quickUndo, setQuickUndo] = useState(false);
   const keepDraft = () => {
@@ -4130,6 +4140,7 @@ export default function Page() {
           open={shareOpen}
           onClose={() => setShareOpen(false)}
           onDraft={(idea) => void startDraft(idea)}
+          onEdit={(instruction) => void startEdit(instruction)}
           onSetupAi={() => {
             setShareOpen(false);
             setLeftOpen(true);
