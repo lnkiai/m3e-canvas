@@ -139,6 +139,22 @@ function parseJsonObject(text: string): Record<string, unknown> {
   return v as Record<string, unknown>;
 }
 
+const JSON_REMINDER = "Your previous reply was not valid JSON. Reply with the JSON object only: no prose, no code fence.";
+
+/** The model is asked for one JSON object. A complete reply that still does not parse — a
+ *  trailing comma, a comment, a smart quote — gets one more try with the reminder above; a
+ *  reply that was cut off by the output budget is not retried, because that belongs to the
+ *  prompt and the request, not to a second sample, and an aborted run stays ended. */
+async function completeObject(s: AiSettings, system: string, user: string, signal?: AbortSignal, maxTokens = 4096): Promise<Record<string, unknown>> {
+  const first = await complete(s, system, user, signal, maxTokens);
+  try {
+    return parseJsonObject(first);
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    return parseJsonObject(await complete(s, system, `${user}\n\n${JSON_REMINDER}`, signal, maxTokens));
+  }
+}
+
 /* ---------- actions ---------- */
 
 const LANG_NAME: Record<Lang, string> = { ja: "Japanese", en: "English", zh: "Simplified Chinese", ko: "Korean" };
@@ -199,7 +215,7 @@ export async function proposeBehavior(s: AiSettings, doc: Doc, widths: Record<st
     "",
     'Answer as {"notes": {"<id>": "<sentence>"}} using exactly the id above.',
   ].join("\n");
-  const j = parseJsonObject(await complete(s, SYSTEM, user, signal));
+  const j = await completeObject(s, SYSTEM, user, signal);
   return pickStrings(j.notes, parts, 300)[itemId];
 }
 
@@ -216,7 +232,7 @@ export async function proposeDescription(s: AiSettings, doc: Doc, widths: Record
   ]
     .filter((l) => l !== "")
     .join("\n");
-  const j = parseJsonObject(await complete(s, SYSTEM, user, signal));
+  const j = await completeObject(s, SYSTEM, user, signal);
   const note = typeof j.description === "string" ? j.description.trim().slice(0, 400) : "";
   if (!note) throw new Error("json");
   const name = typeof j.name === "string" ? j.name.trim().slice(0, 40) : "";
@@ -247,7 +263,7 @@ export async function draftDesign(s: AiSettings, guide: string, idea: string, la
     guide,
   ].join("\n");
   const user = [`Sketch this app: ${idea.trim()}`, `Write every label, title and note in ${LANG_NAME[lang]}.`, "Three to five screens. Keep it simple."].join("\n");
-  const j = parseJsonObject(await complete(s, system, user, signal, 12000));
+  const j = await completeObject(s, system, user, signal, 12000);
   if (!isProject(j)) throw new Error("json");
   return j;
 }
