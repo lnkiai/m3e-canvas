@@ -440,6 +440,8 @@ export default function Page() {
   const projectFileRef = useRef<HTMLInputElement>(null);
   const aiNoteTimer = useRef<number | null>(null);
   const aiAbortRef = useRef<AbortController | null>(null);
+  /* the draft has its own controller: Stop ends the draft and leaves the other AI actions alone */
+  const draftAbortRef = useRef<AbortController | null>(null);
 
   const p = paletteOf(paletteKey, customPalette, theme);
   /* corner helpers read the shape scale outside React; keep it current before anything renders */
@@ -2125,6 +2127,8 @@ export default function Page() {
   /** Opening a project file replaces the canvas with the same restore path the saved
    *  document goes through, then starts the editor fresh on it. */
   const importDoc = (next: Doc) => {
+    /* a design that replaces what is on the canvas ends any draft still in flight */
+    cancelDraft();
     hadDocRef.current = true;
     /* the whole document being replaced stays one undo away */
     snapshot(true);
@@ -2200,21 +2204,40 @@ export default function Page() {
 
   const startDraft = async (idea: string) => {
     setShareOpen(false);
+    /* a second Generate replaces the first run instead of running beside it */
+    draftAbortRef.current?.abort();
+    const ac = new AbortController();
+    draftAbortRef.current = ac;
     setDraftBusy(true);
     try {
       if (guideRef.current === null) {
-        const res = await fetch(`${BASE_PATH}/agent.md`);
+        const res = await fetch(`${BASE_PATH}/agent.md`, { signal: ac.signal });
         if (!res.ok) throw new Error("guide");
         guideRef.current = await res.text();
       }
-      const next = await draftDesign(aiSettings, guideRef.current, idea, lang);
+      if (ac.signal.aborted) return;
+      const next = await draftDesign(aiSettings, guideRef.current, idea, lang, ac.signal);
+      /* a reply that lands after Stop never takes the canvas */
+      if (ac.signal.aborted) return;
       arrive(next);
     } catch (e) {
+      /* an aborted draft ends quietly: the author asked for it */
+      if (ac.signal.aborted) return;
       const m = e instanceof Error ? e.message : "";
       showToast(m === "json" ? t("aiErrorJson", lang) : m === "refusal" ? t("aiErrorRefusal", lang) : m === "long" ? t("aiErrorLong", lang) : t("aiError", lang), 3200, "error");
     } finally {
-      setDraftBusy(false);
+      if (draftAbortRef.current === ac) {
+        draftAbortRef.current = null;
+        setDraftBusy(false);
+      }
     }
+  };
+
+  /** Stop while a draft runs: the request is dropped and the design on the canvas stays as it was */
+  const cancelDraft = () => {
+    draftAbortRef.current?.abort();
+    draftAbortRef.current = null;
+    setDraftBusy(false);
   };
   /** true after a kept draft until the author undoes something, so the header's undo also sits by the opener */
   const [quickUndo, setQuickUndo] = useState(false);
@@ -2502,6 +2525,7 @@ export default function Page() {
   useEffect(
     () => () => {
       aiAbortRef.current?.abort();
+      draftAbortRef.current?.abort();
       if (aiNoteTimer.current) window.clearTimeout(aiNoteTimer.current);
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
     },
@@ -3953,6 +3977,39 @@ export default function Page() {
               </BottomSheet>
             )}
           </AnimatePresence>
+
+          {/* Stop stays in reach while a model drafts, instead of leaving the author to reload */}
+          {draftBusy && (
+            <button
+              onClick={cancelDraft}
+              title={t("cancel", lang)}
+              className="m3-press"
+              style={{
+                position: "absolute",
+                left: "50%",
+                bottom: 152,
+                transform: "translateX(-50%)",
+                height: 40,
+                padding: "0 20px",
+                borderRadius: 20,
+                border: "none",
+                background: p.surfaceContainerHighest,
+                color: p.onSurface,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                zIndex: 95,
+              }}
+            >
+              <span style={{ display: "inline-flex" }}>
+                <Icon name="stop" size={18} />
+              </span>
+              {t("cancel", lang)}
+            </button>
+          )}
 
           {toast && (
             <div
