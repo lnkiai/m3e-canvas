@@ -32,6 +32,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  # pre-flight checks + firewall setup for the tablet mirror (LAN port 19876)
+  include: build/installer.nsh
 
 # portable single-file build keeps an icon next to the exe for a nicer icon
 portable:
