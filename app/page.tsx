@@ -102,6 +102,7 @@ import { MotionPanel, ShapePanel, TypePanel } from "@/components/ThemePanel";
 import { ThemeContext, ensureFontLoaded, ensureLangFontLoaded } from "@/lib/theme";
 import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
+import { ConnectPanel } from "@/components/ConnectPanel";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
 /** the screens while a model drafts: primary, tertiary and primary container, drifting */
@@ -1000,6 +1001,251 @@ export default function Page() {
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [setZoomAt]);
+
+  /* ---------- tablet mirror: inject remote input + report viewport ---------- */
+  useEffect(() => {
+    const m = window.m3eMirror;
+    if (!m) return;
+
+    /* the first remotely-active pointer is primary, so a second finger keeps
+     * its usual meaning on the desktop side (pinch tracking counts it) */
+    const activeRemote = new Set<number>();
+    const isPrimaryOf = (id: number, phase: "down" | "move" | "up") => {
+      if (phase === "down") {
+        const primary = activeRemote.size === 0;
+        activeRemote.add(id);
+        return primary;
+      }
+      const primary = [...activeRemote][0] === id;
+      if (phase === "up") activeRemote.delete(id);
+      return primary;
+    };
+
+    /* a soft ring showing where the tablet's pen/finger sits on the desktop,
+     * sized by pressure so the pen feels acknowledged on both screens */
+    const ring = document.createElement("div");
+    ring.style.cssText =
+      "position:fixed;left:0;top:0;width:16px;height:16px;border-radius:50%;" +
+      "border:2px solid rgba(124,92,255,.55);background:rgba(124,92,255,.12);" +
+      "transform:translate(-50%,-50%);pointer-events:none;z-index:2000;opacity:0;" +
+      "transition:opacity .3s";
+    document.body.appendChild(ring);
+    const showRing = (x: number, y: number, pressure?: number) => {
+      const s = 14 + (pressure ?? 0) * 20;
+      ring.style.width = `${s}px`;
+      ring.style.height = `${s}px`;
+      ring.style.left = `${x}px`;
+      ring.style.top = `${y}px`;
+      ring.style.opacity = "1";
+    };
+
+    const isEditable = (el: Element | null) =>
+      !!el &&
+      ((el.tagName === "INPUT" &&
+        !["range", "checkbox", "radio", "button", "submit"].includes(
+          (el as HTMLInputElement).type,
+        )) ||
+        el.tagName === "TEXTAREA" ||
+        (el as HTMLElement).isContentEditable === true);
+
+    /* native <input type="range"> ignores untrusted pointer events (its drag
+     * is a browser default action), so drive the value by hand — pen, mouse
+     * and finger alike */
+    const rangeAt = new Map<number, HTMLInputElement>();
+    const driveRange = (el: HTMLInputElement, x: number) => {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0) return;
+      const min = el.min === "" ? 0 : Number(el.min);
+      const max = Number(el.max);
+      if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return;
+      const step = Number(el.step) > 0 ? Number(el.step) : 1;
+      const t = Math.min(1, Math.max(0, (x - r.left) / r.width));
+      const snapped = Math.round((min + t * (max - min)) / step) * step;
+      const next = String(Math.min(max, Math.max(min, snapped)));
+      if (el.value !== next) {
+        el.value = next;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    };
+
+    /* a finger resting on a side panel drags that panel's scrollbar instead
+     * of the canvas; the nearest scrollable ancestor decides which */
+    const panelScroll = new Map<number, HTMLElement>();
+
+    /* input now maps onto the whole window: the tablet sees and drives the
+     * palette, the inspector and the canvas, exactly like the desktop */
+    let lastRemote = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
+    /* synthetic pointer events carry no compatibility mouse events, so every
+     * onClick-based surface (dialogs, panels, toolbar) would ignore the
+     * tablet. Emit mousedown/mouseup by hand; click only for a real tap —
+     * release near the press, never on a pan button (pen barrel / finger). */
+    const downAt = new Map<number, { x: number; y: number; panBtn: boolean }>();
+
+    const inject = (input: {
+      id: number;
+      phase: "down" | "move" | "up";
+      x: number;
+      y: number;
+      pressure?: number;
+      pointerType?: "mouse" | "touch" | "pen";
+      buttons?: number;
+    }) => {
+      const clientX = input.x * window.innerWidth;
+      const clientY = input.y * window.innerHeight;
+      /* right button (pen barrel) and middle button (a single finger) both
+       * pan, exactly like the middle mouse button: the canvas pointer
+       * handlers already start a pan on e.button === 1 */
+      const panBtn = ((input.buttons ?? 0) & 6) !== 0;
+      const pointerInit = {
+        clientX,
+        clientY,
+        pointerId: input.id,
+        pointerType: input.pointerType ?? "touch",
+        pressure: input.pressure ?? 0,
+        buttons: input.buttons ?? 0,
+        button: panBtn ? 1 : 0,
+        isPrimary: isPrimaryOf(input.id, input.phase),
+        bubbles: true,
+        cancelable: true,
+      };
+      const mouseInit = {
+        clientX,
+        clientY,
+        button: panBtn ? 1 : 0,
+        bubbles: true,
+        cancelable: true,
+      };
+      if (input.phase === "down") {
+        lastRemote = { x: clientX, y: clientY };
+        downAt.set(input.id, { x: clientX, y: clientY, panBtn });
+        const target = document.elementFromPoint(clientX, clientY);
+        /* untrusted events skip the native focus action, so typed fields need
+         * an explicit focus — and tapping elsewhere must blur like a click.
+         * The tablet pops its own IME whenever a field gains/loses focus. */
+        if (isEditable(target)) {
+          (target as HTMLElement).focus();
+          m.setTextMode(true);
+        } else if (isEditable(document.activeElement)) {
+          (document.activeElement as HTMLElement).blur();
+          m.setTextMode(false);
+        }
+        /* any pointer on a native range slider drives the value directly
+         * (finger included); a finger landing on a side panel drags that
+         * panel's scrollbar; elsewhere a finger stays a pan button */
+        if (target?.tagName === "INPUT" && (target as HTMLInputElement).type === "range") {
+          const range = target as HTMLInputElement;
+          rangeAt.set(input.id, range);
+          driveRange(range, clientX);
+        } else if (input.pointerType === "touch") {
+          const sc = scrollableAncestor(target);
+          if (sc) panelScroll.set(input.id, sc);
+        }
+        showRing(clientX, clientY, input.pointerType === "pen" ? input.pressure : 0);
+        (target ?? document.body).dispatchEvent(
+          new PointerEvent("pointerdown", pointerInit),
+        );
+        (target ?? document.body).dispatchEvent(new MouseEvent("mousedown", mouseInit));
+      } else if (input.phase === "move") {
+        const sc = panelScroll.get(input.id);
+        if (sc) sc.scrollBy({ top: -(clientY - lastRemote.y) }); // content follows the finger
+        const range = rangeAt.get(input.id);
+        if (range) driveRange(range, clientX);
+        lastRemote = { x: clientX, y: clientY };
+        showRing(clientX, clientY, input.pointerType === "pen" ? input.pressure : 0);
+        window.dispatchEvent(new PointerEvent("pointermove", pointerInit));
+      } else {
+        rangeAt.delete(input.id);
+        panelScroll.delete(input.id);
+        ring.style.opacity = "0";
+        window.dispatchEvent(new PointerEvent("pointerup", pointerInit));
+        const down = downAt.get(input.id);
+        downAt.delete(input.id);
+        if (!down) return;
+        const target = document.elementFromPoint(clientX, clientY) ?? document.body;
+        target.dispatchEvent(new MouseEvent("mouseup", mouseInit));
+        if (!down.panBtn && Math.hypot(clientX - down.x, clientY - down.y) < 8) {
+          target.dispatchEvent(
+            new MouseEvent("click", { ...mouseInit, button: 0, detail: 1 }),
+          );
+        }
+      }
+    };
+    const offInput = m.onInput(inject);
+
+    /* tablet + pen canvas mode: let the remote surface drive the same canvas
+     * commands (undo/redo, tool, fit, zoom) the desktop keyboard already offers */
+    const runAction = (action: string) => {
+      switch (action) {
+        case "undo": undo(); break;
+        case "redo": redo(); break;
+        case "fit": fit(); break;
+        case "tool-select": setMode("select"); break;
+        case "tool-hand": setMode("hand"); break;
+        case "zoom-in": setZoomAt(viewRef.current.z * 1.25); break;
+        case "zoom-out": setZoomAt(viewRef.current.z / 1.25); break;
+      }
+    };
+    const offAction = m.onAction(runAction);
+
+    const scrollableAncestor = (start: Element | null): HTMLElement | null => {
+      let el = start as HTMLElement | null;
+      while (el && el !== document.body) {
+        const ov = getComputedStyle(el).overflowY;
+        if ((ov === "auto" || ov === "scroll") && el.scrollHeight > el.clientHeight + 1)
+          return el;
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    /* two-finger gestures: pinch zooms around the gesture center; pan scrolls
+     * a panel when the fingers sit on one, otherwise drags the canvas view.
+     * The canvas follows the fingers (natural touch direction), the same way
+     * the desktop hand tool drags it. */
+    const runGesture = (
+      g: { kind: "pinch"; scale: number; cx: number; cy: number } | { kind: "pan"; dx: number; dy: number; cx?: number; cy?: number },
+    ) => {
+      if (g.kind === "pinch") {
+        setZoomAt(
+          viewRef.current.z * g.scale,
+          g.cx * window.innerWidth,
+          g.cy * window.innerHeight,
+        );
+        return;
+      }
+      const gx = g.cx !== undefined ? g.cx * window.innerWidth : lastRemote.x;
+      const gy = g.cy !== undefined ? g.cy * window.innerHeight : lastRemote.y;
+      const sc = scrollableAncestor(document.elementFromPoint(gx, gy));
+      if (sc) sc.scrollBy({ top: -g.dy * window.innerHeight });
+      else
+        setView((v) => ({
+          ...v,
+          x: v.x + g.dx * window.innerWidth,
+          y: v.y + g.dy * window.innerHeight,
+        }));
+    };
+    const offGesture = m.onGesture(runGesture);
+
+    /* the mirror shows the whole desktop viewport; report its size so the
+     * tablet labels it and hello stays accurate across window resizes */
+    const reportViewport = () => {
+      m.setViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    reportViewport();
+    window.addEventListener("resize", reportViewport);
+    const vpTimer = window.setInterval(reportViewport, 2000);
+
+    return () => {
+      offInput();
+      offAction();
+      offGesture();
+      window.removeEventListener("resize", reportViewport);
+      window.clearInterval(vpTimer);
+      ring.remove();
+    };
+  }, []);
 
   /* ---------- rest positions and the magnet ---------- */
   const restPos = useCallback(
@@ -4146,6 +4392,8 @@ export default function Page() {
           onCancel={() => setConfirmClear(false)}
           onConfirm={clearAll}
         />
+
+        <ConnectPanel p={p} />
       </div>
 
       <AnimatePresence>
