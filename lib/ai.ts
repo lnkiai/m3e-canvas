@@ -81,6 +81,40 @@ export async function complete(s: AiSettings, system: string, user: string, sign
   const model = s.model.trim();
   if (!model) throw new Error("model");
   if (!isSecureUrl(base)) throw new Error("insecure");
+
+  /* In the desktop build the request is routed through the Electron main
+   * process (a plain server-side HTTP call, no CORS). In a normal browser it
+   * fetches directly, as before. */
+  const bridge = typeof window !== "undefined" ? window.m3eAI : undefined;
+  if (bridge) {
+    const isClaude = s.provider === "claude";
+    const url = isClaude ? `${base}/v1/messages` : `${base}/chat/completions`;
+    const headers: Record<string, string> = isClaude
+      ? {
+          "content-type": "application/json",
+          "x-api-key": s.key.trim(),
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        }
+      : {
+          "content-type": "application/json",
+          ...(s.key.trim() ? { authorization: `Bearer ${s.key.trim()}` } : {}),
+        };
+    const body = isClaude
+      ? { model, max_tokens: 4096, system, messages: [{ role: "user", content: user }] }
+      : { model, messages: [{ role: "system", content: system }, { role: "user", content: user }] };
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const onAbort = () => bridge.abort(id);
+    signal?.addEventListener("abort", onAbort);
+    try {
+      const res = await bridge.complete({ id, url, provider: s.provider, headers, body });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${res.text.slice(0, 300)}`);
+      return parseModelText(s.provider, res.text);
+    } finally {
+      signal?.removeEventListener("abort", onAbort);
+    }
+  }
+
   if (s.provider === "claude") {
     const res = await fetch(`${base}/v1/messages`, {
       method: "POST",
@@ -125,6 +159,21 @@ export async function complete(s: AiSettings, system: string, user: string, sign
   const c = j.choices?.[0]?.message?.content;
   if (typeof c === "string") return c;
   if (Array.isArray(c)) return c.map((x: { text?: string }) => x.text ?? "").join("");
+  throw new Error("empty");
+}
+
+/** turn a raw model response body into the same text the browser branch returns
+ *  (the bridge hands back the response text instead of a Response object). */
+function parseModelText(provider: Provider, text: string): string {
+  const j = JSON.parse(text) as Record<string, unknown>;
+  if (provider === "claude") {
+    if (j.stop_reason === "refusal") throw new Error("refusal");
+    const content = (j.content ?? []) as { type: string; text: string }[];
+    return content.filter((b) => b.type === "text").map((b) => b.text).join("");
+  }
+  const c = (j.choices as { message?: { content?: string | { text?: string }[] } }[] | undefined)?.[0]?.message?.content;
+  if (typeof c === "string") return c;
+  if (Array.isArray(c)) return c.map((x) => x.text ?? "").join("");
   throw new Error("empty");
 }
 

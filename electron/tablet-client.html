@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>M3E Canvas — Pen</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; height: 100%; overflow: hidden; background: #0e0f13;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+      }
+      body { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+      #stage {
+        /* sized by fitStage() from visualViewport: Chrome on Android can lay
+         * fixed elements out against a stale, undersized viewport on first
+         * load, leaving a dead band at the bottom until some resize happens */
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #preview {
+        max-width: 100%; max-height: 100%; width: auto; height: auto; display: block;
+        border-radius: 10px; box-shadow: 0 14px 44px rgba(0,0,0,.55);
+        touch-action: none;
+      }
+      #preview.hidden { visibility: hidden; }
+
+      /* all overlays live in one JS-sized layer so they track the real
+       * visual viewport (same first-load quirk as #stage) */
+      #hud {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 20; pointer-events: none;
+      }
+      #hud > * { position: absolute; }
+      #status {
+        left: 12px; bottom: 12px; display: flex; align-items: center; gap: 8px;
+        color: #9aa0ac; font-size: 12px; padding: 8px 12px; border-radius: 18px;
+        background: rgba(20,22,28,.6);
+      }
+      #dot { width: 9px; height: 9px; border-radius: 50%; background: #ff6b6b; }
+      #dot.on { background: #4dbb6c; }
+      #mode {
+        right: 12px; bottom: 12px; color: #6f7580; font-size: 11px;
+        letter-spacing: .4px;
+      }
+      #spin {
+        position: fixed; inset: 0; display: grid; place-items: center; color: #8a8f9b; font-size: 14px;
+        z-index: 30; pointer-events: none;
+      }
+
+      /* keyboard wedge: an invisible input the page focuses when the desktop
+       * focuses a text field, so the tablet's own IME pops up; the pill is the
+       * visible cue (and re-focus tap) while typing is active */
+      #wedge {
+        position: fixed; left: 0; bottom: 0; width: 100%; height: 44px;
+        opacity: .01; border: none; background: transparent; color: transparent;
+        font-size: 16px; z-index: 24; pointer-events: none;
+      }
+      #kbd {
+        right: 12px; bottom: 44px; height: 40px; padding: 0 14px;
+        border: none; border-radius: 20px; background: rgba(20,22,28,.85); color: #cdd0d8;
+        font-size: 13px; font-weight: 700; display: flex; align-items: center;
+        box-shadow: 0 6px 18px rgba(0,0,0,.4); touch-action: manipulation;
+        pointer-events: auto;
+      }
+      #kbd.on { background: #7c5cff; color: #fff; }
+      #kbd[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="spin">Connecting…</div>
+    <div id="stage"><img id="preview" alt="M3E Canvas pen surface" /></div>
+
+    <input id="wedge" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" tabindex="-1" aria-hidden="true" />
+
+    <div id="hud">
+      <div id="status"><span id="dot"></span><span id="label">Connecting…</span></div>
+      <div id="mode">PEN CANVAS</div>
+      <button id="kbd" hidden>⌨</button>
+    </div>
+
+    <script>
+      const stage = document.getElementById("stage");
+      const preview = document.getElementById("preview");
+      const dot = document.getElementById("dot");
+      const label = document.getElementById("label");
+      const spin = document.getElementById("spin");
+      const wedge = document.getElementById("wedge");
+      const kbd = document.getElementById("kbd");
+
+      const params = new URLSearchParams(location.search);
+      const token = params.get("token") || "";
+      const wsUrl = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?token=${encodeURIComponent(token)}`;
+
+      let ws = null;
+      let canvasW = 0, canvasH = 0;
+      let frameUrl = ""; // current blob: URL of the mirror frame (revoked on next)
+
+      /* ---------- connection: reconnect with backoff + jitter ---------- */
+      let retryMs = 0;
+      let stopped = false; // set by a bye message; no more reconnect attempts
+
+      function send(msg) {
+        if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg));
+      }
+
+      function setStatus(connected, text) {
+        dot.className = connected ? "on" : "";
+        label.textContent = text || (connected ? "Connected" : "Reconnecting…");
+      }
+
+      function scheduleReconnect() {
+        if (stopped) return;
+        const base = retryMs === 0 ? 500 : Math.min(10000, retryMs * 2);
+        retryMs = base;
+        setTimeout(connect, base + Math.random() * 500);
+      }
+
+      function connect() {
+        if (stopped) return;
+        let sock;
+        try { sock = new WebSocket(wsUrl); }
+        catch (e) { scheduleReconnect(); return; }
+        ws = sock;
+        sock.binaryType = "arraybuffer";
+        sock.onopen = () => {
+          retryMs = 0;
+          setStatus(true, null);
+        };
+        sock.onclose = () => {
+          if (ws !== sock) return;
+          setKbd(false);
+          setStatus(false, stopped ? label.textContent : null);
+          scheduleReconnect();
+        };
+        sock.onerror = () => {}; // onclose always follows
+        sock.onmessage = (ev) => {
+          // mirror frames arrive as binary: 1-byte type, uint16 w, uint16 h, JPEG
+          if (ev.data instanceof ArrayBuffer) {
+            const dv = new DataView(ev.data);
+            if (dv.getUint8(0) !== 1) return;
+            const blob = new Blob([new Uint8Array(ev.data, 5)], { type: "image/jpeg" });
+            const url = URL.createObjectURL(blob);
+            preview.src = url;
+            if (frameUrl) URL.revokeObjectURL(frameUrl);
+            frameUrl = url;
+            spin.textContent = "";
+            spin.style.display = "none";
+            return;
+          }
+          let msg;
+          try { msg = JSON.parse(ev.data); } catch { return; }
+          if (msg.type === "hello") {
+            canvasW = msg.w | 0; canvasH = msg.h | 0;
+            label.textContent = canvasW && canvasH ? `${canvasW}×${canvasH}` : "Connected";
+          } else if (msg.type === "text-mode") {
+            // the desktop focused (or left) a text field — pop the IME
+            setKbd(!!msg.on);
+          } else if (msg.type === "bye") {
+            stopped = true;
+            try { sock.close(); } catch (e) {}
+            setKbd(false);
+            setStatus(false, msg.reason === "stopped" ? "Server stopped" : "Disconnected");
+          }
+        };
+      }
+      connect();
+
+      /* ---------- real-viewport fitting (Android Chrome first-load quirk) ----------
+       * Chrome can lay the page out against a stale, undersized viewport when
+       * the page first loads; size the stage + hud from visualViewport by hand
+       * and re-check a few times until Chrome settles. */
+      const hud = document.getElementById("hud");
+      function fitStage() {
+        const vv = window.visualViewport;
+        const w = Math.round(vv ? vv.width : innerWidth);
+        const h = Math.round(vv ? vv.height : innerHeight);
+        if (w > 0 && h > 0) {
+          stage.style.width = `${w}px`;
+          stage.style.height = `${h}px`;
+          hud.style.width = `${w}px`;
+          hud.style.height = `${h}px`;
+        }
+      }
+      fitStage();
+      window.addEventListener("resize", fitStage);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", fitStage);
+        window.visualViewport.addEventListener("scroll", fitStage);
+      }
+      [300, 800, 2000, 4000].forEach((ms) => setTimeout(fitStage, ms));
+
+      /* ---------- keyboard wedge: tablet IME -> desktop focused field ---------- */
+      let lastSent = ""; // already-relayed wedge content (for append/remove diffs)
+
+      function setKbd(on) {
+        kbd.hidden = !on;
+        kbd.classList.toggle("on", on);
+        kbd.textContent = on ? "⌨ 输入中" : "⌨";
+        if (on) wedge.focus();
+        else {
+          wedge.blur();
+          wedge.value = "";
+          lastSent = "";
+        }
+      }
+
+      // tapping the pill refocuses the wedge if the soft keyboard was dismissed
+      kbd.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        wedge.focus();
+      });
+
+      wedge.addEventListener("input", (e) => {
+        // IME safety: only relay once composition has fully committed
+        if (e.isComposing) return;
+        const v = wedge.value;
+        let i = 0;
+        const min = Math.min(v.length, lastSent.length);
+        while (i < min && v[i] === lastSent[i]) i++;
+        if (i < lastSent.length) {
+          for (let k = i; k < lastSent.length; k++) send({ type: "key", key: "Backspace" });
+        }
+        if (i < v.length) send({ type: "text", data: v.slice(i) });
+        lastSent = v;
+      });
+      wedge.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          send({ type: "key", key: "Enter" });
+          wedge.value = "";
+          lastSent = "";
+        }
+      });
+
+      /* ---------- input relay: palm rejection + semantic gestures ---------- */
+      const PALM_WINDOW_MS = 800; // touches are suppressed this long after the last pen contact
+      let lastPenAt = -1e9;
+      const penRecently = () => performance.now() - lastPenAt < PALM_WINDOW_MS;
+
+      const touchPos = new Map(); // pointerId -> {x, y} of active touches
+      const sentDown = new Set(); // pointers whose "down" we forwarded (only those get moves/ups)
+      let gest = null;            // active two-finger gesture baseline
+
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+      /* A single finger acts as the mouse's middle button: dragging pans the
+       * canvas, a stationary tap still clicks. The pen keeps full precision
+       * (select, drag parts, marquee); two fingers are pinch / pan gestures. */
+      function sendPointer(e, phase, buttonsOverride) {
+        const r = preview.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        const nx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        const ny = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+        const p = e.pointerType === "pen" ? (e.pressure || 0.5) : (e.pressure || 0);
+        send({
+          type: "pointer", id: e.pointerId, phase,
+          x: nx, y: ny, pressure: p,
+          buttons: buttonsOverride !== undefined ? buttonsOverride : e.buttons,
+          pointerType: e.pointerType === "pen" ? "pen"
+            : e.pointerType === "mouse" ? "mouse" : "touch",
+        });
+      }
+
+      function beginGesture() {
+        // withdraw any single-finger drag already forwarded so the desktop
+        // never sees a stale pointer while the gesture takes over
+        for (const id of [...sentDown]) {
+          send({ type: "pointer", id, phase: "up", x: 0, y: 0, buttons: 0, pointerType: "touch" });
+        }
+        sentDown.clear();
+        const vals = [...touchPos.values()];
+        if (vals.length < 2) return;
+        gest = { d0: dist(vals[0], vals[1]), cx: (vals[0].x + vals[1].x) / 2, cy: (vals[0].y + vals[1].y) / 2 };
+      }
+
+      function endGesture() {
+        gest = null;
+      }
+
+      function updateGesture() {
+        if (!gest) return;
+        const vals = [...touchPos.values()];
+        if (vals.length < 2) return;
+        const [a, b] = vals;
+        const d = dist(a, b);
+        const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+        const r = preview.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        if (gest.d0 > 0 && d > 0) {
+          const scale = d / gest.d0;
+          if (Math.abs(scale - 1) >= 0.012) {
+            send({ type: "gesture", kind: "pinch", scale, cx: (cx - r.left) / r.width, cy: (cy - r.top) / r.height });
+            gest.d0 = d; // increments from the last sent state
+          }
+        }
+        if (gest.cx !== undefined) {
+          const dx = (cx - gest.cx) / r.width, dy = (cy - gest.cy) / r.height;
+          if (Math.abs(dx) > 0.004 || Math.abs(dy) > 0.004) {
+            // center rides along so the desktop knows which panel to scroll
+            send({
+              type: "gesture", kind: "pan", dx, dy,
+              cx: (cx - r.left) / r.width, cy: (cy - r.top) / r.height,
+            });
+            gest.cx = cx; gest.cy = cy;
+          }
+        }
+      }
+
+      stage.addEventListener("pointerdown", (e) => {
+        if (e.pointerType === "pen") lastPenAt = performance.now();
+        if (e.pointerType === "touch") {
+          touchPos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (!penRecently() && touchPos.size === 2) {
+            stage.setPointerCapture(e.pointerId);
+            beginGesture();
+            return;
+          }
+          if (penRecently()) return; // palm resting while writing
+          stage.setPointerCapture(e.pointerId);
+          sentDown.add(e.pointerId);
+          sendPointer(e, "down", 4); // middle button: drag pans, tap clicks
+          return;
+        }
+        stage.setPointerCapture(e.pointerId);
+        sentDown.add(e.pointerId);
+        sendPointer(e, "down");
+      });
+
+      stage.addEventListener("pointermove", (e) => {
+        if (e.pointerType === "touch") {
+          if (touchPos.has(e.pointerId)) touchPos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (gest) { updateGesture(); return; }
+          if (!sentDown.has(e.pointerId)) return;
+          sendPointer(e, "move", 4);
+          return;
+        }
+        if (e.pointerType === "pen") lastPenAt = performance.now();
+        if (e.buttons && sentDown.has(e.pointerId)) sendPointer(e, "move");
+      });
+
+      const end = (e) => {
+        if (e.pointerType === "touch") {
+          touchPos.delete(e.pointerId);
+          if (touchPos.size < 2) endGesture();
+        }
+        if (sentDown.has(e.pointerId)) {
+          sentDown.delete(e.pointerId);
+          sendPointer(e, "up", 0);
+        }
+      };
+      stage.addEventListener("pointerup", end);
+      stage.addEventListener("pointercancel", end);
+
+      preview.addEventListener("load", () => {
+        preview.classList.remove("hidden");
+        spin.textContent = "";
+        spin.style.display = "none";
+      });
+    </script>
+  </body>
+</html>

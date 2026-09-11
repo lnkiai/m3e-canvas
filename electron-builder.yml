@@ -1,0 +1,38 @@
+# M3E Canvas — electron-builder config.
+# The renderer is the Next.js static export (./out); the shell lives in
+# ./dist-electron. Both are packed into the asar below package.json's "main".
+appId: io.m3e.canvas
+productName: M3E Canvas
+copyright: Copyright © 2026 lnkiai.
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**
+  - dist-electron/**
+  - package.json
+  - "!**/*.map"
+  - "!**/.DS_Store"
+
+asar: true
+
+win:
+  target:
+    - target: portable
+      arch: [x64]
+    - target: nsis
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+# portable single-file build keeps an icon next to the exe for a nicer icon
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}

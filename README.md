@@ -86,6 +86,20 @@ npm run build      # static export to ./out
 
 The app is a static Next.js export. To host it under a sub-path (for example a GitHub Pages project site), set `NEXT_PUBLIC_BASE_PATH=/your-repo` at build time. `.github/workflows/deploy.yml` does this automatically and publishes `out/` to GitHub Pages on every push to `main`.
 
+## Desktop app (Electron)
+
+The same static export also ships as a native desktop app. An Electron shell (`electron/main.ts` + `electron/preload.ts`) serves `out/` under a custom `app://` scheme and routes the optional AI requests through the main process (a plain server-side HTTP call, no CORS).
+
+```bash
+npm install
+npm run electron:dev     # build the web export + shell, then launch the app
+npm run electron:smoke   # launch headless and assert the page/AI bridge loaded
+npm run electron:pack    # unpacked app in ./release/win-unpacked
+npm run electron:dist    # installers (NSIS / portable) in ./release
+```
+
+The frontend code is unchanged; in a normal browser the AI helpers still fetch directly, and only use the bridge when the desktop `m3eAI` API is present.
+
 ## Contributing
 
 Bug reports, part requests and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains the setup, the conventions (English comments, four languages for every string) and where each kind of change lives. Questions go to [Discussions](https://github.com/lnkiai/m3e-canvas/discussions).

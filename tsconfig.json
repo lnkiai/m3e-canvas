@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "promo"]
+  "exclude": ["node_modules", "promo", "electron/**/*.ts", "dist-electron"]
 }

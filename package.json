@@ -2,6 +2,8 @@
   "name": "m3e-canvas",
   "version": "0.1.0",
   "private": true,
+  "author": "lnkiai",
+  "main": "dist-electron/main.js",
   "engines": {
     "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
   },
@@ -10,20 +12,30 @@
     "build": "next build",
     "start": "npx serve out",
     "typecheck": "tsc --noEmit -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:electron": "node scripts/build-electron.mjs",
+    "electron:dev": "npm run build && npm run build:electron && electron .",
+    "electron:smoke": "npm run build && npm run build:electron && electron . --smoke",
+    "electron:pack": "npm run build && npm run build:electron && electron-builder --dir",
+    "electron:dist": "npm run build && npm run build:electron && electron-builder"
   },
   "dependencies": {
     "html-to-image": "^1.11.13",
     "motion": "^13.1.1",
     "next": "16.3.4",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^26",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^44.2.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
     "tailwindcss": "^4",
     "typescript": "^7",
     "vitest": "^5.0.0"

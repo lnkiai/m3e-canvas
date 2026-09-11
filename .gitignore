@@ -18,11 +18,22 @@
 /out/
 
 # production
-/build
+/build/*
+# electron-builder resources: the app icons and NSIS pre-flight are versioned
+!/build/icon.ico
+!/build/icon.png
+!/build/installer.nsh
+
+# electron
+/dist-electron/
+/release/
 
 # misc
 .DS_Store
 *.pem
+
+# local agent/session state
+/.mimosa/
 
 # debug
 npm-debug.log*
