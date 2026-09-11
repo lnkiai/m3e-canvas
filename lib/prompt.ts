@@ -124,6 +124,38 @@ function selectedText(it: Item, lang: Lang): string {
   return i === 0 || !label ? "the first one is selected" : `"${label}" is selected`;
 }
 
+/** a navigation-bar destination's badge, in words; empty when it has none */
+function navBadgeText(badge: string | undefined, lang: Lang): string {
+  if (badge === undefined) return "";
+  if (badge === "") {
+    if (lang === "ja") return "ドットバッジ付き";
+    if (lang === "zh") return "带圆点徽标";
+    if (lang === "ko") return "점 배지 있음";
+    return "with a dot badge";
+  }
+  if (lang === "ja") return `バッジ「${badge}」付き`;
+  if (lang === "zh") return `带徽标“${badge}”`;
+  if (lang === "ko") return `배지 "${badge}" 있음`;
+  return `with a "${badge}" badge`;
+}
+
+/** a navigation bar's label visibility, in words; empty when labels always show */
+function navLabelModeText(it: Item, lang: Lang): string {
+  if (it.labelMode === "selected") {
+    if (lang === "ja") return "ラベルは選択中のみ表示";
+    if (lang === "zh") return "标签仅在选中时显示";
+    if (lang === "ko") return "라벨은 선택 항목에만 표시";
+    return "labels show on the selected destination only";
+  }
+  if (it.labelMode === "never") {
+    if (lang === "ja") return "ラベルなし";
+    if (lang === "zh") return "无标签";
+    if (lang === "ko") return "라벨 없음";
+    return "no labels";
+  }
+  return "";
+}
+
 const qj = (s: string) => `「${s.trim()}」`;
 const qe = (s: string) => `"${s.trim()}"`;
 const qz = (s: string) => `“${s.trim()}”`;
@@ -161,8 +193,12 @@ function itemJa(it: Item): string {
     case "topAppBar":
       return `タイトル${q(it.label)}のトップアプリバー${it.icon ? `。左に ${it.icon}` : ""}${it.icon2 ? `、右に ${it.icon2}` : ""}${it.icon || it.icon2 ? " のアイコンボタン" : ""}`;
     case "bottomNav": {
-      const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "ラベルなし")}(${t.icon || "アイコンなし"})`);
-      return `${tabs.length}項目のナビゲーションバー（${tabs.join("、")}。${selectedText(it, "ja")}）`;
+      const tabs = (it.tabs ?? []).map((t) => {
+        const badge = navBadgeText(t.badge, "ja");
+        return `${q(t.label || "ラベルなし")}(${t.icon || "アイコンなし"}${badge ? `、${badge}` : ""})`;
+      });
+      const mode = navLabelModeText(it, "ja");
+      return `${tabs.length}項目のナビゲーションバー（${tabs.join("、")}。${selectedText(it, "ja")}${mode ? `。${mode}` : ""}）`;
     }
     case "navRail": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "ラベルなし")}(${t.icon || "アイコンなし"})`);
@@ -252,8 +288,12 @@ function itemEn(it: Item): string {
     case "topAppBar":
       return `a top app bar titled ${q(it.label)}${it.icon ? ` with a ${it.icon} icon button on the left` : ""}${it.icon2 ? `${it.icon ? " and" : " with"} ${it.icon2} on the right` : ""}`;
     case "bottomNav": {
-      const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "unlabeled")} (${t.icon || "no icon"})`);
-      return `a navigation bar with ${tabs.length} destinations: ${tabs.join(", ")}; ${selectedText(it, "en")}`;
+      const tabs = (it.tabs ?? []).map((t) => {
+        const badge = navBadgeText(t.badge, "en");
+        return `${q(t.label || "unlabeled")} (${t.icon || "no icon"}${badge ? `, ${badge}` : ""})`;
+      });
+      const mode = navLabelModeText(it, "en");
+      return `a navigation bar with ${tabs.length} destinations: ${tabs.join(", ")}; ${selectedText(it, "en")}${mode ? `; ${mode}` : ""}`;
     }
     case "navRail": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "unlabeled")} (${t.icon || "no icon"})`);
@@ -343,8 +383,12 @@ function itemZh(it: Item): string {
     case "topAppBar":
       return `标题为${q(it.label)}的顶部应用栏${it.icon ? `，左侧是 ${it.icon}` : ""}${it.icon2 ? `，右侧是 ${it.icon2}` : ""}${it.icon || it.icon2 ? " 图标按钮" : ""}`;
     case "bottomNav": {
-      const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "无标签")}(${t.icon || "无图标"})`);
-      return `${tabs.length}个项目的导航栏（${tabs.join("、")}，${selectedText(it, "zh")}）`;
+      const tabs = (it.tabs ?? []).map((t) => {
+        const badge = navBadgeText(t.badge, "zh");
+        return `${q(t.label || "无标签")}(${t.icon || "无图标"}${badge ? `，${badge}` : ""})`;
+      });
+      const mode = navLabelModeText(it, "zh");
+      return `${tabs.length}个项目的导航栏（${tabs.join("、")}，${selectedText(it, "zh")}${mode ? `，${mode}` : ""}）`;
     }
     case "navRail": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "无标签")}(${t.icon || "无图标"})`);
@@ -428,8 +472,12 @@ function itemKo(it: Item): string {
     case "chip": return `${q(it.label)} 칩${it.checked ? "(선택됨)" : ""}${it.icon && !it.checked ? `(${it.icon} 아이콘 포함)` : ""}`;
     case "topAppBar": return `제목이 ${q(it.label)}인 상단 앱 바${it.icon ? `, 왼쪽 ${it.icon}` : ""}${it.icon2 ? `, 오른쪽 ${it.icon2}` : ""}${it.icon || it.icon2 ? " 아이콘 버튼" : ""}`;
     case "bottomNav": {
-      const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "레이블 없음")}(${t.icon || "아이콘 없음"})`);
-      return `${tabs.length}개 항목의 내비게이션 바(${tabs.join(", ")}, ${selectedText(it, "ko")})`;
+      const tabs = (it.tabs ?? []).map((t) => {
+        const badge = navBadgeText(t.badge, "ko");
+        return `${q(t.label || "레이블 없음")}(${t.icon || "아이콘 없음"}${badge ? `, ${badge}` : ""})`;
+      });
+      const mode = navLabelModeText(it, "ko");
+      return `${tabs.length}개 항목의 내비게이션 바(${tabs.join(", ")}, ${selectedText(it, "ko")}${mode ? `, ${mode}` : ""})`;
     }
     case "navRail": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "레이블 없음")}(${t.icon || "아이콘 없음"})`);

@@ -1156,7 +1156,31 @@ export const KIND_ORDER: Kind[] = [
 ];
 
 /* ---------- screen data ---------- */
-export type NavTab = { icon: string; label: string };
+export type NavTab = {
+  icon: string;
+  label: string;
+  /**
+   * navigation-bar badge: undefined clears it, "" draws a dot,
+   * any other text draws a short count (keep it to "3" or "99+").
+   */
+  badge?: string;
+};
+
+/** navigation-bar label visibility: unset behaves as "always" */
+export type NavLabelMode = "always" | "selected" | "never";
+
+/** M3 labels: "never" hides every label, "selected" keeps only the selected tab's */
+export function navLabelVisible(mode: NavLabelMode | undefined, selected: boolean): boolean {
+  if (mode === "never") return false;
+  if (mode === "selected") return selected;
+  return true;
+}
+
+/** badge shape for a tab: none, a dot, or a short count */
+export function navBadgeKind(badge: string | undefined): "none" | "dot" | "count" {
+  if (badge === undefined) return "none";
+  return badge === "" ? "dot" : "count";
+}
 
 export type Item = {
   id: string;
@@ -1174,6 +1198,8 @@ export type Item = {
   tabs?: NavTab[];
   /** navigation bars, rails and tab rows: index of the selected destination (0 when unset) */
   selected?: number;
+  /** navigation bar only: which labels show — unset behaves as "always" */
+  labelMode?: NavLabelMode;
   /** list items: a switch at the trailing end instead of an icon; `checked` is its state */
   switch?: boolean;
   /** cards: no image area; `src` puts a picture in it */

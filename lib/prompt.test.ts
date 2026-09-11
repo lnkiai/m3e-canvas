@@ -296,6 +296,76 @@ describe("buildPrompt structure", () => {
   });
 });
 
+/* A navigation bar keeps its default description quiet, and only mentions
+ * badges and label visibility when the author actually set them. */
+describe("buildPrompt for navigation-bar badges and label modes", () => {
+  afterEach(() => setGlobalLang("ja"));
+
+  function navPrompt(lang: Lang, nav: Item) {
+    setGlobalLang(lang);
+    const doc: Doc = {
+      groups: [{ id: "g-nav", x: 16, y: 812, axis: "x", items: [nav] }],
+      frames: [{ id: "f-home", name: "Home", x: 0, y: 0 }],
+      paletteKey: "purple",
+      frame: "phone",
+      platform: "android",
+      title: "Notes",
+      brief: "",
+    };
+    return buildPrompt(doc, {}, undefined, lang);
+  }
+
+  const BADGE: Record<Lang, [dot: string, count: string]> = {
+    ja: ["ドットバッジ付き", "バッジ「3」付き"],
+    en: ["with a dot badge", 'with a "3" badge'],
+    zh: ["带圆点徽标", "带徽标“3”"],
+    ko: ["점 배지 있음", '배지 "3" 있음'],
+  };
+
+  const MODE: Record<Lang, [selected: string, never: string]> = {
+    ja: ["ラベルは選択中のみ表示", "ラベルなし"],
+    en: ["labels show on the selected destination only", "no labels"],
+    zh: ["标签仅在选中时显示", "无标签"],
+    ko: ["라벨은 선택 항목에만 표시", "라벨 없음"],
+  };
+
+  it.each(LANGS)("stays silent about badges and label modes by default in %s", (lang) => {
+    const plain: Item = { ...makeItem("bottomNav"), id: "nav", tabs: defaultTabs().slice(0, 3) };
+    const prompt = navPrompt(lang, plain);
+    expect(prompt).not.toContain(BADGE[lang][0]);
+    expect(prompt).not.toContain(BADGE[lang][1]);
+    expect(prompt).not.toContain(MODE[lang][0]);
+    expect(prompt).not.toContain(MODE[lang][1]);
+  });
+
+  it.each(LANGS)("names dot and count badges in %s", (lang) => {
+    const badged: Item = {
+      ...makeItem("bottomNav"),
+      id: "nav",
+      tabs: [
+        { icon: "home", label: "Home", badge: "" },
+        { icon: "mail", label: "Mail", badge: "3" },
+        { icon: "settings", label: "Settings" },
+      ],
+    };
+    const prompt = navPrompt(lang, badged);
+    expect(prompt).toContain(BADGE[lang][0]);
+    expect(prompt).toContain(BADGE[lang][1]);
+  });
+
+  it.each(LANGS)("names the label visibility only when it is not always in %s", (lang) => {
+    const selected: Item = {
+      ...makeItem("bottomNav"),
+      id: "nav",
+      tabs: defaultTabs().slice(0, 3),
+      labelMode: "selected",
+    };
+    expect(navPrompt(lang, selected)).toContain(MODE[lang][0]);
+    const hidden: Item = { ...selected, labelMode: "never" };
+    expect(navPrompt(lang, hidden)).toContain(MODE[lang][1]);
+  });
+});
+
 /* The placeholder parts state their box, and a dropdown names its options and initial value.
  * Each sits in its own group: a run of mixed kinds would be described as a button group. */
 describe("buildPrompt for the camera, map and dropdown parts", () => {

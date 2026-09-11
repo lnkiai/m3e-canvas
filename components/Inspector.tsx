@@ -53,6 +53,7 @@ import {
   setIconSlot,
   removeTabPatch,
   tabCountPatch,
+  NavLabelMode,
   variantStyle,
   scaleR,
   Place,
@@ -803,6 +804,16 @@ export function Inspector({
 
   const setTabLabel = (i: number, label: string) =>
     onChange({ tabs: tabs.map((t, j) => (j === i ? { ...t, label } : t)) });
+  /** navigation bar only: a dot, a short count, or no badge on each destination */
+  const isBottomNav = item.kind === "bottomNav";
+  const setTabBadge = (i: number, badge: string | undefined) =>
+    onChange({ tabs: tabs.map((t, j) => {
+      if (j !== i) return t;
+      const next = { ...t };
+      if (badge === undefined) delete next.badge;
+      else next.badge = badge;
+      return next;
+    }) });
   /** bars, rails and tab rows show one destination as selected */
   const isSelect = item.kind === "select";
   /** options and tab rows grow one row at a time; bars, rails and menus keep the fixed counts M3 allows */
@@ -944,6 +955,19 @@ export function Inspector({
 
       {spec.hasTabs && !editOn && (
         <Section id="tabs" icon={isSelect ? "list" : "view_column"} title={t(isSelect ? "options" : "tabs", lang)} p={p} onToggle={(open) => { if (!open && activeSlot?.key.startsWith("tab:")) setPickerOpen(false); }}>
+          {isBottomNav && (
+            <Segmented<NavLabelMode>
+              options={([
+                ["always", t("labelsAlways", lang)],
+                ["selected", t("labelsSelected", lang)],
+                ["never", t("labelsNever", lang)],
+              ] as [NavLabelMode, string][]).map(([key, label]) => ({ key, label }))}
+              value={item.labelMode ?? "always"}
+              onChange={(k) => onChange(k === "always" ? { labelMode: undefined } : { labelMode: k })}
+              p={p}
+              height={36}
+            />
+          )}
           {!growsFreely && (
             <Segmented
               options={(item.kind === "toolbar" ? [2, 3, 4, 5, 6] : [2, 3, 4, 5]).map((n) => ({ key: String(n), label: String(n) }))}
@@ -995,6 +1019,27 @@ export function Inspector({
                   </button>
                   )}
                   {tabLabels && <Field value={tab.label} onChange={(v) => setTabLabel(i, v)} placeholder={t("label", lang)} p={p} height={40} />}
+                  {isBottomNav && (
+                    <IconBtn
+                      icon="circle"
+                      p={p}
+                      size={40}
+                      on={tab.badge === ""}
+                      onClick={() => setTabBadge(i, tab.badge === "" ? undefined : "")}
+                      title={t("badgeDot", lang)}
+                    />
+                  )}
+                  {isBottomNav && (
+                    <div style={{ width: 72, flex: "0 0 auto" }}>
+                      <Field
+                        value={tab.badge === "" ? "" : (tab.badge ?? "")}
+                        onChange={(v) => setTabBadge(i, v.trim() === "" ? undefined : v.trim().slice(0, 4))}
+                        placeholder={t("badgeCount", lang)}
+                        p={p}
+                        height={40}
+                      />
+                    </div>
+                  )}
                   {tabIcons && tab.icon && (
                     <IconBtn icon="close" p={p} size={40} onClick={() => onChange(setIconSlot(item, `tab:${i}`, null))} title={t("noIcon", lang)} />
                   )}

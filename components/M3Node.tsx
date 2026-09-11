@@ -39,6 +39,8 @@ import {
   isScrollableTabs,
   tabScrollOffset,
   SCROLL_TAB_W,
+  navBadgeKind,
+  navLabelVisible,
 } from "@/lib/tokens";
 import { CircularProgress, LinearProgress, LoadingIndicator } from "./Loading";
 import { t, useLang } from "@/lib/i18n";
@@ -1011,7 +1013,8 @@ function Body({ item, p, tabScroll }: { item: Item; p: Palette; tabScroll?: numb
         >
           {tabs.map((t, i) => {
             const on = i === Math.min(item.selected ?? 0, Math.max(0, tabs.length - 1));
-            const withLabel = t.label.trim().length > 0;
+            const withLabel = t.label.trim().length > 0 && navLabelVisible(item.labelMode, on);
+            const badge = navBadgeKind(t.badge);
             return (
               <div
                 key={i}
@@ -1034,9 +1037,34 @@ function Body({ item, p, tabScroll }: { item: Item; p: Palette; tabScroll?: numb
                     background: on ? p.secondaryContainer : "transparent",
                     color: on ? p.onSecondaryContainer : p.onSurfaceVariant,
                     transition: "background 160ms, color 160ms",
+                    position: "relative",
                   }}
                 >
                   {t.icon && <Icon name={t.icon} size={22} fill={on} />}
+                  {badge !== "none" && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        right: badge === "dot" ? 12 : 8,
+                        minWidth: badge === "dot" ? 6 : 16,
+                        height: badge === "dot" ? 6 : 16,
+                        borderRadius: badge === "dot" ? 3 : 8,
+                        background: p.error,
+                        color: p.onError,
+                        fontSize: 11,
+                        fontWeight: 500,
+                        lineHeight: 1,
+                        whiteSpace: "nowrap",
+                        display: "grid",
+                        placeItems: "center",
+                        padding: badge === "dot" ? 0 : "0 4px",
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      {badge === "count" ? t.badge : ""}
+                    </span>
+                  )}
                 </div>
                 {withLabel && (
                   <span
