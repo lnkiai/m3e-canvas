@@ -134,6 +134,7 @@ import { ThemeContext, ensureFontLoaded, ensureLangFontLoaded } from "@/lib/them
 import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
+import { frameElementToImportableSvg } from "@/lib/svgExport";
 
 /** the screens while a model drafts: primary, tertiary and primary container, drifting */
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -3068,6 +3069,34 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     }
   };
 
+  /** The same offscreen render as the PNG, but as a native SVG. Unlike the
+   *  html-to-image version (which wraps the DOM in <foreignObject> and shows
+   *  only an empty frame in design tools), this maps every box to a real
+   *  <rect>/<text>/<image> element, so the file imports into Illustrator,
+   *  Figma, Inkscape… while still looking identical in the browser. The font
+   *  CSS is narrowed to the slices this one screen can paint, which is what
+   *  keeps a CJK screen at a few MB instead of tens of them. */
+  const saveFrameSvg = async (f: Frame) => {
+    setExportFrame(f);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
+    try {
+      const el = document.querySelector<HTMLElement>(`[data-export="${f.id}"]`);
+      if (!el) return;
+      const { w, h } = frameSizeOf(f);
+      const svg = await frameElementToImportableSvg(el, w, h);
+      if (!svg) return;
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${f.name || "screen"}.svg`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 3000);
+    } finally {
+      setExportFrame(null);
+    }
+  };
+
   /** the runs of one screen drawn with plain divs: the export layer */
   const renderExport = (f: Frame) => {
     const gs = groups.filter((g) => frameOfGroup(g, frames, widths)?.id === f.id);
@@ -4686,6 +4715,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
                   onPreview={() => openPreview(selectedFrame.id)}
                   prompt={buildPrompt(doc, widths, selectedFrame.id, lang)}
                   onSaveImage={() => saveFrameImage(selectedFrame)}
+                  onSaveSvg={() => saveFrameSvg(selectedFrame)}
                   tidy={tidyState ?? "done"}
                   onTidy={() => tidy(selectedFrame)}
                   onPlace={(pl) => setPlace(selectedFrame, pl)}

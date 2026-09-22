@@ -158,6 +158,7 @@ export function FrameInspector({
   onPreview,
   prompt,
   onSaveImage,
+  onSaveSvg,
   tidy,
   onTidy,
   onPlace,
@@ -173,6 +174,8 @@ export function FrameInspector({
   /** the prompt for this one screen, copied from the export row */
   prompt: string;
   onSaveImage: () => Promise<void>;
+  /** the same screen painted into an SVG, for design tools */
+  onSaveSvg: () => Promise<void>;
   /** what the tidy button offers: tidy the screen, undo the last tidy, or nothing (already tidy) */
   tidy: TidyState;
   onTidy: () => void;
@@ -184,6 +187,7 @@ export function FrameInspector({
   const lang = useLang();
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingSvg, setSavingSvg] = useState(false);
   const [tab, setTab] = useState<Tab>("design");
   useEffect(() => {
     if (!copied) return;
@@ -345,6 +349,21 @@ export function FrameInspector({
               }
             },
             saving,
+          )}
+        </ButtonRun>
+        <ButtonRun>
+          {actionBtn(
+            "polyline",
+            savingSvg ? t("saving", lang) : t("saveSvg", lang),
+            async () => {
+              setSavingSvg(true);
+              try {
+                await onSaveSvg();
+              } finally {
+                setSavingSvg(false);
+              }
+            },
+            savingSvg,
           )}
         </ButtonRun>
       </Section>
