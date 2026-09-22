@@ -67,7 +67,7 @@ const sourceCache = new Map<string, string>();
 async function sourceFor(family: string): Promise<string | null> {
   if (sourceCache.has(family)) return sourceCache.get(family) ?? null;
   const url = (await iconFontSources()).get(family);
-  sourceCache.set(family, url ?? "");
+  if (url) sourceCache.set(family, url);
   return url ?? null;
 }
 
@@ -77,18 +77,21 @@ const bytesCache = new Map<string, Uint8Array | null>();
 
 async function fontBytes(family: string): Promise<Uint8Array | null> {
   if (bytesCache.has(family)) return bytesCache.get(family) ?? null;
-  let bytes: Uint8Array | null = null;
   try {
     const url = await sourceFor(family);
     if (url) {
       const res = await fetch(url, { cache: "force-cache" });
-      if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
+      if (res.ok) {
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        bytesCache.set(family, bytes);
+        return bytes;
+      }
     }
   } catch {
-    bytes = null;
+    /* a transient fetch/parse failure must not poison the session, so nothing
+       is cached here and the next export will retry this family */
   }
-  bytesCache.set(family, bytes);
-  return bytes;
+  return null;
 }
 
 type FontInstance = { font: Font };
@@ -147,22 +150,27 @@ async function glyphData(
     const font = await fontInstance(family, fill, wght);
     if (font) {
       const run = font.layout(text);
-      const glyph = run.glyphs[0];
-      /* wrap in an array for text with more than one glyph (a non-ligating icon
-       * word would otherwise vanish) — callers rely on a single contour, so we
-       * still take the first glyph here */
-      if (glyph && glyph.path) {
-        result = {
-          d: glyph.path.toSVG(2),
-          bbox: glyph.path.bbox,
-          upem: font.unitsPerEm || 960,
-        };
+      /* a real material icon is a single ligature glyph. If shaping yields more
+       * than one glyph, the word is not an icon name — emitting the first glyph
+       * only while the DOM text is later deleted would corrupt the export, so
+       * leave it to stay text and keep its font. */
+      if (run.glyphs.length === 1) {
+        const glyph = run.glyphs[0];
+        if (glyph && glyph.path) {
+          result = {
+            d: glyph.path.toSVG(2),
+            bbox: glyph.path.bbox,
+            upem: font.unitsPerEm || 960,
+          };
+        }
       }
     }
   } catch {
     result = null;
   }
-  glyphCache.set(key, result);
+  /* only cache a successful outline: a transient failure (font not ready,
+   * network blip) must not permanently disable this glyph's vector export */
+  if (result) glyphCache.set(key, result);
   return result;
 }
 
@@ -170,15 +178,26 @@ function num(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+export interface IconVectorResult {
+  vectors: IconVector[];
+  /** icon font families whose every painted leaf was converted to a path;
+   * only these may be dropped from the subset font CSS (any family with a
+   * leftover text leaf must keep its font so that leaf still renders) */
+  excludeFamilies: Set<string>;
+}
+
 /**
  * Enumerates every icon-font glyph in `root` and resolves it to a vector path,
  * positioned in the SVG viewport. Returns the elements and their transforms so
  * the caller can hide the ligature text, export the rest, then inject the paths.
  */
-export async function collectIconVectors(root: HTMLElement): Promise<IconVector[]> {
+export async function collectIconVectors(
+  root: HTMLElement,
+): Promise<IconVectorResult> {
+  const excludeFamilies = new Set<string>();
   try {
     const iconFamilies = await iconFontFamilies();
-    if (!iconFamilies.size) return [];
+    if (!iconFamilies.size) return { vectors: [], excludeFamilies };
 
     const leaves: HTMLElement[] = [];
     for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
@@ -196,7 +215,15 @@ export async function collectIconVectors(root: HTMLElement): Promise<IconVector[
       if (rect.width < 2 || rect.height < 2) continue;
       leaves.push(el);
     }
-    if (!leaves.length) return [];
+    if (!leaves.length) return { vectors: [], excludeFamilies };
+
+    const counts = new Map<string, { total: number; ok: number }>();
+    const count = (family: string, converted: boolean) => {
+      const rec = counts.get(family) ?? { total: 0, ok: 0 };
+      rec.total += 1;
+      if (converted) rec.ok += 1;
+      counts.set(family, rec);
+    };
 
     const out: IconVector[] = [];
     for (const el of leaves) {
@@ -211,6 +238,7 @@ export async function collectIconVectors(root: HTMLElement): Promise<IconVector[
       const rect = el.getBoundingClientRect();
 
       const data = await glyphData(family, text, fill, wght);
+      count(family, !!data);
       if (!data) continue;
 
       const scale = fontSize / data.upem;
@@ -222,8 +250,11 @@ export async function collectIconVectors(root: HTMLElement): Promise<IconVector[
 
       out.push({ el, text, d: data.d, fill: cs.color, transform });
     }
-    return out;
+    for (const [family, rec] of counts) {
+      if (rec.ok > 0 && rec.ok === rec.total) excludeFamilies.add(family);
+    }
+    return { vectors: out, excludeFamilies };
   } catch {
-    return [];
+    return { vectors: [], excludeFamilies };
   }
 }

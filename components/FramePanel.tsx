@@ -348,7 +348,9 @@ export function FrameInspector({
                 setSaving(false);
               }
             },
-            saving,
+            /* both exports share and clear the single export frame render layer,
+               so never let them run at the same time */
+            saving || savingSvg,
           )}
         </ButtonRun>
         <ButtonRun>
@@ -363,7 +365,7 @@ export function FrameInspector({
                 setSavingSvg(false);
               }
             },
-            savingSvg,
+            savingSvg || saving,
           )}
         </ButtonRun>
       </Section>

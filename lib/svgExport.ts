@@ -1,6 +1,6 @@
 import { elementToSVG } from "dom-to-svg";
 
-import { iconFontFamilies, subsetFontEmbedCSS } from "./svgFonts";
+import { subsetFontEmbedCSS } from "./svgFonts";
 import { collectIconVectors } from "./svgIcons";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -46,6 +46,11 @@ export async function frameElementToImportableSvg(
   host.style.cssText =
     "position:fixed;left:0;top:0;z-index:-2147483647;pointer-events:none;";
   const clone = el.cloneNode(true) as HTMLElement;
+  /* clones inherit styles, but a font-family resolved on an ancestor (e.g. the
+   * theme's Roboto/Noto choice held by a parent) is lost once the node is cut
+   * out of the tree. Re-anchor the computed family on the clone so exported
+   * text keeps the themed face instead of the document default. */
+  clone.style.fontFamily = getComputedStyle(el).fontFamily;
   /* strip ids so dom-to-svg's generated refs (mask/pattern) stay unique */
   clone.querySelectorAll<HTMLElement>("[id]").forEach((n) => n.removeAttribute("id"));
   host.appendChild(clone);
@@ -61,8 +66,7 @@ export async function frameElementToImportableSvg(
     }
 
     /* 1) resolve icon glyphs to vector paths, then silence their ligature text */
-    const vectors = await collectIconVectors(clone);
-    const iconFamilies = await iconFontFamilies();
+    const { vectors, excludeFamilies } = await collectIconVectors(clone);
     for (let i = 0; i < vectors.length; i += 1) {
       /* tag each leaf so we can find its group later — keep the real classes */
       vectors[i].el.classList.add(`${ICON_MARKER}-${i}`);
@@ -74,12 +78,18 @@ export async function frameElementToImportableSvg(
       const svg = elementToSVG(clone, { keepLinks: false });
       const root = svg.documentElement;
 
-      /* 3) swap in the subset font CSS (icon fonts excluded — now paths) */
-      const subsetCss = await subsetFontEmbedCSS(clone, "woff2", iconFamilies);
-      const styleEl =
-        root.querySelector(":scope > style") ??
-        svg.createElementNS(SVG_NS, "style");
+      /* 3) swap in the subset font CSS. Only icon font families whose every
+       * painted leaf became a path are removed (their glyphs are real outlines
+       * now); any family with a leftover text leaf keeps its font so that leaf
+       * still renders. */
+      const subsetCss = await subsetFontEmbedCSS(clone, "woff2", excludeFamilies);
       if (subsetCss && subsetCss.length) {
+        const styleEl =
+          root.querySelector(":scope > style") ??
+          svg.createElementNS(SVG_NS, "style");
+        /* append a freshly-created node before writing to it, so the subset CSS
+         * is never silently dropped */
+        if (styleEl.parentNode !== root) root.appendChild(styleEl);
         styleEl.textContent = subsetCss;
       }
 
