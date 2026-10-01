@@ -75,7 +75,7 @@ body {
   transform: scale(0.94);
 }
 
-/* parts palette tiles: the star only shows on hover */
+/* parts palette tiles: reveal the star on hover or keyboard focus */
 .m3-tile {
   transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), background 120ms;
 }
@@ -85,11 +85,17 @@ body {
 .m3-tile:active {
   transform: scale(0.96);
 }
+.m3-tile-action:focus-visible {
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: 2px;
+}
 .m3-tile .m3-star {
   opacity: 0;
   transition: opacity 120ms;
 }
 .m3-tile:hover .m3-star,
+.m3-tile:focus-within .m3-star,
 .m3-tile .m3-star[style*="opacity: 1"] {
   opacity: 1;
 }

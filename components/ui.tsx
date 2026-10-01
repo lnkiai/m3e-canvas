@@ -1491,7 +1491,7 @@ export function Tile({
   label: string;
   p: Palette;
   onPointerDown?: (e: React.PointerEvent) => void;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   starred?: boolean;
   onStar?: () => void;
   active?: boolean;
@@ -1501,50 +1501,68 @@ export function Tile({
   return (
     <div
       className="m3-tile"
-      onPointerDown={onPointerDown}
-      onClick={onClick}
-      title={label}
-      style={{
-        position: "relative",
-        display: "flex",
-        flexDirection: compact ? "row" : "column",
-        alignItems: "center",
-        justifyContent: compact ? "flex-start" : "center",
-        gap: compact ? 10 : 6,
-        padding: compact ? "8px 12px" : "12px 6px 10px",
-        borderRadius: 16,
-        background: active ? p.secondaryContainer : p.surfaceContainerLow,
-        color: active ? p.onSecondaryContainer : p.onSurface,
-        cursor: onPointerDown ? "grab" : "pointer",
-        userSelect: "none",
-        touchAction: "none",
-        minHeight: compact ? 40 : 72,
-        boxSizing: "border-box",
-      }}
+      style={{ position: "relative" }}
     >
-      <Icon name={icon} size={compact ? 20 : 26} color={active ? p.onSecondaryContainer : p.primary} />
-      <span
+      <button
+        type="button"
+        className="m3-tile-action"
+        aria-label={label}
+        title={label}
+        onPointerDown={onPointerDown}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          // Native button activation owns these keys, rather than the canvas pan shortcut.
+          if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+        }}
         style={{
-          fontSize: 11,
-          fontWeight: 500,
-          lineHeight: 1.2,
-          textAlign: "center",
-          color: active ? p.onSecondaryContainer : p.onSurfaceVariant,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          maxWidth: "100%",
+          width: "100%",
+          border: "none",
+          font: "inherit",
+          outlineColor: p.primary,
+          display: "flex",
+          flexDirection: compact ? "row" : "column",
+          alignItems: "center",
+          justifyContent: compact ? "flex-start" : "center",
+          gap: compact ? 10 : 6,
+          padding: compact ? "8px 12px" : "12px 6px 10px",
+          borderRadius: 16,
+          background: active ? p.secondaryContainer : p.surfaceContainerLow,
+          color: active ? p.onSecondaryContainer : p.onSurface,
+          cursor: onPointerDown ? "grab" : "pointer",
+          userSelect: "none",
+          touchAction: "none",
+          minHeight: compact ? 40 : 72,
+          boxSizing: "border-box",
         }}
       >
-        {label}
-      </span>
+        <Icon name={icon} size={compact ? 20 : 26} color={active ? p.onSecondaryContainer : p.primary} />
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            lineHeight: 1.2,
+            textAlign: "center",
+            color: active ? p.onSecondaryContainer : p.onSurfaceVariant,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: "100%",
+          }}
+        >
+          {label}
+        </span>
+      </button>
       {onStar && (
         <button
+          type="button"
           className="m3-star"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onStar();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") e.stopPropagation();
           }}
           title={starred ? t("removeFavorite", lang) : t("addFavorite", lang)}
           aria-label={starred ? t("removeFavorite", lang) : t("addFavorite", lang)}

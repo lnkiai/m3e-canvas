@@ -17,11 +17,13 @@ export function PartsPalette({
   favorites,
   onToggleFavorite,
   onPartPointerDown,
+  onPartActivate,
 }: {
   palette: Palette;
   favorites: Kind[];
   onToggleFavorite: (k: Kind) => void;
   onPartPointerDown: (e: React.PointerEvent, kind: Kind) => void;
+  onPartActivate: (kind: Kind) => void;
 }) {
   const lang = useLang();
   const [q, setQ] = useState("");
@@ -47,6 +49,10 @@ export function PartsPalette({
         label={labelOf(k)}
         p={p}
         onPointerDown={(e) => onPartPointerDown(e, k)}
+        onClick={(e) => {
+          // Pointer presses use the drag path; keyboard and assistive clicks add directly.
+          if (e.detail === 0) onPartActivate(k);
+        }}
         starred={favorites.includes(k)}
         onStar={() => onToggleFavorite(k)}
       />

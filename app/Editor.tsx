@@ -2715,14 +2715,15 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   const ensureFrameRef = useRef(() => {});
   ensureFrameRef.current = ensureFrame;
 
-  /** phone UI: the plus button drops a new button where the view is looking,
+  /** The palette keyboard action and phone plus button drop a part where the view is looking,
    *  kept inside the screen, and nudged down when that spot is already taken */
-  const addButton = () => {
+  const addPart = (kind: Kind) => {
+    flushPending();
     const r = canvasRect();
     const v = viewRef.current;
-    const item = makeItem("button");
+    const item = makeItem(kind);
     const sz = sizeOf(item, widthsRef.current);
-    const f = framesRef.current[0];
+    const f = framesRef.current.find((f) => f.id === selectedFrameId) ?? framesRef.current[0];
     let x = ((r?.width ?? 0) / 2 - v.x) / v.z - sz.w / 2;
     let y = ((r?.height ?? 0) / 2 - v.y) / v.z - sz.h / 2;
     if (f) {
@@ -2749,6 +2750,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     ]);
     setSelectedIds([item.id]);
     setSelectedFrameId(null);
+    setSelectedLinkId(null);
+    setRightTab("edit");
     setSheet(null);
   };
 
@@ -4005,6 +4008,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
                       )
                     }
                     onPartPointerDown={onPartPointerDown}
+                    onPartActivate={addPart}
                   />
                 ) : leftTab === "color" ? (
                   <ColorPanel
@@ -4469,7 +4473,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
 
           {isMobile && sheet === null && (
             <button
-              onClick={addButton}
+              onClick={() => addPart("button")}
               title={t("addButton", lang)}
               aria-label={t("addButton", lang)}
               className="m3-press"
