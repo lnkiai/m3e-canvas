@@ -95,7 +95,8 @@ body {
   transition: opacity 120ms;
 }
 .m3-tile:hover .m3-star,
-.m3-tile:focus-within .m3-star,
+.m3-tile-action:focus-visible ~ .m3-star,
+.m3-tile .m3-star:focus-visible,
 .m3-tile .m3-star[style*="opacity: 1"] {
   opacity: 1;
 }
@@ -414,4 +415,3 @@ input.m3-number {
     gap: 2px;
   }
 }
-

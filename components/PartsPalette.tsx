@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, KIND_ORDER, KIND_SPEC, PALETTE_HIDDEN, Category, Kind, Palette } from "@/lib/tokens";
 import { Icon } from "./M3Node";
 import { KIND_TEXT, t, useLang } from "@/lib/i18n";
@@ -27,6 +27,24 @@ export function PartsPalette({
 }) {
   const lang = useLang();
   const [q, setQ] = useState("");
+  const pointerTargetRef = useRef<EventTarget | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clear = () => { pointerTargetRef.current = null; };
+    // The native click follows pointerup. Clear even when a drag ends elsewhere
+    // or a cancelled press produces no click, so a later assisted click is accepted.
+    const release = () => {
+      clearTimeout(timer);
+      timer = setTimeout(clear, 0);
+    };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", clear);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", clear);
+    };
+  }, []);
   const labelOf = (k: Kind) => (lang === "en" ? KIND_SPEC[k].label : (KIND_TEXT[lang][k]?.noun ?? KIND_SPEC[k].label));
 
   const filtered = useMemo(() => {
@@ -48,10 +66,15 @@ export function PartsPalette({
         icon={s.paletteIcon}
         label={labelOf(k)}
         p={p}
-        onPointerDown={(e) => onPartPointerDown(e, k)}
+        onPointerDown={(e) => {
+          pointerTargetRef.current = e.button === 0 ? e.currentTarget : null;
+          onPartPointerDown(e, k);
+        }}
         onClick={(e) => {
-          // Pointer presses use the drag path; keyboard and assistive clicks add directly.
-          if (e.detail === 0) onPartActivate(k);
+          const fromPointer = pointerTargetRef.current === e.currentTarget;
+          pointerTargetRef.current = null;
+          // Assistive clicks can have a nonzero detail without a physical press.
+          if (e.detail === 0 || !fromPointer) onPartActivate(k);
         }}
         starred={favorites.includes(k)}
         onStar={() => onToggleFavorite(k)}

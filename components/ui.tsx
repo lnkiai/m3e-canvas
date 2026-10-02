@@ -1501,6 +1501,10 @@ export function Tile({
   return (
     <div
       className="m3-tile"
+      onKeyDown={(e) => {
+        // Both palette controls own focus; deletion belongs to the canvas.
+        if (e.key === "Delete" || e.key === "Backspace") e.stopPropagation();
+      }}
       style={{ position: "relative" }}
     >
       <button

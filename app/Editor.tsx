@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion, useSpring } from "motion/react";
 import { toPng } from "html-to-image";
 import { buildPrompt, effectivePrompt } from "@/lib/prompt";
@@ -2718,7 +2719,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   /** The palette keyboard action and phone plus button drop a part where the view is looking,
    *  kept inside the screen, and nudged down when that spot is already taken */
   const addPart = (kind: Kind) => {
-    flushPending();
+    // Placement and history must see a settled drop before adding a separate part.
+    if (pendingRef.current) flushSync(flushPending);
     const r = canvasRect();
     const v = viewRef.current;
     const item = makeItem(kind);
