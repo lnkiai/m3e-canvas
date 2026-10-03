@@ -7,6 +7,8 @@ import {
   FramePreset,
   Palette,
   Place,
+  frameLengthOf,
+  frameSizeOf,
   isPhoneFrame,
   onToken,
 } from "@/lib/tokens";
@@ -19,6 +21,7 @@ import {
   PanelShell,
   Section,
   Segmented,
+  Slider,
   TidyButton,
   TidyState,
 } from "./ui";
@@ -161,6 +164,8 @@ export function FrameInspector({
   tidy,
   onTidy,
   onPlace,
+  minLength,
+  onLength,
   ai,
   onSize,
 }: {
@@ -178,6 +183,10 @@ export function FrameInspector({
   onTidy: () => void;
   /** sets where Tidy puts the body of this screen, and tidies */
   onPlace: (place: Place) => void;
+  /** the shortest the screen can be made with all its parts still on it */
+  minLength: number;
+  /** makes the screen run longer than its device, so its body scrolls, or back */
+  onLength: (length: number) => void;
   ai: AiHooks;
   onSize: (preset: FramePreset) => void;
 }) {
@@ -266,6 +275,21 @@ export function FrameInspector({
             onChange={(bg) => onChange({ bg })}
             p={p}
           />
+        </Section>
+        <Section id="frame-length" icon="swap_vert" title={t("scrolling", lang)} p={p}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <Slider
+              icon="height"
+              title={t("screenLength", lang)}
+              value={frameLengthOf(frame)}
+              min={minLength}
+              max={Math.max(frameLengthOf(frame), frameSizeOf(frame).h * 4)}
+              step={4}
+              onChange={onLength}
+              p={p}
+            />
+            <div style={{ fontSize: 11, lineHeight: 1.5, color: p.onSurfaceVariant, padding: "0 4px" }}>{t("scrollingHint", lang)}</div>
+          </div>
         </Section>
         <Section
           id="frame-tidy"
