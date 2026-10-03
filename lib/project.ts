@@ -61,7 +61,8 @@ const validFrame = (frame: unknown) =>
   (frame.w === undefined || (Number.isFinite(frame.w) && (frame.w as number) > 0)) &&
   (frame.h === undefined || (Number.isFinite(frame.h) && (frame.h as number) > 0)) &&
   (frame.note === undefined || typeof frame.note === "string") &&
-  (frame.place === undefined || isPlace(frame.place));
+  (frame.place === undefined || isPlace(frame.place)) &&
+  (frame.length === undefined || (Number.isFinite(frame.length) && (frame.length as number) > 0));
 
 /** whether a parsed file has the shape of a document the editor can open */
 export const isProject = (value: unknown): value is Doc =>

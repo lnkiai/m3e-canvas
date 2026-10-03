@@ -2131,6 +2131,8 @@ export type Frame = {
   swipe?: Partial<Record<SwipeDir, string>>;
   /** where Tidy puts the body rows between the bars: from the top unless the author says otherwise */
   place?: Place;
+  /** how far the screen runs when it is longer than the device: its body scrolls under the bars */
+  length?: number;
 };
 
 /** how Tidy stacks the body of a screen: from the top, centered, against the bottom bar, or spread out */
@@ -2152,9 +2154,13 @@ export const isPhoneFrame = (f: Frame) => {
 export const framePresetOf = (f: Frame): FramePreset => (isPhoneFrame(f) ? "phone" : "desktop");
 export const framePresetPatch = (preset: FramePreset): Pick<Frame, "w" | "h"> =>
   preset === "desktop" ? { w: DESKTOP_W, h: DESKTOP_H } : { w: undefined, h: undefined };
+/** the device a screen is drawn for is `frameSizeOf`; the screen itself may run further down,
+ *  and everything laid out on it -- what it holds, where Tidy puts its bars -- goes by this */
+export const frameLengthOf = (f: Frame) => Math.max(f.length ?? 0, frameSizeOf(f).h);
+export const scrollsOf = (f: Frame) => frameLengthOf(f) > frameSizeOf(f).h;
 export const frameRect = (f: Frame) => {
-  const { w, h } = frameSizeOf(f);
-  return { l: f.x, t: f.y, r: f.x + w, b: f.y + h };
+  const { w } = frameSizeOf(f);
+  return { l: f.x, t: f.y, r: f.x + w, b: f.y + frameLengthOf(f) };
 };
 /** the corner radius of a screen: a phone's rounded glass, a flatter window for the desktop */
 export const frameRadius = (f: Frame) => (isPhoneFrame(f) ? PHONE_R : DESKTOP_R);

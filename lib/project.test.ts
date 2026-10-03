@@ -109,6 +109,7 @@ describe("isProject", () => {
     { id: null }, { name: 1 }, { x: Infinity }, { x: "0" }, { y: NaN },
     { w: 0 }, { w: -1 }, { w: Infinity }, { w: "100" }, { w: null },
     { h: 0 }, { h: -1 }, { h: NaN }, { h: "100" }, { h: null }, { note: false },
+    { length: 0 }, { length: -1 }, { length: Infinity }, { length: "1784" }, { length: null },
   ])("rejects invalid frame fields %# %o", (patch) => {
     const value = doc();
     expect(isProject({ ...value, frames: [{ ...value.frames[0], ...patch }] })).toBe(false);
@@ -127,6 +128,11 @@ describe("isProject", () => {
   it("accepts positive fractional frame dimensions and an empty note", () => {
     const value = doc();
     expect(isProject({ ...value, frames: [{ ...value.frames[0], w: 0.5, h: 800, note: "" }] })).toBe(true);
+  });
+
+  it("accepts a screen that runs longer than its device", () => {
+    const value = doc();
+    expect(isProject({ ...value, frames: [{ ...value.frames[0], length: 1784 }] })).toBe(true);
   });
 });
 
