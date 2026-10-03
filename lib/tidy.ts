@@ -1,4 +1,4 @@
-import { CONTENT_W, FULL_WIDTH, Frame, Group, Item, KIND_SPEC, Kind, PHONE_MARGIN, RAIL_COLLAPSED_W, railExpansionSide, railWidth, railLayoutWidth, canJoin, isPhoneFrame, scaleR, carryItemSize, connectSpecOf, frameOfGroup, frameRect, frameSizeOf, groupBounds, layoutOf, isExpanded } from "./tokens";
+import { CONTENT_W, FULL_WIDTH, Frame, Group, Item, KIND_SPEC, Kind, PHONE_MARGIN, RAIL_COLLAPSED_W, railExpansionSide, railWidth, railLayoutWidth, canJoin, isPhoneFrame, scaleR, carryItemSize, connectSpecOf, frameOfGroup, frameRect, frameSizeOf, frameLengthOf, groupBounds, layoutOf, isExpanded } from "./tokens";
 
 /* Rule-based layout for one screen. Nothing here is guessed by a model.
  *
@@ -160,13 +160,17 @@ const isTop = (u: { kind: Kind }) => u.kind === "topAppBar" || u.kind === "tabs"
 const isBottomBar = (u: { kind: Kind }) => u.kind === "bottomNav" || u.kind === "bottomSheet";
 /** the group holds one of the bars Tidy pins to a screen's edge; lining parts up leaves it there */
 export const holdsEdgeBar = (g: Group) => g.items.some((it) => isTop(it) || isBottomBar(it) || isRail(it));
-const isFloatingBottom = (u: Unit) => u.kind === "toolbar" || u.kind === "snackbar";
-const isFab = (u: Unit) => u.kind === "fab" || u.kind === "extendedFab" || u.kind === "fabMenu";
-const isOverlay = (u: Unit) => u.kind === "dialog";
+const isFloatingBottom = (u: { kind: Kind }) => u.kind === "toolbar" || u.kind === "snackbar";
+const isFab = (u: { kind: Kind }) => u.kind === "fab" || u.kind === "extendedFab" || u.kind === "fabMenu";
+const isOverlay = (u: { kind: Kind }) => u.kind === "dialog";
 /** a line of text, and the small controls that pair with one across a row */
 const isLabel = (u: Unit) => u.kind === "text";
 const isControl = (u: Unit) => u.kind === "switch" || u.kind === "checkbox" || u.kind === "radio" || u.kind === "iconButton";
-const isAnchored = (u: Unit) => isRail(u) || isTop(u) || isBottomBar(u) || isFloatingBottom(u) || isFab(u) || isOverlay(u);
+const isAnchored = (u: { kind: Kind }) => isRail(u) || isTop(u) || isBottomBar(u) || isFloatingBottom(u) || isFab(u) || isOverlay(u);
+/** the group is a part that keeps its place while the body of a long screen scrolls under it: a
+ *  bar or a rail, or what floats over the content -- a FAB, a toolbar, a snackbar, a dialog. A group
+ *  is named by its first part, the way Tidy names it. */
+export const holdsFixedPart = (g: Group) => isAnchored(g.items[0]);
 
 /** where a unit sits horizontally, so tidying keeps a right-aligned part on the right.
  *  Judged from the edges, so a part already on the margin reads the same way after tidying. */
@@ -263,6 +267,48 @@ export function carryFrame(groups: Group[], frame: Frame, to: Frame, frames: Fra
     return dx ? { ...g, x: g.x + dx } : g;
   });
   return { frames: nextFrames, groups: tidyFrame(resized, to, nextFrames, widths) ?? resized };
+}
+
+/** a part that stays put and stands nearer the foot of the screen than its head: it goes with the foot */
+const atFoot = (g: Group, fr: Rect, widths: Record<string, number>) => {
+  const bb = groupBounds(g, widths);
+  return holdsFixedPart(g) && fr.b - bb.b < bb.t - fr.t;
+};
+
+/** A screen made longer or shorter, so that its body scrolls or stops scrolling. What stands at
+ *  its foot -- the navigation bar, a FAB above it -- goes with the foot, the screens and loose parts
+ *  below it move by as much so the screen neither runs into them nor takes them in, and the rest
+ *  stays where the author put it. */
+export function stretchFrame(groups: Group[], frame: Frame, length: number, frames: Frame[], widths: Record<string, number>): { frames: Frame[]; groups: Group[] } {
+  const fr = frameRect(frame);
+  const to: Frame = { ...frame, length: length > frameSizeOf(frame).h ? length : undefined };
+  const d = frameLengthOf(to) - frameLengthOf(frame);
+  const under = (r: { l: number; t: number; r: number }) => r.t >= fr.b && r.l < fr.r && r.r > fr.l;
+  const below = new Set(frames.filter((f) => f.id !== frame.id && under(frameRect(f))).map((f) => f.id));
+  return {
+    frames: frames.map((f) => (below.has(f.id) ? { ...f, y: f.y + d } : f.id === frame.id ? to : f)),
+    groups: groups.map((g) => {
+      const owner = frameOfGroup(g, frames, widths)?.id;
+      const moves = owner ? below.has(owner) || (owner === frame.id && atFoot(g, fr, widths)) : under(groupBounds(g, widths));
+      return moves ? { ...g, y: g.y + d } : g;
+    }),
+  };
+}
+
+/** The shortest a screen can be made: the device, or as much as its body needs with what stands at
+ *  its foot still below it. Never longer than the screen already is, so a body that already runs
+ *  under its bars does not hold the length where it is. */
+export function minFrameLength(groups: Group[], frame: Frame, frames: Frame[], widths: Record<string, number>): number {
+  const fr = frameRect(frame);
+  let body = 0;
+  let foot = 0;
+  for (const g of groups) {
+    if (frameOfGroup(g, frames, widths)?.id !== frame.id) continue;
+    const bb = groupBounds(g, widths);
+    if (atFoot(g, fr, widths)) foot = Math.max(foot, fr.b - bb.t);
+    else body = Math.max(body, bb.b - fr.t);
+  }
+  return Math.max(frameSizeOf(frame).h, Math.min(frameLengthOf(frame), Math.ceil((body + foot) / 4) * 4));
 }
 
 /** Keep the expanded rail's collapsed footprint on its original edge until moved across the midpoint. */
@@ -448,7 +494,6 @@ export function tidyFrame(groups: Group[], frame: Frame, frames: Frame[], widths
   });
   const fr: Rect = { ...screen, l: screen.l + leftWidth, r: screen.r - rightWidth };
   const frameW = fr.r - fr.l;
-  const frameH = fr.b - fr.t;
 
   /* locked bars keep their place too; the others stack beyond them */
   let top = Math.max(fr.t, ...fixedTops.map((u) => u.bb.b));
@@ -474,8 +519,10 @@ export function tidyFrame(groups: Group[], frame: Frame, frames: Frame[], widths
     fabBottom -= PHONE_MARGIN + h;
     target.set(u, { l: fr.r - PHONE_MARGIN - w, t: fabBottom });
   }
+  /* a dialog is centered on the device: on a screen that runs further, that is its first screenful */
+  const viewH = frameSizeOf(frame).h;
   for (const u of units.filter(isOverlay)) {
-    target.set(u, { l: fr.l + Math.round((frameW - (u.bb.r - u.bb.l)) / 2), t: fr.t + Math.round((frameH - (u.bb.b - u.bb.t)) / 2) });
+    target.set(u, { l: fr.l + Math.round((frameW - (u.bb.r - u.bb.l)) / 2), t: fr.t + Math.round((viewH - (u.bb.b - u.bb.t)) / 2) });
   }
 
   /* everything else flows in rows between the top and bottom bars, on the layout margins;
