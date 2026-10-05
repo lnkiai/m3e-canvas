@@ -1,0 +1,10 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - target: 3000
+        published: "0"
+        host_ip: 127.0.0.1
+        protocol: tcp

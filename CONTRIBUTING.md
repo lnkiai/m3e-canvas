@@ -24,6 +24,28 @@ npm run build      # static export into out/
 
 Node 22.12 or newer is required (the test suite needs it); CI uses Node 22. The app is a single Next.js page with no server; everything is stored in the browser.
 
+### Running the production container
+
+Build and start the static export with Docker Compose:
+
+```bash
+docker compose up --build --detach
+docker compose port app 3000
+```
+
+The second command prints the loopback address and randomly assigned host port,
+for example `127.0.0.1:49152`. Open `http://127.0.0.1:49152` in a browser,
+using the port printed on your machine. To inspect the container or stop it:
+
+```bash
+docker compose ps
+docker compose logs app
+docker compose down
+```
+
+The image builds the root deployment. `NEXT_PUBLIC_BASE_PATH` is intentionally
+left unset; sub-path deployments such as GitHub Pages use a separate build.
+
 ## Where things live
 
 | Area | Files |

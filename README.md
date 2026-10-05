@@ -86,6 +86,19 @@ npm run build      # static export to ./out
 
 The app is a static Next.js export. To host it under a sub-path (for example a GitHub Pages project site), set `NEXT_PUBLIC_BASE_PATH=/your-repo` at build time. `.github/workflows/deploy.yml` does this automatically and publishes `out/` to GitHub Pages on every push to `main`.
 
+### Run with Docker
+
+With Docker and Docker Compose installed, start the app:
+
+```bash
+docker compose up --build --detach
+docker compose port app 3000
+```
+
+Open the `127.0.0.1` address and port printed by the second command in your
+browser, for example `http://127.0.0.1:49152`. Compose assigns an available
+port automatically. Stop the app with `docker compose down`.
+
 ## Contributing
 
 Bug reports, part requests and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains the setup, the conventions (English comments, four languages for every string) and where each kind of change lives. Questions go to [Discussions](https://github.com/lnkiai/m3e-canvas/discussions).

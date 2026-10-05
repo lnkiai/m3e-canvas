@@ -1,0 +1,16 @@
+.git
+.github
+.agents
+.aws
+.codex
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+.env
+.env.*
+docs
+promo
+npm-debug.log*
+
