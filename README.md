@@ -168,6 +168,17 @@ npm run build      # ./out に静的書き出し
 
 静的サイトとして書き出す構成です。サブパス（GitHub Pages のプロジェクトサイトなど）で配信するときはビルド時に `NEXT_PUBLIC_BASE_PATH=/リポジトリ名` を指定してください。`.github/workflows/deploy.yml` が `main` への push ごとにこれを行い、GitHub Pages に公開します。
 
+#### Docker で起動
+
+Docker と Docker Compose を使って起動します。
+
+```bash
+docker compose up --build --detach
+docker compose port app 3000
+```
+
+2 つ目のコマンドに表示された `127.0.0.1` のアドレスとポート（例: `http://127.0.0.1:49152`）をブラウザで開いてください。ポートは自動で割り当てられます。終了するときは `docker compose down` を実行します。
+
 ### 貢献
 
 バグ報告、部品のリクエスト、PR を歓迎します。手順と約束事は [CONTRIBUTING.md](CONTRIBUTING.md) にまとめています。質問は [Discussions](https://github.com/lnkiai/m3e-canvas/discussions) へどうぞ。
@@ -227,6 +238,17 @@ npm run build      # 静态导出到 ./out
 
 项目以静态站点方式导出。若要部署在子路径下（例如 GitHub Pages 的项目站点），请在构建时设置 `NEXT_PUBLIC_BASE_PATH=/仓库名`。`.github/workflows/deploy.yml` 会在每次推送到 `main` 时自动完成这一步并发布到 GitHub Pages。
 
+#### 使用 Docker 启动
+
+安装 Docker 和 Docker Compose 后运行：
+
+```bash
+docker compose up --build --detach
+docker compose port app 3000
+```
+
+在浏览器中打开第二条命令输出的 `127.0.0.1` 地址和端口，例如 `http://127.0.0.1:49152`。端口会自动分配。运行 `docker compose down` 可停止应用。
+
 ### 参与贡献
 
 欢迎 Bug 报告、组件请求和 PR。步骤和约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。提问请到 [Discussions](https://github.com/lnkiai/m3e-canvas/discussions)。
@@ -285,6 +307,17 @@ npm run build      # ./out 에 정적 내보내기
 ```
 
 정적 사이트로 내보내는 구성입니다. 하위 경로(GitHub Pages 프로젝트 사이트 등)에서 제공하려면 빌드 시 `NEXT_PUBLIC_BASE_PATH=/저장소이름`을 지정하세요. `.github/workflows/deploy.yml`이 `main`에 push할 때마다 이를 수행해 GitHub Pages에 공개합니다.
+
+#### Docker로 실행
+
+Docker와 Docker Compose를 설치한 뒤 실행하세요.
+
+```bash
+docker compose up --build --detach
+docker compose port app 3000
+```
+
+두 번째 명령에 표시된 `127.0.0.1` 주소와 포트(예: `http://127.0.0.1:49152`)를 브라우저에서 여세요. 포트는 자동으로 할당됩니다. `docker compose down`을 실행하면 앱이 종료됩니다.
 
 ### 기여
 
