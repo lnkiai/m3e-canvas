@@ -128,6 +128,17 @@ describe("isProject", () => {
     const value = doc();
     expect(isProject({ ...value, frames: [{ ...value.frames[0], w: 0.5, h: 800, note: "" }] })).toBe(true);
   });
+
+  it.each(["size", "size2", "radiusTop", "radiusBottom", "value"])("rejects non-numeric %s before importing a project", async (field) => {
+    for (const invalid of [null, "wide", {}, [], NaN, Infinity, -Infinity]) {
+      const value = withItem({ [field]: invalid });
+      expect(isProject(value)).toBe(false);
+      await expect(readProject(new File([JSON.stringify(value)], "invalid.json"))).resolves.toBeNull();
+    }
+    for (const valid of [undefined, 0, 12.5, 64]) {
+      expect(isProject(withItem({ [field]: valid }))).toBe(true);
+    }
+  });
 });
 
 describe("projectFileName", () => {

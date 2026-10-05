@@ -39,6 +39,11 @@ const validItem = (item: unknown) =>
   (item.note === undefined || typeof item.note === "string") &&
   (item.layout === undefined || (typeof item.layout === "string" && LAYOUTS.has(item.layout))) &&
   optionalNumber(item.count) &&
+  optionalNumber(item.size) &&
+  optionalNumber(item.size2) &&
+  optionalNumber(item.radiusTop) &&
+  optionalNumber(item.radiusBottom) &&
+  optionalNumber(item.value) &&
   validTabs(item.tabs);
 
 const validGroup = (group: unknown) =>
