@@ -46,8 +46,10 @@ import {
   splitOpens,
   fontFamilyOf,
   freeRadii,
+  frameLengthOf,
   frameRadius,
   frameSizeOf,
+  groupBounds,
   groupsInFrame,
   isPhoneFrame,
   normalizeTheme,
@@ -72,6 +74,7 @@ import type { Ripple } from "./M3Node";
 import { IconBtn } from "./ui";
 import { t, useLang } from "@/lib/i18n";
 import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
+import { holdsFixedPart } from "@/lib/tidy";
 import { railMotionTargets } from "@/lib/railView";
 
 const EASE = [0.2, 0, 0, 1] as const;
@@ -201,6 +204,7 @@ function Tappable({
   onMenu,
   onRailToggle,
   railAnimating,
+  panY,
 }: {
   item: Item;
   p: Palette;
@@ -218,6 +222,8 @@ function Tappable({
   onMenu?: (open: boolean) => void;
   onRailToggle?: (animate: boolean) => void;
   railAnimating?: boolean;
+  /** the part rides on a body that scrolls: a drag up or down on it is the body's */
+  panY?: boolean;
 }) {
   const lang = useLang();
   const [pressed, setPressed] = useState(false);
@@ -451,19 +457,22 @@ function Tappable({
 
   /* a wheel over a row that only runs sideways moves it sideways, whichever way it is turned,
    * and the page under it stays put whenever the row itself could move; the listener is the
-   * element's own, so it may say so (React's wheel handler is passive) */
+   * element's own, so it may say so (React's wheel handler is passive). On a body that scrolls
+   * the up-and-down turn is the body's, and only a sideways one is the row's. */
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !scrollRow) return;
     const onWheel = (e: WheelEvent) => {
-      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      const sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+      if (panY && !sideways) return;
+      const d = sideways ? e.deltaX : e.deltaY;
       const canMove = d < 0 ? el.scrollLeft > 0 : el.scrollLeft < el.scrollWidth - el.clientWidth - 1;
       if (canMove) e.preventDefault();
       el.scrollLeft += d;
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [scrollRow]);
+  }, [scrollRow, panY]);
 
   const dragValue = (e: React.PointerEvent) => {
     const r = ref.current?.getBoundingClientRect();
@@ -571,7 +580,7 @@ function Tappable({
         endRipple(e.pointerId);
       }}
       onClick={onPick ? () => onMenu?.(!menu) : onTap}
-      style={{ cursor: live || onValue ? "pointer" : "default", display: "flex", position: "relative", touchAction: scrollRow ? "pan-x" : "none" }}
+      style={{ cursor: live || onValue ? "pointer" : "default", display: "flex", position: "relative", touchAction: scrollRow ? (panY ? "pan-x pan-y" : "pan-x") : panY ? "pan-y" : "none" }}
     >
       <M3Node item={item} palette={p} widths={widths} radii={radii} interactive={false} pressed={pressed && !onValue && !boxless} tabScroll={scrollRow ? tabScroll : undefined} />
       {live && !boxless && !segmented && TAP_LIT.includes(item.kind) && (
@@ -669,7 +678,7 @@ function Tappable({
             inset: 0,
             overflowX: "auto",
             overflowY: "hidden",
-            touchAction: "pan-x",
+            touchAction: panY ? "pan-x pan-y" : "pan-x",
             cursor: "grab",
             userSelect: "none",
           }}
@@ -767,6 +776,22 @@ function Screen({
     (current, [id, railExpanded]) => updateRail(current, [frame], widths, id, { railExpanded }), constrainModalRails(groups),
   ), [groups, frame, widths, railStates]);
   const modalIds = new Set(shownGroups.flatMap((g) => { const rail = modalRailOf(g); return rail ? [rail.id] : []; }));
+  /* A screen longer than the device scrolls its body under what stays put. A part that stays and
+   * stands in the first screenful keeps its place on the glass; one in the last screenful keeps
+   * its distance from the foot, so a navigation bar at the bottom of the long screen sits at the
+   * bottom of the glass. One left between the two is part of the body and scrolls with it. */
+  const viewH = frameSizeOf(frame).h;
+  const length = frameLengthOf(frame);
+  const scrolls = length > viewH;
+  const pins = new Map<string, number>();
+  if (scrolls) {
+    for (const g of shownGroups.filter(holdsFixedPart)) {
+      const bb = groupBounds(g, widths);
+      if (bb.b - frame.y <= viewH) pins.set(g.id, 0);
+      else if (bb.t - frame.y >= length - viewH) pins.set(g.id, length - viewH);
+    }
+  }
+  const lift = (g: Group) => pins.get(g.id) ?? 0;
   const hasModal = modalIds.size > 0;
   const modalActive = interactive && hasModal;
   const changeRail = (id: string, railExpanded: boolean, animate: boolean) => {
@@ -853,6 +878,23 @@ function Screen({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   });
+  /* the body scrolls in a layer of its own, the length of the screen; what stays put is laid
+   * over it, in the order the screen draws them */
+  const inBody = (nodes: React.ReactElement[]) =>
+    scrolls ? (
+      <>
+        <div
+          data-scroll-body
+          className="m3-hidden-scrollbar"
+          style={{ position: "absolute", inset: 0, overflowX: "hidden", overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y" }}
+        >
+          <div style={{ position: "relative", height: length }}>{nodes.filter((_, i) => !pins.has(shownGroups[i].id))}</div>
+        </div>
+        {nodes.filter((_, i) => pins.has(shownGroups[i].id))}
+      </>
+    ) : (
+      nodes
+    );
 
   return (
     <div
@@ -881,7 +923,7 @@ function Screen({
           style={{ position: "absolute", inset: 0, border: 0, padding: 0, background: "rgba(0,0,0,0.32)", zIndex: 3 }}
         />}
       </AnimatePresence>
-      {shownGroups.map((g) => {
+      {inBody(shownGroups.map((g) => {
         /* a FAB opens its menu out of itself: the run hangs from the button's own bottom right,
          * so the entries rise above it and the button stays where the author put it */
         const fabCorner = g.items.length === 1 && hasMenu(g.items[0]) ? sizeOf({ ...g.items[0], [fabOpen]: undefined }, widths) : null;
@@ -899,11 +941,11 @@ function Screen({
           inert={hasModal && !g.items.some((it) => modalIds.has(it.id))}
           style={
             g.free
-              ? { position: "absolute", left: g.x - frame.x, top: g.y - frame.y, zIndex: g.items.some((it) => modalIds.has(it.id)) ? 4 : g.items.some((it) => it.id === menuId) ? 2 : undefined }
+              ? { position: "absolute", left: g.x - frame.x, top: g.y - frame.y - lift(g), zIndex: g.items.some((it) => modalIds.has(it.id)) ? 4 : g.items.some((it) => it.id === menuId) ? 2 : undefined }
               : {
                   position: "absolute",
                   left: g.x - frame.x + (fabCorner?.w ?? 0),
-                  top: g.y - frame.y + (fabCorner?.h ?? riseH),
+                  top: g.y - frame.y - lift(g) + (fabCorner?.h ?? riseH),
                   translate: fabCorner ? "-100% -100%" : rising ? "0 -100%" : undefined,
                   zIndex: g.items.some((it) => modalIds.has(it.id)) ? 4 : fabCorner ? 3 : g.items.some((it) => it.id === menuId || (splitOpens(it) && flipped.has(it.id))) ? 2 : undefined,
                   display: "flex",
@@ -998,6 +1040,7 @@ function Screen({
                 menuOpen={menuId === it.id}
                 onMenu={it.kind === "select" ? (open) => setMenuId(open ? it.id : null) : undefined}
                 onRailToggle={it.kind === "navRail" && isWideRail(it) ? (animate) => changeRail(it.id, !it.railExpanded, animate) : undefined}
+                panY={scrolls && !pins.has(g.id)}
               />
             );
             if (!g.free) return node;
@@ -1010,7 +1053,7 @@ function Screen({
           }))(g.free ? freeRadii(g, widths) : null)}
         </div>
         );
-      })}
+      }))}
     </div>
   );
 }
@@ -1207,11 +1250,13 @@ export function Preview({
     last: number;
     lastT: number;
     vel: number;
+    /** a finger or pen landed on a body that scrolls: a drag up or down there is the scroll */
+    body: boolean;
   } | null>(null);
 
   const onScreenPointerDown = (e: React.PointerEvent) => {
     if (peekRef.current || e.button !== 0) return;
-    gesture.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, phase: "idle", size: frameW, last: 0, lastT: e.timeStamp, vel: 0 };
+    gesture.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, phase: "idle", size: frameW, last: 0, lastT: e.timeStamp, vel: 0, body: e.pointerType !== "mouse" && !!(e.target as Element).closest("[data-scroll-body]") };
     swiped.current = false;
   };
 
@@ -1230,9 +1275,11 @@ export function Preview({
         if (!cur) return;
         const to = cur.swipe?.[dir];
         const spec = SWIPE_DIRS.find((d) => d.key === dir)!;
-        /* only swipes the author set up move screens; nothing is inferred */
+        /* only swipes the author set up move screens; nothing is inferred. A finger dragging up or
+         * down a body that scrolls is scrolling it; a mouse scrolls with its wheel, so it still swipes */
         let pk: Peek | null = null;
-        if (to && frames.some((f) => f.id === to)) pk = { frameId: to, t: spec.transition };
+        const scrolling = g.body && (dir === "up" || dir === "down");
+        if (to && !scrolling && frames.some((f) => f.id === to)) pk = { frameId: to, t: spec.transition };
         if (!pk) {
           g.phase = "none";
           return;

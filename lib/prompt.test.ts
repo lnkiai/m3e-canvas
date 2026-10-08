@@ -445,3 +445,29 @@ describe("cards and images laid out as a grid", () => {
     expect(layout(lang, narrow)).not.toContain(GRID[lang](2));
   });
 });
+
+describe("a screen whose body scrolls", () => {
+  const SCROLLS: Record<Lang, string> = {
+    ja: "画面の長さは 1784dp で、端末に映る 892dp より長いため、本文は縦にスクロールします。",
+    en: "The screen runs 1784dp, longer than the 892dp the device shows, so its body scrolls vertically;",
+    zh: "屏幕总长 1784dp，超过设备可显示的 892dp，因此内容区域可纵向滚动；",
+    ko: "화면 길이는 1784dp로 기기에 보이는 892dp보다 길어서 본문이 세로로 스크롤된다.",
+  };
+  const prompt = (lang: Lang, length?: number) => {
+    setGlobalLang(lang);
+    const doc = fixture();
+    return buildPrompt({ ...doc, frames: [{ ...doc.frames[0], length }] }, {}, undefined, lang);
+  };
+
+  it.each(LANGS)("says so under the screen's heading (%s)", (lang) => {
+    const ls = lines(prompt(lang, 1784));
+    const at = ls.findIndex((l) => l.includes(SCROLLS[lang]));
+    expect(at).toBeGreaterThan(ls.indexOf(SECTIONS[lang][2]));
+    expect(at).toBeLessThan(ls.indexOf(SECTIONS[lang][3]));
+  });
+
+  it.each(LANGS)("says nothing of scrolling for a screen the device holds (%s)", (lang) => {
+    expect(prompt(lang)).not.toContain(SCROLLS[lang]);
+    expect(prompt(lang, 892)).not.toContain(SCROLLS[lang]);
+  });
+});

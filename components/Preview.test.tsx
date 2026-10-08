@@ -1,6 +1,6 @@
 import { isValidElement, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PALETTES, type Doc } from "../lib/tokens";
+import { PALETTES, PHONE_H, makeItem, sizeOf, type Doc, type Group, type Item, type Kind } from "../lib/tokens";
 import { Preview } from "./Preview";
 
 const hooks = vi.hoisted(() => ({
@@ -29,6 +29,7 @@ vi.mock("motion/react", () => ({
 vi.mock("@/lib/tokens", () => import("../lib/tokens"));
 vi.mock("@/lib/rail", () => import("../lib/rail"));
 vi.mock("@/lib/railView", () => import("../lib/railView"));
+vi.mock("@/lib/tidy", () => import("../lib/tidy"));
 vi.mock("@/lib/i18n", async () => ({ ...await import("../lib/i18n"), useLang: () => "en" }));
 vi.mock("./M3Node", () => ({ M3Node: "node", Icon: "icon" }));
 vi.mock("./ui", () => ({ IconBtn: "button" }));
@@ -174,5 +175,59 @@ describe("preview screen modal lifecycle", () => {
     expect(previous.focus).toHaveBeenCalledTimes(status === "connected" ? 1 : 0);
     // an unusable previous target hands the keyboard to the screen itself, never to the body
     expect(host.focus).toHaveBeenCalledTimes(status === "connected" ? 0 : 1);
+  });
+});
+
+describe("preview of a screen longer than the device", () => {
+  const part = (kind: Kind, id: string): Item => ({ ...makeItem(kind), id });
+  const navH = sizeOf(part("bottomNav", "nav"), {}).h;
+  const groups: Group[] = [
+    { id: "bar", x: 0, y: 0, axis: "x", items: [part("topAppBar", "bar")] },
+    { id: "row", x: 16, y: 1200, axis: "y", items: [part("listItem", "row")] },
+    { id: "head-fab", x: 300, y: 300, axis: "x", items: [part("fab", "head-fab")] },
+    { id: "mid-fab", x: 300, y: 850, axis: "x", items: [part("fab", "mid-fab")] },
+    { id: "foot-fab", x: 300, y: 1200, axis: "x", items: [part("fab", "foot-fab")] },
+    { id: "nav", x: 0, y: PHONE_H * 2 - navH, axis: "x", items: [part("bottomNav", "nav")] },
+  ];
+  const render = (length?: number) => {
+    const element = screenElement();
+    return renderScreen({ ...element, props: { ...element.props, frame: { id: "long", name: "Long", x: 0, y: 0, length }, groups } });
+  };
+  const tops = (node: unknown) =>
+    Object.fromEntries(elements(node).filter((e) => e.props["data-preview-group"]).map((e) => [e.props["data-preview-group"], (e.props.style as { top: number }).top]));
+  const panY = (node: unknown) =>
+    Object.fromEntries(elements(node).filter((e) => typeof e.type === "function" && "item" in e.props).map((e) => [(e.props.item as Item).id, e.props.panY]));
+
+  beforeEach(() => {
+    hooks.refs = [];
+    hooks.present = true;
+  });
+
+  it("scrolls the body in a layer as long as the screen, under what stays put", () => {
+    const tree = render(PHONE_H * 2);
+    const body = elements(tree).find((e) => e.props["data-scroll-body"]);
+    expect(body?.props.style).toMatchObject({ overflowY: "auto", touchAction: "pan-y" });
+    expect(Object.keys(tops(body))).toEqual(["row", "mid-fab"]);
+    expect(tops(tree)).toEqual({
+      bar: 0,
+      row: 1200,
+      /* one in the first screenful stays there, one in the last keeps its distance from the foot,
+         and one across the fold of the two is part of the body */
+      "head-fab": 300,
+      "mid-fab": 850,
+      "foot-fab": 1200 - PHONE_H,
+      nav: PHONE_H - navH,
+    });
+  });
+
+  it("leaves a drag up or down on the body to the scroll, and keeps the bars for swipes", () => {
+    expect(panY(render(PHONE_H * 2))).toEqual({ bar: false, row: true, "head-fab": false, "mid-fab": true, "foot-fab": false, nav: false });
+  });
+
+  it("draws a screen the device holds as before", () => {
+    const tree = render();
+    expect(elements(tree).some((e) => e.props["data-scroll-body"])).toBe(false);
+    expect(tops(tree)).toMatchObject({ row: 1200, nav: PHONE_H * 2 - navH });
+    expect(Object.values(panY(tree)).every((v) => v === false)).toBe(true);
   });
 });

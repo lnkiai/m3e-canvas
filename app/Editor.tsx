@@ -63,6 +63,7 @@ import {
   frameRadius,
   frameRect,
   frameSizeOf,
+  frameLengthOf,
   carryItemSize,
   matchRunSize,
   runSizePatch,
@@ -123,7 +124,7 @@ import { LangMenu } from "@/components/Menus";
 import { AiActionKey, AiPanel, aiErrorText } from "@/components/AiPanel";
 import { TidyState, PANEL_FADE_H } from "@/components/ui";
 import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
-import { barSlotOf, bodyRect, carryFrame, holdsEdgeBar, pullInto, tidyFrame } from "@/lib/tidy";
+import { barSlotOf, bodyRect, carryFrame, holdsEdgeBar, minFrameLength, pullInto, stretchFrame, tidyFrame } from "@/lib/tidy";
 import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
@@ -406,9 +407,8 @@ const mobileSeed = (lang: Lang = getLang()): Group[] => {
 /** While the model works on a screen, the scheme's colors drift through its bezel. */
 function ThinkingRing({ p, frame }: { p: Palette; frame: Frame }) {
   const still = useReducedMotion();
-  const { w: frameW, h: frameH } = frameSizeOf(frame);
-  const w = frameW + BEZEL * 2;
-  const h = frameH + BEZEL * 2;
+  const w = frameSizeOf(frame).w + BEZEL * 2;
+  const h = frameLengthOf(frame) + BEZEL * 2;
   const d = Math.ceil(Math.hypot(w, h)) + 80;
   const stops = [p.primary, p.tertiaryContainer, p.inversePrimary, p.secondaryContainer, p.primaryContainer, p.primary];
   return (
@@ -1215,7 +1215,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
       }
       if (frameRef.current === "phone") {
         for (const f of framesRef.current) {
-          const { w, h } = frameSizeOf(f);
+          const { w } = frameSizeOf(f);
+          const h = frameLengthOf(f);
           xs.push(
             f.x,
             f.x + FRAME_MARGIN,
@@ -2119,7 +2120,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     if (frameRef.current !== "phone") return none;
     const f = frameOfGroup(g, framesRef.current, widthsRef.current);
     if (!f) return none;
-    const { w: frameW, h: frameH } = frameSizeOf(f);
+    const { w: frameW, h: deviceH } = frameSizeOf(f);
+    const frameH = frameLengthOf(f);
     const a = sizeOf(before, widthsRef.current);
     const b = sizeOf(after, widthsRef.current);
     const shift = (pos: number, len: number, next: number, f0: number, fLen: number) => {
@@ -2132,7 +2134,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     };
     return {
       dx: shift(g.x, a.w, b.w, f.x, frameW),
-      dy: shift(g.y, a.h, b.h, f.y, frameH),
+      /* on a screen that runs further, a part keeps to its foot, and a dialog to the middle of the device */
+      dy: shift(g.y, a.h, b.h, f.y, frameH) || shift(g.y, a.h, b.h, f.y, deviceH),
     };
   };
 
@@ -2743,7 +2746,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     let x = cx - sz.w / 2;
     let y = cy - sz.h / 2;
     if (f) {
-      const { w, h } = frameSizeOf(f);
+      const { w } = frameSizeOf(f);
+      const h = frameLengthOf(f);
       const lx = f.x + Math.min(FRAME_MARGIN, (w - sz.w) / 2);
       const ly = f.y + Math.min(FRAME_MARGIN, (h - sz.h) / 2);
       x = clamp(x, lx, Math.max(lx, f.x + w - FRAME_MARGIN - sz.w));
@@ -2805,7 +2809,9 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   const setFramePreset = (id: string, preset: FramePreset) => {
     const current = framesRef.current.find((f) => f.id === id);
     if (!current) return;
-    const next = { ...current, ...framePresetPatch(preset) };
+    const sized = { ...current, ...framePresetPatch(preset) };
+    /* a screen no longer than its new device does not scroll any more */
+    const next = sized.length !== undefined && sized.length <= frameSizeOf(sized).h ? { ...sized, length: undefined } : sized;
     const before = frameSizeOf(current);
     const after = frameSizeOf(next);
     if (before.w === after.w && before.h === after.h) return;
@@ -2819,6 +2825,27 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     tidyRef.current = null;
     setEasing(true);
     window.setTimeout(() => setEasing(false), SETTLE_MS + 40);
+    setFrames(laid.frames);
+    setGroups(laid.groups);
+  };
+
+  /** the document a run of length changes started from, and what the last of them made of it */
+  const lengthRun = useRef<{ id: string; from: { frames: Frame[]; groups: Group[] }; to: { frames: Frame[]; groups: Group[] } } | null>(null);
+  /** makes a screen run longer than its device, or back: what stands at its foot goes with the foot.
+   *  A slider sends a stream of lengths; each is worked out from where the stream began, so a part
+   *  is never taken for one at the foot halfway through and dragged along from then on. */
+  const setFrameLength = (id: string, length: number) => {
+    const run = lengthRun.current;
+    const from = run && run.id === id && run.to.frames === framesRef.current && run.to.groups === groupsRef.current ? run.from : { frames: framesRef.current, groups: groupsRef.current };
+    const start = from.frames.find((f) => f.id === id);
+    const current = framesRef.current.find((f) => f.id === id);
+    if (!start || !current) return;
+    const to = Math.max(length, minFrameLength(from.groups, start, from.frames, widthsRef.current));
+    if (to === frameLengthOf(current)) return;
+    const laid = stretchFrame(from.groups, start, to, from.frames, widthsRef.current);
+    lengthRun.current = { id, from, to: laid };
+    snapshotFor("frame:" + id + ":length");
+    tidyRef.current = null;
     setFrames(laid.frames);
     setGroups(laid.groups);
   };
@@ -3034,8 +3061,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
       await document.fonts?.ready;
       const el = document.querySelector<HTMLElement>(`[data-export="${f.id}"]`);
       if (!el) return;
-      const { w, h } = frameSizeOf(f);
-      const url = await toPng(el, { pixelRatio: 2, cacheBust: true, width: w, height: h });
+      const url = await toPng(el, { pixelRatio: 2, cacheBust: true, width: frameSizeOf(f).w, height: frameLengthOf(f) });
       const a = document.createElement("a");
       a.href = url;
       a.download = `${f.name || "screen"}.png`;
@@ -3048,7 +3074,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   /** the runs of one screen drawn with plain divs: the export layer */
   const renderExport = (f: Frame) => {
     const gs = groups.filter((g) => frameOfGroup(g, frames, widths)?.id === f.id);
-    const { w, h } = frameSizeOf(f);
+    const { w } = frameSizeOf(f);
+    const h = frameLengthOf(f);
     return (
       <div
         data-export={f.id}
@@ -4136,7 +4163,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
                 frames.map((f) => {
                   const on = f.id === selectedFrameId;
                   const bg = p[f.bg ?? "surface"];
-                  const { w, h } = frameSizeOf(f);
+                  const { w, h: fold } = frameSizeOf(f);
+                  const h = frameLengthOf(f);
                   const radius = frameRadius(f);
                   return (
                     <div
@@ -4213,6 +4241,10 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
                             .map((g) => renderGroup(g, f.x, f.y))}
                           {groups.some((g) => frameOf.get(g.id) === f.id && modalRailOf(g)) && (
                             <div aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.32)", pointerEvents: "none", zIndex: 1 }} />
+                          )}
+                          {/* where the device ends on a screen that runs further: below it, the body scrolls */}
+                          {h > fold && (
+                            <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: fold, borderTop: `2px dashed ${p.outline}`, opacity: 0.6, pointerEvents: "none", zIndex: 2 }} />
                           )}
                           {draftBusy && (
                             <div style={{ position: "absolute", inset: 0, zIndex: 90, background: canvasBg, display: "grid", placeItems: "center" }}>
@@ -4680,6 +4712,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
                   tidy={tidyState ?? "done"}
                   onTidy={() => tidy(selectedFrame)}
                   onPlace={(pl) => setPlace(selectedFrame, pl)}
+                  minLength={minFrameLength(groups, selectedFrame, frames, widths)}
+                  onLength={(length) => setFrameLength(selectedFrame.id, length)}
                   ai={{ ready: aiReady, reason: aiReason, busy: aiBusy && aiFrameId === selectedFrame.id, onRun: () => runAi("describe", selectedFrame), onCancel: cancelAi }}
                 />
               ) : rightTab === "edit" ? (
