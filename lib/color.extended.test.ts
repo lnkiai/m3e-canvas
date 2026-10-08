@@ -191,6 +191,11 @@ describe("schemeFromSeed()", () => {
     expect(pal.seed).toBe("#FF00AA");
   });
 
+  it("normalizes a seed written without # to #RRGGBB", () => {
+    expect(schemeFromSeed("ff00aa").seed).toBe("#FF00AA");
+    expect(schemeFromSeed("  aabbcc  ").seed).toBe("#AABBCC");
+  });
+
   it("falls back to the default seed when input is malformed", () => {
     const pal = schemeFromSeed("not-a-color");
     expect(pal.seed).toBe("NOT-A-COLOR"); // whatever the user passed is uppercased

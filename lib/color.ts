@@ -129,7 +129,8 @@ const ERROR_DARK = { error: "#F2B8B5", onError: "#601410", errorContainer: "#8C1
 /** Material 3 scheme from a seed color: light by default, dark and higher
  *  contrast on request. */
 export function schemeFromSeed(seedHex: string, label = "Custom", opts: SchemeOptions = {}): Palette {
-  const rgb = hexToRgb(seedHex) ?? [103, 80, 164];
+  const parsed = hexToRgb(seedHex);
+  const rgb = parsed ?? [103, 80, 164];
   const lch = labToLch(rgbToLab(rgb[0], rgb[1], rgb[2]));
   const h = lch.h;
   const primaryC = opts.keepChroma ? Math.min(lch.C, 60) : Math.max(36, Math.min(lch.C, 60));
@@ -148,7 +149,7 @@ export function schemeFromSeed(seedHex: string, label = "Custom", opts: SchemeOp
   return {
     key: "custom",
     label,
-    seed: seedHex.toUpperCase(),
+    seed: parsed ? rgbToHex(rgb[0], rgb[1], rgb[2]) : seedHex.toUpperCase(),
     primary: P(k.primary),
     onPrimary: P(k.onPrimary),
     primaryContainer: P(k.primaryContainer),
