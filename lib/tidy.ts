@@ -217,6 +217,9 @@ export function pullInto(g: Group, frame: Frame, widths: Record<string, number>)
 export function carryFrame(groups: Group[], frame: Frame, to: Frame, frames: Frame[], widths: Record<string, number>): { frames: Frame[]; groups: Group[] } {
   const from = frameSizeOf(frame);
   const after = frameSizeOf(to);
+  /* the rail runs the whole length of the screen, which may be longer than the device */
+  const fromLength = { w: from.w, h: frameLengthOf(frame) };
+  const toLength = { w: after.w, h: frameLengthOf(to) };
   const owner = new Map(groups.map((g) => [g.id, frameOfGroup(g, frames, widths)?.id] as const));
   /* screens whose left edge is past the old right edge keep their distance from it */
   const shift = after.w - from.w;
@@ -232,7 +235,7 @@ export function carryFrame(groups: Group[], frame: Frame, to: Frame, frames: Fra
   const navGroup = mine.find((g) => standsAlone(g, "bottomNav") || standsAlone(g, "navRail"));
   const swapNav = (g: Group, it: Item): Item => {
     if (g !== navGroup) return it;
-    if (expanded && it.kind === "bottomNav") return { ...it, kind: "navRail", railExpanded: false, size: undefined, size2: after.h, radiusTop: it.radiusBottom, radiusBottom: it.radiusTop };
+    if (expanded && it.kind === "bottomNav") return { ...it, kind: "navRail", railExpanded: false, size: undefined, size2: toLength.h, radiusTop: it.radiusBottom, radiusBottom: it.radiusTop };
     if (!expanded && it.kind === "navRail") {
       const { railExpanded: _expanded, railModal: _modal, [railExpansionSide]: _side, ...bar } = it;
       return { ...bar, kind: "bottomNav", size: after.w, size2: undefined, radiusTop: it.radiusBottom, radiusBottom: it.radiusTop };
@@ -255,11 +258,16 @@ export function carryFrame(groups: Group[], frame: Frame, to: Frame, frames: Fra
    * positions are measured from its left edge, on both ends of the change */
   const fromBody = { w: from.w - beforeSlots.total, h: from.h };
   const toBody = { w: after.w - afterSlots.total, h: after.h };
+  /* a rail that ran the length of the screen keeps running it; one as tall as the device takes the new device */
+  const carryRail = (it: Item) => {
+    const byLength = carryItemSize(it, fromLength, toLength);
+    return byLength.size2 !== it.size2 ? byLength : carryItemSize(it, from, after);
+  };
   const resized = groups.map((g) => {
     const o = owner.get(g.id);
     if (o === frame.id) {
       const isRail = g === navGroup && expanded;
-      const items = g.items.map((it) => swapNav(g, carryItemSize(it, isRail ? from : fromBody, isRail ? after : toBody)));
+      const items = g.items.map((it) => swapNav(g, spansScreen(g, frame, widths) ? carryRail(it) : carryItemSize(it, isRail ? from : fromBody, isRail ? after : toBody)));
       const x = isRail ? (side === "right" ? to.x + after.w - railWidth(items[0]) : to.x) : g.x + afterSlots.left - beforeSlots.left;
       return pullInto({ ...g, x, items }, to, widths);
     }
@@ -269,27 +277,54 @@ export function carryFrame(groups: Group[], frame: Frame, to: Frame, frames: Fra
   return { frames: nextFrames, groups: tidyFrame(resized, to, nextFrames, widths) ?? resized };
 }
 
-/** a part that stays put and stands nearer the foot of the screen than its head: it goes with the foot */
-const atFoot = (g: Group, fr: Rect, widths: Record<string, number>) => {
-  const bb = groupBounds(g, widths);
-  return holdsFixedPart(g) && fr.b - bb.b < bb.t - fr.t;
+/** a rail standing on its own from the head of the screen */
+const railAtHead = (g: Group, frame: Frame, widths: Record<string, number>) =>
+  g.items.length === 1 && g.items[0].kind === "navRail" && groupBounds(g, widths).t <= frame.y + 1;
+
+/** a rail from the head of the screen down to the foot of the device or of the whole screen: it
+ *  runs the length of the screen, and a change of length takes it along. A rail the author drew to
+ *  some other height keeps it. */
+export const spansScreen = (g: Group, frame: Frame, widths: Record<string, number>) => {
+  if (!railAtHead(g, frame, widths)) return false;
+  const b = groupBounds(g, widths).b - frame.y;
+  return Math.abs(b - frameSizeOf(frame).h) <= 1 || Math.abs(b - frameLengthOf(frame)) <= 1;
 };
 
+/** a part that stays put and stands nearer the foot of the screen than its head: it goes with the foot */
+const atFoot = (g: Group, bb: Rect, fr: Rect) => holdsFixedPart(g) && fr.b - bb.b < bb.t - fr.t;
+
+/** How a part rides on a screen whose body scrolls: "head" keeps its place on the glass, "foot"
+ *  keeps its distance from the foot of the screen, and null scrolls with the body. A rail running
+ *  the length stays on the glass; another part that stays put goes with the end it stands nearer,
+ *  the same end a change of length carries it with, as long as it stands within a screenful of it. */
+export function pinOf(g: Group, frame: Frame, widths: Record<string, number>): "head" | "foot" | null {
+  if (!holdsFixedPart(g)) return null;
+  if (railAtHead(g, frame, widths)) return "head";
+  const fr = frameRect(frame);
+  const bb = groupBounds(g, widths);
+  const viewH = frameSizeOf(frame).h;
+  if (atFoot(g, bb, fr)) return bb.t >= fr.b - viewH ? "foot" : null;
+  return bb.b <= fr.t + viewH ? "head" : null;
+}
+
 /** A screen made longer or shorter, so that its body scrolls or stops scrolling. What stands at
- *  its foot -- the navigation bar, a FAB above it -- goes with the foot, the screens and loose parts
- *  below it move by as much so the screen neither runs into them nor takes them in, and the rest
- *  stays where the author put it. */
+ *  its foot -- the navigation bar, a FAB above it -- goes with the foot, a rail runs to the new
+ *  foot, the screens and loose parts below it move by as much so the screen neither runs into them
+ *  nor takes them in, and the rest stays where the author put it. */
 export function stretchFrame(groups: Group[], frame: Frame, length: number, frames: Frame[], widths: Record<string, number>): { frames: Frame[]; groups: Group[] } {
   const fr = frameRect(frame);
   const to: Frame = { ...frame, length: length > frameSizeOf(frame).h ? length : undefined };
   const d = frameLengthOf(to) - frameLengthOf(frame);
-  const under = (r: { l: number; t: number; r: number }) => r.t >= fr.b && r.l < fr.r && r.r > fr.l;
-  const below = new Set(frames.filter((f) => f.id !== frame.id && under(frameRect(f))).map((f) => f.id));
+  const across = (r: Rect) => r.l < fr.r && r.r > fr.l;
+  const below = new Set(frames.filter((f) => f.id !== frame.id && frameRect(f).t >= fr.b && across(frameRect(f))).map((f) => f.id));
   return {
     frames: frames.map((f) => (below.has(f.id) ? { ...f, y: f.y + d } : f.id === frame.id ? to : f)),
     groups: groups.map((g) => {
       const owner = frameOfGroup(g, frames, widths)?.id;
-      const moves = owner ? below.has(owner) || (owner === frame.id && atFoot(g, fr, widths)) : under(groupBounds(g, widths));
+      const bb = groupBounds(g, widths);
+      if (owner === frame.id && spansScreen(g, frame, widths)) return { ...g, items: [{ ...g.items[0], size2: frameLengthOf(to) - (bb.t - fr.t) }] };
+      /* a loose part is judged by its middle, the way a screen takes parts in */
+      const moves = owner ? below.has(owner) || (owner === frame.id && atFoot(g, bb, fr)) : (bb.t + bb.b) / 2 >= fr.b && across(bb);
       return moves ? { ...g, y: g.y + d } : g;
     }),
   };
@@ -303,13 +338,18 @@ export function minFrameLength(groups: Group[], frame: Frame, frames: Frame[], w
   let body = 0;
   let foot = 0;
   for (const g of groups) {
-    if (frameOfGroup(g, frames, widths)?.id !== frame.id) continue;
+    /* a rail running the length follows it, so it never holds the screen long */
+    if (frameOfGroup(g, frames, widths)?.id !== frame.id || spansScreen(g, frame, widths)) continue;
     const bb = groupBounds(g, widths);
-    if (atFoot(g, fr, widths)) foot = Math.max(foot, fr.b - bb.t);
+    if (atFoot(g, bb, fr)) foot = Math.max(foot, fr.b - bb.t);
     else body = Math.max(body, bb.b - fr.t);
   }
   return Math.max(frameSizeOf(frame).h, Math.min(frameLengthOf(frame), Math.ceil((body + foot) / 4) * 4));
 }
+
+/** The longest a screen can be made from its panel or its handle: four times its device, or longer
+ *  where it already is. */
+export const maxFrameLength = (frame: Frame) => Math.max(frameLengthOf(frame), frameSizeOf(frame).h * 4);
 
 /** Keep the expanded rail's collapsed footprint on its original edge until moved across the midpoint. */
 export function railSide(g: Group, frame: Frame, widths: Record<string, number>): "left" | "right" {

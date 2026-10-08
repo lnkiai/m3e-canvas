@@ -18,6 +18,7 @@ import {
   ButtonRun,
   Field,
   IconBtn,
+  NamedSizes,
   PanelShell,
   Section,
   Segmented,
@@ -28,11 +29,16 @@ import {
 import { AiHooks, FrameSizePicker } from "./Inspector";
 import { AiIconBtn, PartTabs, Tab } from "./PartPanel";
 import { COLOR_TOKEN_TEXT, t, useLang } from "@/lib/i18n";
+import { maxFrameLength } from "@/lib/tidy";
 
 /* The panel for a screen. It wears the same chrome a part's panel does -- the title row with
  * what can be done to the screen, then short sections -- and keeps to what a screen actually
  * has. The design tab holds its name and shape, its colour and how its body is laid out; the
  * trigger tab holds what it is for -- the same split a part's panel makes. What the prompt says about it lives in the prompt tab. */
+
+/** quick picks for a screen's length: the device itself, and one and a half, two and three times it */
+const lengthSteps = (deviceH: number) =>
+  [1, 1.5, 2, 3].map((n) => ({ key: `${n}×`, value: n === 1 ? deviceH : Math.round((deviceH * n) / 4) * 4 }));
 
 /** the few colours a screen is painted in, offered the way a part's looks are */
 const SCREEN_FILLS: ColorToken[] = [
@@ -283,12 +289,12 @@ export function FrameInspector({
               title={t("screenLength", lang)}
               value={frameLengthOf(frame)}
               min={minLength}
-              max={Math.max(frameLengthOf(frame), frameSizeOf(frame).h * 4)}
+              max={maxFrameLength(frame)}
               step={4}
               onChange={onLength}
               p={p}
             />
-            <div style={{ fontSize: 11, lineHeight: 1.5, color: p.onSurfaceVariant, padding: "0 4px" }}>{t("scrollingHint", lang)}</div>
+            <NamedSizes steps={lengthSteps(frameSizeOf(frame).h)} value={frameLengthOf(frame)} onChange={onLength} p={p} label={t("screenLength", lang)} />
           </div>
         </Section>
         <Section

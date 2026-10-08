@@ -49,7 +49,6 @@ import {
   frameLengthOf,
   frameRadius,
   frameSizeOf,
-  groupBounds,
   groupsInFrame,
   isPhoneFrame,
   normalizeTheme,
@@ -74,7 +73,7 @@ import type { Ripple } from "./M3Node";
 import { IconBtn } from "./ui";
 import { t, useLang } from "@/lib/i18n";
 import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
-import { holdsFixedPart } from "@/lib/tidy";
+import { pinOf } from "@/lib/tidy";
 import { railMotionTargets } from "@/lib/railView";
 
 const EASE = [0.2, 0, 0, 1] as const;
@@ -776,19 +775,19 @@ function Screen({
     (current, [id, railExpanded]) => updateRail(current, [frame], widths, id, { railExpanded }), constrainModalRails(groups),
   ), [groups, frame, widths, railStates]);
   const modalIds = new Set(shownGroups.flatMap((g) => { const rail = modalRailOf(g); return rail ? [rail.id] : []; }));
-  /* A screen longer than the device scrolls its body under what stays put. A part that stays and
-   * stands in the first screenful keeps its place on the glass; one in the last screenful keeps
-   * its distance from the foot, so a navigation bar at the bottom of the long screen sits at the
-   * bottom of the glass. One left between the two is part of the body and scrolls with it. */
+  /* A screen longer than the device scrolls its body under what stays put. Which end a part
+   * stays with is the same rule a change of length goes by (`pinOf`): one at the head keeps its
+   * place on the glass, one at the foot keeps its distance from the foot, so a navigation bar at
+   * the bottom of the long screen sits at the bottom of the glass, and one left between the two
+   * is part of the body and scrolls with it. A rail running the length is shown a screenful tall. */
   const viewH = frameSizeOf(frame).h;
   const length = frameLengthOf(frame);
   const scrolls = length > viewH;
   const pins = new Map<string, number>();
   if (scrolls) {
-    for (const g of shownGroups.filter(holdsFixedPart)) {
-      const bb = groupBounds(g, widths);
-      if (bb.b - frame.y <= viewH) pins.set(g.id, 0);
-      else if (bb.t - frame.y >= length - viewH) pins.set(g.id, length - viewH);
+    for (const g of shownGroups) {
+      const pin = pinOf(g, frame, widths);
+      if (pin) pins.set(g.id, pin === "head" ? 0 : length - viewH);
     }
   }
   const lift = (g: Group) => pins.get(g.id) ?? 0;
@@ -981,6 +980,7 @@ function Screen({
             let shown = flipped.has(it.id) ? flippedLook(it) : it;
             /* the menu drops below the button, or rises above it where the screen runs out */
             if (splitOpens(shown) && flipped.has(it.id)) shown = { ...shown, [menuUp]: splitMenuRisesAt(it, g.y, frame) };
+            if (it.kind === "navRail" && pins.has(g.id) && (shown.size2 ?? 0) > viewH) shown = { ...shown, size2: viewH };
             if (it.kind === "slider" && values[it.id] !== undefined) shown = { ...shown, value: values[it.id] };
             if (it.kind === "select" && values[it.id] !== undefined) shown = { ...shown, selected: values[it.id] };
             const navKind = it.kind === "bottomNav" || it.kind === "navRail" || it.kind === "tabs";

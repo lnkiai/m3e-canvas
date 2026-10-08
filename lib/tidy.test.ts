@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { minFrameLength, stretchFrame, tidyFrame } from "./tidy";
-import { Frame, Group, Item, Kind, NAV_BAR_H, PHONE_H, PHONE_MARGIN, PHONE_W, frameLengthOf, frameOfGroup, frameRect, groupBounds, isPhoneFrame, makeItem } from "./tokens";
+import { carryFrame, minFrameLength, pinOf, stretchFrame, tidyFrame } from "./tidy";
+import { DESKTOP_H, DESKTOP_W, Frame, Group, Item, Kind, NAV_BAR_H, PHONE_H, PHONE_MARGIN, PHONE_W, frameLengthOf, frameOfGroup, frameRect, groupBounds, isPhoneFrame, makeItem } from "./tokens";
 
 const frame: Frame = { id: "f1", name: "Home", x: 0, y: 0 };
 const frames = [frame];
@@ -266,6 +266,53 @@ describe("a screen longer than the device", () => {
     expect(minFrameLength(grown, long, [long], {})).toBe(Math.ceil((row.b + foot) / 4) * 4);
     /* a body that fits the device lets the screen go back to it */
     expect(minFrameLength(stretchFrame(stage(), frame, PHONE_H * 2, frames, {}).groups, long, [long], {})).toBe(PHONE_H);
+  });
+
+  it("runs a rail to the new foot, and does not let it hold the screen long", () => {
+    const groups = [grp("g-rail", 0, 0, [{ ...part("navRail", "rail"), size2: PHONE_H }])];
+    const grown = stretchFrame(groups, frame, PHONE_H * 2, frames, {});
+    expect(grown.groups[0].items[0].size2).toBe(PHONE_H * 2);
+    expect(minFrameLength(grown.groups, grown.frames[0], grown.frames, {})).toBe(PHONE_H);
+    const back = stretchFrame(grown.groups, grown.frames[0], PHONE_H, grown.frames, {});
+    expect(back.groups[0].items[0].size2).toBe(PHONE_H);
+    /* a shorter rail is the author's drawing and keeps its height */
+    const short = [grp("g-rail", 0, 0, [{ ...part("navRail", "rail"), size2: 400 }])];
+    expect(stretchFrame(short, frame, PHONE_H * 2, frames, {}).groups[0].items[0].size2).toBe(400);
+    /* and so does one drawn between the device and the length */
+    const between = [grp("g-rail", 0, 0, [{ ...part("navRail", "rail"), size2: PHONE_H + 200 }])];
+    expect(stretchFrame(between, { ...frame, length: PHONE_H * 2 }, PHONE_H * 3, frames, {}).groups[0].items[0].size2).toBe(PHONE_H + 200);
+  });
+
+  it("keeps a rail running the length when the screen turns into a desktop one", () => {
+    const groups = stretchFrame(stage(), frame, PHONE_H * 2, frames, {}).groups;
+    const to: Frame = { ...long, w: DESKTOP_W, h: DESKTOP_H };
+    const out = carryFrame(groups, long, to, [long], {});
+    const rail = out.groups.flatMap((g) => g.items).find((it) => it.kind === "navRail");
+    expect(rail?.size2).toBe(PHONE_H * 2);
+    /* a rail only as tall as the device takes the new device */
+    const short = [grp("g-rail", 0, 0, [{ ...part("navRail", "rail"), size2: PHONE_H }])];
+    const desk: Frame = { ...long, w: DESKTOP_W, h: DESKTOP_H };
+    const wide = carryFrame(short, long, desk, [long], {});
+    expect(wide.groups[0].items[0].size2).toBe(DESKTOP_H);
+  });
+
+  it("pins what stays put to the same end a change of length carries it with", () => {
+    /* grown only a little, the FAB is still in the first screenful but goes with the foot */
+    const grown = stretchFrame(stage(), frame, PHONE_H + 40, frames, {});
+    const pin = (id: string) => pinOf(grown.groups.find((g) => g.id === id)!, grown.frames[0], {});
+    expect([pin("g-bar"), pin("g-row"), pin("g-fab"), pin("g-nav")]).toEqual(["head", null, "foot", "foot"]);
+    const rail = stretchFrame([grp("g-rail", 0, 0, [part("navRail", "rail")])], frame, PHONE_H * 3, frames, {});
+    expect(pinOf(rail.groups[0], rail.frames[0], {})).toBe("head");
+    /* a FAB left in the middle of a very long screen scrolls with the body */
+    expect(pinOf(grp("g-mid", 300, PHONE_H * 1.5, [part("fab", "mid")]), { ...frame, length: PHONE_H * 3 }, {})).toBeNull();
+  });
+
+  it("moves a loose part whose middle is below the foot, even when it reaches over it", () => {
+    const loose = grp("g-loose", 16, PHONE_H - 10, [{ ...part("box", "loose"), size2: 60 }]);
+    expect(frameOfGroup(loose, frames, {})).toBeUndefined();
+    const out = stretchFrame([loose], frame, PHONE_H + 400, frames, {});
+    expect(out.groups[0].y).toBe(PHONE_H + 390);
+    expect(frameOfGroup(out.groups[0], out.frames, {})).toBeUndefined();
   });
 
   it("lays its bars out on the whole length and centers a dialog on the device", () => {
