@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <a href="#日本語">日本語</a> · <a href="#中文">中文</a> · <a href="#한국어">한국어</a> · <a href="https://lnkiai.github.io/m3e-canvas/">Open the app</a>
+  <a href="#日本語">日本語</a> · <a href="#中文">中文</a> · <a href="#한국어">한국어</a> · <a href="#français">Français</a> · <a href="https://lnkiai.github.io/m3e-canvas/">Open the app</a>
 </p>
 
 ![Sketching a recipes app in M3E Canvas, changing its theme, copying the prompt, an AI coding tool building it, and the app running on Android](docs/story.gif)
@@ -45,7 +45,7 @@ Works with any AI coding tool that takes a prompt, such as Claude Code, Codex, G
 - **Toggle buttons** – any button can flip on tap, changing its icon and style.
 - **Layers and groups** – a layers panel lists the z-order of each screen; drag a row to bring parts forward or send them back, and open a group or a connected run to reorder what is inside it. Select several parts and group them to keep their overlap and move them as one. The prompt describes overlaps and side-by-side rows explicitly so the generated layout keeps them.
 - **Theme** – the four M3 Expressive axes in one panel. Color: seven presets or one seed color that becomes a full Material 3 scheme you can fine-tune, light / dark, three contrast levels and a dynamic-color switch (match the phone wallpaper). Shape: square, rounded or full corners for every part at once. Type: Roboto, Roboto Flex, Roboto Serif or the system font, with the emphasized styles. Motion: the standard or the expressive spring scheme, which also drives the preview.
-- **Prompt output** – the whole design (or a single screen) becomes a concise natural-language prompt in Japanese, English, Chinese or Korean, including your own notes on what each part does. Pick Android (the default) or the web as the target and the prompt asks for the matching stack.
+- **Prompt output** – the whole design (or a single screen) becomes a concise natural-language prompt in Japanese, English, French, Chinese or Korean, including your own notes on what each part does. Pick Android (the default) or the web as the target and the prompt asks for the matching stack.
 - **Tidy** – one button snaps bars to the edges, the FAB to the corner, joins neighbouring list items and buttons, and stacks the rest on 16dp margins. Press it again to undo.
 - **Optional AI helper** – bring your own key (OpenAI, Claude, Gemini or DeepSeek) and let the model write a part's behavior note or a screen's description, in your language. Each rewrite can be undone. The key stays in your browser and the request goes straight to the provider; there is no server in between.
 - **Export** – copy the prompt (edit it by hand first if you like) or save a screen as a PNG.
@@ -88,7 +88,7 @@ The app is a static Next.js export. To host it under a sub-path (for example a G
 
 ## Contributing
 
-Bug reports, part requests and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains the setup, the conventions (English comments, four languages for every string) and where each kind of change lives. Questions go to [Discussions](https://github.com/lnkiai/m3e-canvas/discussions).
+Bug reports, part requests and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains the setup, the conventions (English comments, five languages for every string) and where each kind of change lives. Questions go to [Discussions](https://github.com/lnkiai/m3e-canvas/discussions).
 
 ## Support
 
@@ -137,7 +137,7 @@ Claude Code、Codex、Gemini CLI、Cursor など、プロンプトを受け取�
 - **切り替えボタン** – ボタンをタップでオン／オフが切り替わるトグルにして、オン時のアイコンとスタイルを指定できます。
 - **レイヤーとグループ** – 画面ごとの重なり順をレイヤーパネルで確認し、ドラッグで前後を入れ替えられます。グループや連結した列は開いて、中の順番も入れ替えられます。複数選択してグループ化すると、重なりを保ったまま一緒に動かせます。プロンプトには重なりや横並びが明示され、生成されるレイアウトが崩れにくくなります。
 - **テーマ** – M3 Expressive の 4 つの軸を 1 つのパネルで。カラーは 7 種のプリセットか、ベース色 1 つから Material 3 のスキーム全体を生成して微調整でき、ライト／ダーク、3 段階のコントラスト、壁紙に合わせるダイナミックカラーも指定できます。シェイプは全部品の角丸をスクエア／標準／フルでまとめて切り替え。タイポグラフィは Roboto、Roboto Flex、Roboto Serif、システムフォントと強調スタイル。モーションはスタンダード／エクスプレッシブで、プレビューの遷移にも反映されます。
-- **プロンプト出力** – デザイン全体、または 1 画面だけを、日本語・英語・中国語・韓国語の簡潔な文章にします。部品ごとの「振る舞い」メモもそのまま入ります。実装先は Android（既定）と Web から選べ、プロンプトはそれに合った技術で書かれます。
+- **プロンプト出力** – デザイン全体、または 1 画面だけを、日本語・英語・フランス語・中国語・韓国語の簡潔な文章にします。部品ごとの「振る舞い」メモもそのまま入ります。実装先は Android（既定）と Web から選べ、プロンプトはそれに合った技術で書かれます。
 - **整える** – ボタンひとつでバーを端に、FAB を隅に寄せ、隣り合うリスト項目やボタンをつなげ、残りを余白 16dp で積み直します。もう一度押すと元に戻ります。
 - **AI 補助（任意）** – 自分のキー（OpenAI、Claude、Gemini、DeepSeek）を入れると、部品の動作や画面の説明を UI の言語で書いてもらえます。書き換えは元に戻せます。キーはブラウザ内にだけ保存され、リクエストはプロバイダへ直接送られます（間にサーバーはありません）。
 - **書き出し** – プロンプトのコピー（手で編集してからも可）、画面の PNG 保存。
@@ -196,7 +196,7 @@ MIT © lnkiai
 - **切换按钮** – 任何按钮都可以做成点击切换的按钮，开启时改变文字、图标和样式。
 - **图层与编组** – 图层面板显示每个屏幕的层叠顺序，可拖动调整前后，展开编组或相连的组件还能调整其内部顺序；多选后可编组，保持叠放关系并一起移动。提示词会明确写出叠放和横向排列，让生成的布局不走样。
 - **主题** – 在一个面板里调整 M3 Expressive 的四个维度。配色：七套预设，或用一个基准色生成整套 Material 3 配色并微调，支持浅色／深色、三档对比度和动态配色（跟随手机壁纸）。形状：一次切换所有组件的圆角（方形／圆角／全圆）。字体：Roboto、Roboto Flex、Roboto Serif 或系统字体，并可开启强调样式。动效：标准或富有表现力的弹簧方案，同时作用于预览过渡。
-- **提示词输出** – 整个设计（或单个屏幕）会变成简洁的自然语言提示词，支持日文、英文、中文和韩文，并包含你为每个组件写的行为说明。目标平台可选 Android（默认）或 Web，提示词会相应地要求对应的技术栈。
+- **提示词输出** – 整个设计（或单个屏幕）会变成简洁的自然语言提示词，支持日文、英文、法文、中文和韩文，并包含你为每个组件写的行为说明。目标平台可选 Android（默认）或 Web，提示词会相应地要求对应的技术栈。
 - **整理** – 一键把栏贴到边缘、FAB 放到角落、相邻的列表项和按钮连成一组，其余组件按 16dp 边距重新堆叠。再按一次即可撤销。
 - **AI 辅助（可选）** – 填入自己的密钥（OpenAI、Claude、Gemini 或 DeepSeek），让模型用界面语言写出组件的行为或屏幕的说明。每次改写都可以撤销。密钥只保存在浏览器中，请求直接发送给服务商，中间没有服务器。
 - **导出** – 复制提示词（也可先手动编辑），或把屏幕保存为 PNG。
@@ -255,7 +255,7 @@ Claude Code, Codex, Gemini CLI, Cursor 등 프롬프트를 받을 수 있는 AI 
 - **토글 버튼** – 버튼을 탭할 때마다 켜짐/꺼짐이 바뀌는 토글로 만들고, 켜졌을 때의 아이콘과 스타일을 지정할 수 있습니다.
 - **레이어와 그룹** – 화면별 겹침 순서를 레이어 패널에서 확인하고 드래그로 앞뒤를 바꿉니다. 그룹이나 연결된 열은 열어서 안의 순서도 바꿀 수 있습니다. 여러 부품을 선택해 그룹으로 묶으면 겹침을 유지한 채 함께 움직입니다. 프롬프트에는 겹침과 가로 배치가 명시되어 생성되는 레이아웃이 잘 무너지지 않습니다.
 - **테마** – M3 Expressive의 네 가지 축을 한 패널에서. 색상은 7가지 프리셋 또는 기준 색상 하나로 Material 3 색상 구성 전체를 만들어 세부 조정할 수 있고, 라이트/다크, 3단계 대비, 배경화면에 맞추는 동적 색상도 지정합니다. 모양은 모든 부품의 모서리를 사각형/둥근형/완전 둥근형으로 한 번에 전환. 글꼴은 Roboto, Roboto Flex, Roboto Serif, 시스템 글꼴과 강조 스타일. 모션은 표준/익스프레시브이며 미리보기 전환에도 반영됩니다.
-- **프롬프트 출력** – 디자인 전체 또는 화면 하나를 일본어·영어·중국어·한국어의 간결한 문장으로 만듭니다. 부품별 "동작" 메모도 그대로 들어갑니다. 구현 대상은 Android(기본)와 웹 중에서 고를 수 있고, 프롬프트는 그에 맞는 기술로 작성됩니다.
+- **프롬프트 출력** – 디자인 전체 또는 화면 하나를 일본어·영어·프랑스어·중국어·한국어의 간결한 문장으로 만듭니다. 부품별 "동작" 메모도 그대로 들어갑니다. 구현 대상은 Android(기본)와 웹 중에서 고를 수 있고, 프롬프트는 그에 맞는 기술로 작성됩니다.
 - **정리** – 버튼 하나로 바를 가장자리에, FAB를 모서리에 붙이고, 이웃한 목록 항목과 버튼을 연결하며, 나머지를 16dp 여백으로 다시 쌓습니다. 한 번 더 누르면 되돌립니다.
 - **AI 도우미(선택)** – 자신의 키(OpenAI, Claude, Gemini, DeepSeek)를 넣으면 부품의 동작이나 화면 설명을 UI 언어로 써 줍니다. 고쳐 쓴 내용은 되돌릴 수 있습니다. 키는 브라우저에만 저장되고 요청은 제공업체로 직접 전송됩니다(중간 서버 없음).
 - **내보내기** – 프롬프트 복사(직접 편집한 뒤에도 가능), 화면의 PNG 저장.
@@ -286,5 +286,64 @@ M3E Canvas는 무료이며 MIT 라이선스로 계속 유지됩니다. 시간을
 - [Yspritan](https://github.com/YspritanHyzygy)
 
 ### 라이선스
+
+MIT © lnkiai
+
+---
+
+## Français
+
+**Dessinez des écrans Material 3 Expressive dans le navigateur, reliez-les, touchez pour les parcourir, puis copiez une invite pour votre outil de codage IA.**
+
+Version en ligne : https://lnkiai.github.io/m3e-canvas/
+
+![On esquisse une application de recettes dans M3E Canvas, on change son thème, on copie l'invite, un outil de codage IA la construit, et l'application tourne sur Android](docs/story.gif)
+
+<p align="center"><sub>Esquisser une application de recettes, changer son thème, copier l'invite, la confier à un outil de codage IA et exécuter le résultat sur Android. (<a href="docs/story.mp4">mp4</a>)</sub></p>
+
+Fonctionne avec tout outil de codage IA qui accepte une invite, comme Claude Code, Codex, Gemini CLI ou Cursor : copiez l'invite, collez-la dans l'outil et demandez l'application.
+
+### Ce qu'il fait
+
+- **Glisser-déposer** – des boutons, des boutons d'icône, des FAB, des boutons fractionnés, des menus FAB, des puces, des barres d'application supérieures, des barres de navigation, des barres d'outils flottantes, des onglets, des barres de recherche, des cartes, des listes, des boîtes de dialogue, des snackbars, des champs de texte, des menus déroulants, des interrupteurs, des cases à cocher, des boutons radio, des curseurs, du texte, des images, des espaces réservés caméra et carte, des badges, des boîtes et des séparateurs, tous dessinés selon Material 3 Expressive.
+- **Connexions magnétiques** – rapprochez deux boutons ou deux éléments de liste et ils se soudent en un groupe connecté ; les coins s'adoucissent en se rejoignant.
+- **Un vrai chargement M3 Expressive** – l'indicateur de chargement à morphing (porté depuis material-components-android) et les indicateurs de progression ondulés, linéaires et circulaires.
+- **Écrans téléphone et bureau** – ajoutez autant d'écrans que vous voulez, nommez-les, choisissez un fond et faites glisser un écran pour déplacer tout son contenu. Depuis son libellé, basculez n'importe quel écran entre un téléphone 412×892 et un bureau 1280×800 : les barres s'étirent, la barre de navigation devient un rail (et un rail redevient une barre sur téléphone), et les éléments sont redéposés à côté. Les deux tailles d'écrans peuvent partager un même design ; les écrans homonymes sont décrits dans l'invite comme un seul écran à deux largeurs.
+- **Toucher pour naviguer** – attachez à tout élément cliquable, icône de barre d'application supérieure ou destination de barre de navigation un écran cible (ou « retour ») et une transition : glissement depuis l'un des quatre côtés, fondu, zoom ou aucune. Des flèches dessinent le flux sur le canevas ; l'aperçu permet de toucher pour naviguer, et le retour rejoue la transition en sens inverse.
+- **Balayer pour naviguer** – un écran peut en ouvrir un autre par un balayage vers la gauche, la droite, le haut ou le bas. Dans l'aperçu, l'écran suit votre doigt, et le balayage inverse revient en arrière.
+- **Boutons à bascule** – n'importe quel bouton peut basculer au toucher, en changeant d'icône et de style.
+- **Calques et groupes** – un panneau des calques liste l'ordre de superposition de chaque écran ; faites glisser une ligne pour amener des éléments au premier plan ou les renvoyer en arrière, et ouvrez un groupe ou un enchaînement connecté pour réordonner son contenu. Sélectionnez plusieurs éléments et regroupez-les afin de conserver leur chevauchement et de les déplacer comme un seul bloc. L'invite décrit explicitement les chevauchements et les rangées côte à côte pour que la mise en page générée les conserve.
+- **Thème** – les quatre axes M3 Expressive dans un seul panneau. Couleur : sept préréglages ou une couleur de base qui devient un schéma Material 3 complet à affiner, clair / sombre, trois niveaux de contraste et un interrupteur de couleur dynamique (suit le fond d'écran du téléphone). Forme : coins carrés, arrondis ou entièrement arrondis pour tous les éléments à la fois. Typographie : Roboto, Roboto Flex, Roboto Serif ou la police système, avec les styles accentués. Mouvement : le schéma de ressort standard ou expressif, qui pilote aussi les transitions de l'aperçu.
+- **Sortie d'invite** – tout le design (ou un seul écran) devient une invite concise en langage naturel en japonais, anglais, français, chinois ou coréen, y compris vos propres notes sur le rôle de chaque élément. Choisissez Android (par défaut) ou le web comme cible et l'invite demande la pile technique correspondante.
+- **Ranger** – un bouton colle les barres aux bords, la FAB dans un coin, unit les éléments de liste et les boutons voisins, et empile le reste avec des marges de 16 dp. Appuyez à nouveau pour annuler.
+- **Assistant IA facultatif** – apportez votre propre clé (OpenAI, Claude, Gemini ou DeepSeek) et laissez le modèle rédiger la note de comportement d'un élément ou la description d'un écran, dans votre langue. Chaque réécriture peut être annulée. La clé reste dans votre navigateur et la requête part directement vers le fournisseur ; aucun serveur entre les deux.
+- **Exporter** – copiez l'invite (éditez-la à la main au préalable si vous voulez) ou enregistrez un écran en PNG.
+- **Liens de partage et brouillons IA (bêta)** – copiez un lien qui ouvre votre design sur le canevas de n'importe qui, ou une consigne pour Claude Code, Codex ou un autre agent de codage : il lit [agent.md](public/agent.md), dessine ce que vous avez décrit et répond avec un tel lien.
+- **Guides d'alignement**, défaire / refaire, raccourcis clavier, sept thèmes de couleur et une rangée de favoris dans le panneau des éléments — et tout est enregistré dans votre navigateur (localStorage).
+- **Pensé pour le téléphone** – sur un téléphone, vous obtenez un écran fixe et un éditeur 100 % boutons : appuyez sur le plus pour ajouter un bouton, touchez un bouton pour le déplacer et modifiez son texte, son icône et son style dans un panneau inférieur. L'éditeur complet multi-écrans est réservé aux navigateurs de bureau.
+
+### Développer
+
+```bash
+npm install
+npm run dev        # http://localhost:3000
+npm run build      # export statique vers ./out
+```
+
+L'application est un export statique Next.js. Pour l'héberger sous un sous-chemin (par exemple un site de projet GitHub Pages), définissez `NEXT_PUBLIC_BASE_PATH=/votre-depot` au moment du build. `.github/workflows/deploy.yml` le fait automatiquement et publie `out/` sur GitHub Pages à chaque push sur `main`.
+
+### Contribuer
+
+Les rapports de bugs, les demandes d'éléments et les pull requests sont les bienvenus. [CONTRIBUTING.md](CONTRIBUTING.md) explique la configuration, les conventions (commentaires en anglais, cinq langues pour chaque chaîne de caractères) et où vit chaque type de changement. Les questions vont dans [Discussions](https://github.com/lnkiai/m3e-canvas/discussions).
+
+### Soutenir
+
+M3E Canvas est gratuit, sous licence MIT, et le restera. S'il vous fait gagner du temps, vous pouvez [soutenir le projet sur GitHub](https://github.com/sponsors/lnkiai) ; cela finance les heures consacrées aux nouveaux éléments, au prompt et à la relecture des contributions. Aucune fonctionnalité n'est réservée au soutien.
+
+Merci aux sponsors qui font vivre le projet :
+
+- [Yspritan](https://github.com/YspritanHyzygy)
+
+### Licence
 
 MIT © lnkiai

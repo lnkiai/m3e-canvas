@@ -2,14 +2,15 @@
 
 import { createContext, useContext } from "react";
 
-export type Lang = "ja" | "en" | "zh" | "ko";
+export type Lang = "ja" | "en" | "zh" | "ko" | "fr";
 export const LANGS: { key: Lang; label: string }[] = [
   { key: "ja", label: "日本語" },
   { key: "en", label: "English" },
   { key: "zh", label: "中文" },
   { key: "ko", label: "한국어" },
+  { key: "fr", label: "Français" },
 ];
-export const isLang = (v: unknown): v is Lang => v === "ja" || v === "en" || v === "zh" || v === "ko";
+export const isLang = (v: unknown): v is Lang => v === "ja" || v === "en" || v === "zh" || v === "ko" || v === "fr";
 
 /* A module-level copy lets non-React helpers (item defaults, prompt text)
  * follow the language without threading it through every call. */
@@ -27,6 +28,7 @@ export const SEED_TEXT: Record<Lang, { favorite: string; share: string; inbox: s
   en: { favorite: "Favorite", share: "Share", inbox: "Inbox", starred: "Starred", archive: "Archive", supporting: "Supporting text", start: "Get started" },
   zh: { favorite: "收藏", share: "分享", inbox: "收件箱", starred: "已加星标", archive: "归档", supporting: "辅助文本", start: "开始" },
   ko: { favorite: "즐겨찾기", share: "공유", inbox: "받은편지함", starred: "별표 표시", archive: "보관함", supporting: "보조 텍스트", start: "시작하기" },
+  fr: { favorite: "Favori", share: "Partager", inbox: "Boîte de réception", starred: "Étoilé", archive: "Archives", supporting: "Texte d'appui", start: "Commencer" },
 };
 
 /** ponytail: matches defaults by text; add provenance if authored copies must be distinguished. */
@@ -64,6 +66,7 @@ export const COLOR_TOKEN_TEXT = {
   ja: { surface: "サーフェス", surfaceContainerLow: "コンテナ（低）", surfaceContainer: "コンテナ", surfaceContainerHigh: "コンテナ（高）", surfaceContainerHighest: "コンテナ（最高）", primaryContainer: "プライマリコンテナ", secondaryContainer: "セカンダリコンテナ", tertiaryContainer: "ターシャリコンテナ", primary: "プライマリ", inverseSurface: "反転サーフェス" },
   zh: { surface: "表面", surfaceContainerLow: "低层容器", surfaceContainer: "容器", surfaceContainerHigh: "高层容器", surfaceContainerHighest: "最高层容器", primaryContainer: "主色容器", secondaryContainer: "次色容器", tertiaryContainer: "第三色容器", primary: "主色", inverseSurface: "反色表面" },
   ko: { surface: "표면", surfaceContainerLow: "낮은 컨테이너", surfaceContainer: "컨테이너", surfaceContainerHigh: "높은 컨테이너", surfaceContainerHighest: "가장 높은 컨테이너", primaryContainer: "주 색상 컨테이너", secondaryContainer: "보조 색상 컨테이너", tertiaryContainer: "세 번째 색상 컨테이너", primary: "주 색상", inverseSurface: "반전 표면" },
+  fr: { surface: "Surface", surfaceContainerLow: "Conteneur (bas)", surfaceContainer: "Conteneur", surfaceContainerHigh: "Conteneur (haut)", surfaceContainerHighest: "Conteneur (le plus haut)", primaryContainer: "Conteneur primaire", secondaryContainer: "Conteneur secondaire", tertiaryContainer: "Conteneur tertiaire", primary: "Primaire", inverseSurface: "Surface inverse" },
 };
 
 /** exported for the parity tests only; read strings through t() */
@@ -489,6 +492,106 @@ export const UI = {
 export type UIKey = keyof typeof UI;
 
 /** exported for the parity tests only; read strings through t() */
+export const FR: Record<UIKey, string> = {
+  frameSize: "Taille d'écran", phoneFrame: "Téléphone", desktopFrame: "Bureau", columnWidth: "Une colonne de téléphone",
+  cornerLeft: "Coins à gauche", cornerRight: "Coins à droite", cornersEach: "Coin par coin", cornerTl: "Haut gauche", cornerTr: "Haut droit", cornerBl: "Bas gauche", cornerBr: "Bas droit",
+  filled: "Plein", tonal: "Tonal", elevated: "Surélevé", outlined: "Contour", standard: "Standard", vibrant: "Vibrant",
+  parts: "Pièces", layers: "Calques", edit: "Édition", prompt: "Invite", closePanel: "Fermer le panneau",
+  search: "Rechercher", favorites: "Favoris", addFavorite: "Ajouter aux favoris", removeFavorite: "Retirer des favoris", clear: "Effacer", language: "Langue",
+  select: "Sélectionner (V)", hand: "Main (H / Espace)", blank: "Toile vierge", phone: "Écrans de téléphone", addFrame: "Ajouter un écran", preview: "Aperçu (P)",
+  zoomIn: "Zoom avant (+)", zoomOut: "Zoom arrière (-)", fit: "Tout afficher (0)", undo: "Annuler (Ctrl+Z)", redo: "Rétablir (Ctrl+Shift+Z)",
+  clearAll: "Tout effacer", clearAllTitle: "Effacer la toile ?", clearAllBody: "Tous les écrans et toutes les pièces seront supprimés. Annuler (Ctrl+Z) les restaure.",
+  screen: "Écran", screenName: "Nom de l'écran", name: "Nom", background: "Arrière-plan", export: "Exporter", project: "Projet",
+  saveProject: "Enregistrer le projet", openProject: "Ouvrir un projet", replaceProjectTitle: "Ouvrir ce projet ?",
+  replaceProject: "La toile actuelle sera remplacée. Annuler (Ctrl+Z) la restaure.",
+  askAi: "Demander à une IA",
+  askAiHint: "Décrivez ce que vous voulez et appuyez sur « Créer avec l'IA » : le modèle de l'onglet IA dessine le design sur la toile. Vous pouvez aussi copier l'invite pour un agent d'IA comme Claude Code, puis ouvrir le lien qu'il renvoie ou enregistrer son JSON et le charger avec « Ouvrir un projet ».",
+  askAiGenerate: "Créer avec l'IA", askAiGenerating: "Création…",
+  askAiPasted: "Collez-la dans votre agent d'IA", askAiTitle: "Demander un design à une IA", askAiCopyTitle: "Invite pour un agent d'IA", askAiGenerateTitle: "Utilise la clé de l'onglet IA", aiSetup: "Réglages de l'IA", aiSetupHint: "Ajoutez une clé pour créer directement ici", aiSetupTitle: "Ouvrir l'onglet IA",
+  draftKeep: "Garder ce design", draftUndo: "Revenir au design précédent",
+  askAiIdea: "Ce que vous voulez créer (ex. une app pour enregistrer et rechercher des recettes)", askAiIdeaFallback: "(décrivez ici ce que vous voulez créer)", askAiCopy: "Copier l'invite",
+  askAiText: "Créez un croquis M3E Canvas. D'abord, lisez {url} et suivez-le : construisez le design au format JSON et répondez avec un lien de partage. Si vous ne pouvez pas exécuter de code, répondez avec le JSON dans un bloc de code (il sera enregistré dans un fichier puis ouvert). Aucune vérification n'est nécessaire.\n\nÀ créer : {idea}",
+  selectedTab: "En faire l'élément sélectionné",
+  shareLinkCopy: "Copier le lien", shareLinkHint: "Un lien qui ouvre ce design (sans les images)",
+  invalidProject: "Impossible d'ouvrir le fichier du projet.", readOnlyTitle: "Modification dans un autre onglet",
+  readOnlyBody: "Cette toile est en cours de modification dans un autre onglet. Fermez cet onglet, puis rechargez la page pour pouvoir modifier.",
+  reload: "Recharger",
+  copied: "Copié", saveImage: "Enregistrer en image", saving: "Enregistrement…", previewFrom: "Aperçu depuis cet écran",
+  duplicate: "Dupliquer", delete: "Supprimer (Suppr)", deleteSelection: "Supprimer la sélection",
+  text: "Texte", label: "Libellé", bold: "Gras", action: "Action", supporting: "Texte d'appui", tabs: "Éléments", changeIcon: "Changer d'icône",
+  options: "Options", addOption: "Ajouter une option", removeOption: "Supprimer cette option", addTab: "Ajouter un onglet",
+  selectedOption: "En faire la valeur initiale (re-appuyer pour aucune)", image: "Image", pickImage: "Choisir une image", removeImage: "Retirer l'image", imageUrl: "URL de l'image",
+  imageTop: "En haut", imageLeading: "Début", imageTrailing: "Fin", cardLayout: "Disposition", noImageLayout: "Sans image",
+  textPosition: "Position du texte", textTop: "Haut", textMiddle: "Centre", textBottom: "Bas", textColor: "Couleur du texte",
+  autoWidth: "Auto", icon: "Icône", noIcon: "Sans icône", searchIcons: "Rechercher des icônes",
+  style: "Style", state: "État", selected: "Sélectionné", handle: "Poignée", on: "Activé",
+  container: "Conteneur", wavy: "Ondulé", determinate: "Déterminé",
+  railState: "État du rail", railCollapsed: "Replié", railExpanded: "Déployé",
+  railStandard: "Dans la mise en page", railModal: "Recouvrement modal",
+  expandNavigation: "Déployer la navigation", collapseNavigation: "Replier la navigation",
+  trackThickness: "Épaisseur de la piste",
+  size: "Taille", width: "Largeur", height: "Hauteur", fontSize: "Taille de police", cornerRadius: "Arrondi des coins", cornerTop: "Coins supérieurs", cornerBottom: "Coins inférieurs",
+  screenWidth: "Pleine largeur", contentWidth: "Standard", halfWidth: "Moitié", screenHeight: "Hauteur de l'écran", halfHeight: "Moitié de l'écran",
+  tapTo: "Toucher pour ouvrir", none: "Aucun", goBack: "Retour", swipeTo: "Faire glisser pour ouvrir", toggle: "Bouton à bascule", toggleHint: "Un toucher active / désactive",
+  behavior: "Comportement", whenPressed: "Quand on appuie…", whatItDoes: "Ce que fait cette pièce…", removeLink: "Retirer le lien",
+  group: "Groupe", makeGroup: "Grouper", ungroup: "Dissocier", selectedParts: " éléments sélectionnés", groupHint: "Conserve la superposition et se déplace comme un seul calque",
+  noBackground: "Sans fond", normalState: "Normal", onState: "Activé",
+  groupEditNote: "Dissociez le groupe pour modifier les pièces à l'intérieur", openPanel: "Ouvrir le panneau", colors: "Couleurs", templates: "Palettes", customColor: "Personnalisé",
+  seedColor: "Couleur de base", seedHint: "Une seule couleur construit tout le schéma Material 3. Le réglage fin permet de changer des rôles individuellement.",
+  useThis: "Utiliser", fineTune: "Réglage fin", dynamicColor: "Couleur dynamique",
+  dynamicOnHint: "Ces couleurs ne valent que dans l'éditeur ; le téléphone utilise les couleurs de son fond d'écran.",
+  dynamicOffHint: "Quand c'est activé, le téléphone utilise les couleurs du fond d'écran et celles-ci servent de secours.", closeBtn: "Fermer", screens: "Choisir un écran",
+  noLayers: "Rien sur cet écran pour l'instant", showParts: "Afficher les pièces à l'intérieur", hideParts: "Masquer les pièces à l'intérieur", lock: "Verrouiller", unlock: "Déverrouiller",
+  lockedGroup: "Ce groupe est verrouillé. Déverrouillez-le d'abord dans le panneau Calques",
+  brief: "Ce qu'est cette app…", appName: "Nom de l'app", targetPlatform: "Cible", targetAndroid: "Créer en tant qu'app Android native",
+  targetWeb: "Créer en tant qu'app web qui s'exécute dans le navigateur", copyPrompt: "Copier l'invite", back: "Retour", close: "Fermer (Échap)", cancel: "Annuler", ok: "OK",
+  leading: "Début", trailing: "Fin", home: "Accueil", screenN: "Écran", copySuffix: " copie", mobileNote: "Fonctions complètes dans un navigateur de bureau",
+  addButton: "Ajouter un bouton", done: "Terminé", theme: "Thème", settings: "Thème et réglages", shape: "Forme", typography: "Typographie", motion: "Mouvement",
+  brightness: "Luminosité", light: "Clair", dark: "Sombre", contrast: "Contraste", bothModes: "Les deux", contrastStandard: "Standard", contrastMedium: "Moyen", contrastHigh: "Élevé",
+  shapeScale: "Arrondi des coins", shapeSquare: "Carré", shapeRounded: "Arrondi", shapeFull: "Complet",
+  shapeHint: "Change d'un coup l'arrondi par défaut de toutes les pièces. Un rayon saisi sur une pièce reste tel quel.", fontFamily: "Police", emphasized: "Accentué",
+  emphasizedHint: "Les titres et les libellés utilisent les styles accentués plus gras du M3 Expressive.", motionScheme: "Schéma de mouvement",
+  motionStandard: "Standard", motionExpressive: "Expressif",
+  motionHint: "Expressif est un ressort rebondissant. Il pilote les transitions de l'aperçu et l'invite.", tryIt: "Toucher pour essayer",
+  tidy: "Ranger", tidyUndo: "Annuler le rangement", tidyDone: "Déjà rangé", placement: "Placement", placeTop: "Depuis le haut", placeCenter: "Centré", placeBottom: "En bas", placeSpread: "Réparti",
+  align: "Aligner",
+  alignLeft: "Aligner à gauche", alignCenterH: "Centrer horizontalement", alignRight: "Aligner à droite",
+  alignTop: "Aligner en haut", alignCenterV: "Centrer verticalement", alignBottom: "Aligner en bas",
+  description: "Description", screenDescription: "À quoi sert cet écran",
+  ai: "IA", promptReset: "Revenir à l'invite générée", aiWriteShort: "Écrire avec l'IA", aiWrite: "Laisser l'IA écrire", aiSettings: "Réglages de l'IA",
+  aiProvider: "Fournisseur", aiBaseUrl: "URL de base", aiModel: "ID du modèle", aiKey: "Clé API", aiGetKey: "Obtenir une clé",
+  aiKeyHint: "Stockée uniquement dans ce navigateur et envoyée directement au fournisseur.", aiRestore: "Basculer entre la réécriture de l'IA et l'original", aiApplied: "Appliqué",
+  aiSelectScreen: "Sélectionnez d'abord un écran", aiNoKey: "Ajoutez une clé dans l'onglet IA pour l'utiliser", aiError: "La requête à l'IA a échoué",
+  aiErrorRefusal: "Le modèle a refusé de répondre", aiErrorJson: "La réponse du modèle n'a pas pu être lue",
+  aiErrorLong: "La réponse a été coupée. Essayez avec moins d'écrans", aiErrorModel: "Saisissez un ID de modèle",
+  aiErrorInsecure: "L'URL de base doit utiliser https ou pointer vers localhost",
+  aiErrorNetwork: "Connexion impossible. Vérifiez l'URL, le réseau et les réglages CORS du serveur",
+  partType: "Type", progressBar: "Barre", progressRing: "Anneau", progressWavyBar: "Barre ondulée", progressWavyRing: "Anneau ondulé",
+  progressLoop: "Boucle", progressPercent: "Pourcentage", progressState: "Progression", noTrigger: "Toucher cette pièce n'ouvre rien",
+  noMatch: "Aucune pièce ne correspond", noIcons: "Aucune icône ne correspond", loading: "Chargement…",
+  title: "Titre", body: "Corps", message: "Message", placeholder: "Texte indicatif", regular: "Normal",
+  typeBody: "Corps", typeTitle: "Titre", typeHeadline: "Titre principal", typeDisplay: "Affichage",
+  design: "Design", trigger: "Déclencheur", noteDialog: "Spécification du bouton", partSpec: "Ce que fait cette pièce",
+  toggleLookHint: "Les deux états se personnalisent dans l'onglet Design", toggleTitle: "Bascule", whenPressedExample: "ex. Enregistrer et revenir à la liste",
+  imageFailed: "Cette image n'a pas pu être lue", imageBottom: "En bas", imageBehind: "Derrière le texte", imageSize: "Taille de l'image",
+  textStart: "Début", textCenter: "Centre", textEnd: "Fin",
+  styleSurface: "Surface", stylePrimary: "Primaire", styleSecondary: "Secondaire",
+  switchOff: "Interrupteur, désactivé", switchOn: "Interrupteur, activé",
+  lockedKept: "Les pièces d'un groupe verrouillé ont été conservées", lockedEdit: "Verrouillé. Désactivez pour modifier.",
+  fullscreen: "Modifier en plein écran", exitFullscreen: "Quitter le plein écran", outline: "Structure",
+  screenLook: "Couleur de l'écran", scrolling: "Défilement", screenLength: "Longueur de l'écran",
+  addFrameHint: "Ajoutez un écran pour pouvoir y envoyer un toucher ici", more: "Plus",
+  resizeWidth: "Glisser pour changer la largeur", resizeHeight: "Glisser pour changer la hauteur", resizeSize: "Glisser pour changer la taille",
+  reorder: "Réorganiser", dropToRemove: "Supprimer", openLink: "Ouvrir un lien",
+  linkUrl: "URL du lien", linkInvalid: "Saisissez une adresse web valide", linkBrowser: "Navigateur",
+  fabPlain: "Standard", fabExtended: "Étendu", fabMenuAction: "Ouvrir un menu", splitMain: "Action principale", splitMenu: "Flèche",
+  replay: "Rejouer", selectDate: "Choisir une date", selectTime: "Choisir une heure",
+  dateLabel: "Date", hourLabel: "Heure", minuteLabel: "Minute", layout: "Disposition",
+  dateModal: "Modale", dateDocked: "Ancré", dateInput: "Saisie", timeDial: "Cadran",
+  carouselMultiBrowse: "Multi-parcours", carouselUncontained: "Non contenu", carouselHero: "Héro", carouselFullScreen: "Plein écran", cards: "Cartes",
+};
+
+/** exported for the parity tests only; read strings through t() */
 export const KO: Record<UIKey, string> = {
   frameSize: "화면 크기", phoneFrame: "휴대전화", desktopFrame: "데스크톱", columnWidth: "휴대전화 한 화면 너비", cornerLeft: "왼쪽 모서리", cornerRight: "오른쪽 모서리", cornersEach: "모서리별로 지정", cornerTl: "왼쪽 위", cornerTr: "오른쪽 위", cornerBl: "왼쪽 아래", cornerBr: "오른쪽 아래",
   filled: "채움", tonal: "색조", elevated: "그림자", outlined: "윤곽선", standard: "표준", vibrant: "선명함",
@@ -567,13 +670,13 @@ export const KO: Record<UIKey, string> = {
 };
 
 /** the locale each language writes its dates in */
-const LOCALE: Record<Lang, string> = { ja: "ja-JP", en: "en-US", zh: "zh-CN", ko: "ko-KR" };
+const LOCALE: Record<Lang, string> = { ja: "ja-JP", en: "en-US", zh: "zh-CN", ko: "ko-KR", fr: "fr-FR" };
 /** a day, written the way the language writes a date: what a date picker's headline says */
 export const dateHeadline = (lang: Lang, at: Date = new Date()) => new Intl.DateTimeFormat(LOCALE[lang], { weekday: "short", month: "short", day: "numeric" }).format(at);
 /** a month over its calendar grid */
 export const monthHeadline = (lang: Lang, at: Date = new Date()) => new Intl.DateTimeFormat(LOCALE[lang], { year: "numeric", month: "long" }).format(at);
 
-export const t = (key: UIKey, lang: Lang = current): string => (lang === "ko" ? KO[key] : UI[key][lang]);
+export const t = (key: UIKey, lang: Lang = current): string => (lang === "ko" ? KO[key] : lang === "fr" ? FR[key] : UI[key][lang]);
 
 /* ---- part defaults and nouns ---- */
 
@@ -733,6 +836,44 @@ export const KIND_TEXT: Record<
     datePicker: { noun: "날짜 선택기", label: "3월 17일 (월)" },
     timePicker: { noun: "시간 선택기" },
   },
+  fr: {
+    box: { noun: "boîte" },
+    bottomSheet: { noun: "panneau inférieur" },
+    button: { noun: "bouton", label: "Bouton" },
+    iconButton: { noun: "bouton d'icône" },
+    fab: { noun: "FAB" },
+    extendedFab: { noun: "FAB étendu", label: "Créer" },
+    chip: { noun: "puce", label: "Puce" },
+    topAppBar: { noun: "barre d'application supérieure", label: "Titre" },
+    bottomNav: { noun: "barre de navigation" },
+    navRail: { noun: "rail de navigation" },
+    searchBar: { noun: "barre de recherche", label: "Rechercher" },
+    card: { noun: "carte", label: "Titre de la carte", supporting: "Voici le texte d'appui." },
+    listItem: { noun: "élément de liste", label: "Élément de liste", supporting: "Texte d'appui" },
+    dialog: { noun: "boîte de dialogue", label: "Confirmer", supporting: "Voulez-vous continuer ?" },
+    snackbar: { noun: "snackbar", label: "Enregistré", supporting: "Annuler" },
+    textField: { noun: "champ de texte", label: "Libellé" },
+    select: { noun: "menu déroulant", label: "Libellé" },
+    switch: { noun: "interrupteur", label: "Notifications" },
+    checkbox: { noun: "case à cocher", label: "Je suis d'accord" },
+    slider: { noun: "curseur" },
+    text: { noun: "texte", label: "Titre" },
+    image: { noun: "image" },
+    camera: { noun: "appareil photo" },
+    map: { noun: "plan" },
+    divider: { noun: "séparateur" },
+    loadingIndicator: { noun: "indicateur de chargement" },
+    linearProgress: { noun: "indicateur de progression linéaire" },
+    circularProgress: { noun: "indicateur de progression circulaire" },
+    splitButton: { noun: "bouton fractionné", label: "Envoyer" },
+    fabMenu: { noun: "menu FAB" },
+    toolbar: { noun: "barre d'outils" },
+    tabs: { noun: "onglets" },
+    radio: { noun: "bouton radio", label: "Option" },
+    carousel: { noun: "carrousel" },
+    datePicker: { noun: "sélecteur de date", label: "lun. 17 mars" },
+    timePicker: { noun: "sélecteur d'heure" },
+  },
 };
 
 /** default labels of a tab row */
@@ -741,6 +882,7 @@ export const TAB_LABELS: Record<Lang, string[]> = {
   en: ["For you", "Following", "Trending", "New", "Saved"],
   zh: ["推荐", "关注", "热门", "最新", "已保存"],
   ko: ["추천", "팔로잉", "인기", "새 항목", "저장됨"],
+  fr: ["Pour vous", "Abonnements", "Tendances", "Nouveautés", "Enregistrés"],
 };
 
 /** default entries of a FAB menu */
@@ -750,6 +892,7 @@ export const SELECT_OPTIONS: Record<Lang, string[]> = {
   en: ["Option 1", "Option 2", "Option 3"],
   zh: ["选项 1", "选项 2", "选项 3"],
   ko: ["옵션 1", "옵션 2", "옵션 3"],
+  fr: ["Option 1", "Option 2", "Option 3"],
 };
 
 export const FAB_MENU_TABS: Record<Lang, { icon: string; label: string }[]> = {
@@ -781,6 +924,13 @@ export const FAB_MENU_TABS: Record<Lang, { icon: string; label: string }[]> = {
     { icon: "attach_file", label: "파일" },
     { icon: "event", label: "일정" },
   ],
+  fr: [
+    { icon: "edit", label: "Note" },
+    { icon: "photo_camera", label: "Photo" },
+    { icon: "mic", label: "Audio" },
+    { icon: "attach_file", label: "Fichier" },
+    { icon: "event", label: "Événement" },
+  ],
 };
 
 /** what a split button's arrow opens: the few things done with the main action beside it */
@@ -804,6 +954,11 @@ export const SPLIT_MENU_TABS: Record<Lang, { icon: string; label: string }[]> = 
     { icon: "schedule_send", label: "예약 전송" },
     { icon: "save", label: "임시 저장" },
     { icon: "share", label: "공유" },
+  ],
+  fr: [
+    { icon: "schedule_send", label: "Envoi programmé" },
+    { icon: "save", label: "Enregistrer le brouillon" },
+    { icon: "share", label: "Partager" },
   ],
 };
 
@@ -831,6 +986,12 @@ export const NAV_TABS: Record<Lang, { icon: string; label: string }[]> = {
     { icon: "search", label: "검색" },
     { icon: "favorite", label: "저장됨" },
     { icon: "settings", label: "설정" },
+  ],
+  fr: [
+    { icon: "home", label: "Accueil" },
+    { icon: "search", label: "Recherche" },
+    { icon: "favorite", label: "Enregistrés" },
+    { icon: "settings", label: "Paramètres" },
   ],
 };
 
@@ -871,6 +1032,15 @@ export const TRANSITION_TEXT: Record<Lang, Record<string, string>> = {
     expand: "확대",
     none: "애니메이션 없음",
   },
+  fr: {
+    slide: "un glissement depuis la droite",
+    slideLeft: "un glissement depuis la gauche",
+    slideUp: "un glissement depuis le bas",
+    slideDown: "un glissement depuis le haut",
+    fade: "un fondu",
+    expand: "une expansion",
+    none: "aucune animation",
+  },
 };
 
 export const SWIPE_TEXT: Record<Lang, Record<string, string>> = {
@@ -878,4 +1048,5 @@ export const SWIPE_TEXT: Record<Lang, Record<string, string>> = {
   en: { left: "swiping left", right: "swiping right", up: "swiping up", down: "swiping down" },
   zh: { left: "向左滑动", right: "向右滑动", up: "向上滑动", down: "向下滑动" },
   ko: { left: "왼쪽으로 스와이프", right: "오른쪽으로 스와이프", up: "위로 스와이프", down: "아래로 스와이프" },
+  fr: { left: "glissement vers la gauche", right: "glissement vers la droite", up: "glissement vers le haut", down: "glissement vers le bas" },
 };

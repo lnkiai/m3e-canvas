@@ -63,9 +63,66 @@ const VARIANT_TEXT: Record<Lang, Record<Variant, string>> = {
   en: { filled: "filled", tonal: "tonal", elevated: "elevated", outlined: "outlined", text: "text" },
   zh: { filled: "填充", tonal: "色调", elevated: "浮起", outlined: "描边", text: "文字" },
   ko: { filled: "채움", tonal: "토널", elevated: "돌출", outlined: "윤곽선", text: "텍스트" },
+  fr: { filled: "rempli", tonal: "tonal", elevated: "surélevé", outlined: "contour", text: "texte" },
 };
 
 const hasText = (s?: string | null) => !!s && s.trim().length > 0;
+
+/** the French definite article for a kind's noun, so labels read naturally */
+const frDet = (k: Kind): string =>
+  ({
+    button: "le",
+    iconButton: "le",
+    fab: "le",
+    extendedFab: "le",
+    chip: "la",
+    topAppBar: "la",
+    bottomNav: "la",
+    navRail: "le",
+    searchBar: "la",
+    card: "la",
+    listItem: "l'",
+    dialog: "la",
+    snackbar: "la",
+    textField: "le",
+    select: "le",
+    switch: "l'",
+    checkbox: "la",
+    slider: "le",
+    text: "le",
+    image: "l'",
+    camera: "l'",
+    map: "le",
+    divider: "le",
+    loadingIndicator: "l'",
+    linearProgress: "l'",
+    circularProgress: "l'",
+    splitButton: "le",
+    fabMenu: "le",
+    toolbar: "la",
+    tabs: "les",
+    radio: "le",
+    box: "la",
+    bottomSheet: "le",
+    carousel: "le",
+    datePicker: "le",
+    timePicker: "le",
+  })[k] ?? "le";
+/** join a French article with its noun, eliding before a vowel sound: l'interrupteur, le bouton */
+const frNounPhrase = (k: Kind, noun: string) => {
+  const det = frDet(k);
+  return det.endsWith("'") ? `${det}${noun}` : `${det} ${noun}`;
+};
+/** the French "de" before a noun, elided before a vowel sound: d'onglets, de boutons */
+const frOfNoun = (noun: string) => (/^[aàâäeéèêëiîïoôöuùûüyh]/i.test(noun) ? `d'${noun}` : `de ${noun}`);
+/** plural nouns for a connected run, so a group's name agrees in number */
+const FR_RUN_NOUN: Partial<Record<Kind, string>> = {
+  button: "boutons",
+  iconButton: "boutons d'icône",
+  chip: "puces",
+  listItem: "éléments de liste",
+  tabs: "onglets",
+};
 /** a card's image area in words: what fills it (a picture or the placeholder with its icon),
  *  where it sits (top, a full-height side column, or the whole background) and its stated size */
 function cardImage(it: Item, lang: Lang): string {
@@ -100,6 +157,15 @@ function cardImage(it: Item, lang: Lang): string {
     if (pos === "background") return `배경 전체에 ${what}(텍스트 뒤에 스크림), `;
     return `위쪽에 ${what}${sized}, `;
   }
+  if (lang === "fr") {
+    const what = url ? `une image de ${url}` : it.src ? "l'image fournie" : `une image d'espace réservé${it.icon ? ` (icône ${it.icon})` : ""}`;
+    const sized = size ? ` (${size}dp de ${isCardImageBand(pos) ? "haut" : "large"})` : "";
+    if (pos === "bottom") return `avec ${what}${sized} en bas, `;
+    if (pos === "leading") return `avec ${what}${sized} remplissant le côté de début, `;
+    if (pos === "trailing") return `avec ${what}${sized} remplissant le côté de fin, `;
+    if (pos === "background") return `avec ${what} en fond pleine page derrière un voile sous le texte, `;
+    return `avec ${what}${sized} en haut, `;
+  }
   const what = url ? `an image from ${url}` : it.src ? "the provided image" : `a placeholder image${it.icon ? ` (${it.icon} icon)` : ""}`;
   const sized = size ? ` (${size}dp ${isCardImageBand(pos) ? "tall" : "wide"})` : "";
   if (pos === "bottom") return `with ${what}${sized} along the bottom, `;
@@ -115,27 +181,27 @@ function cardText(it: Item, lang: Lang): string {
   const align = it.contentAlign;
   const auto = !it.noImage && cardImagePosOf(it) === "background" ? "end" : "start";
   if (align && align !== auto) {
-    const pos = lang === "ja" ? { start: "上", center: "中央", end: "下" } : lang === "zh" ? { start: "顶部", center: "垂直居中", end: "底部" } : lang === "ko" ? { start: "위", center: "가운데", end: "아래" } : { start: "top", center: "middle", end: "bottom" };
-    parts.push(lang === "ja" ? `文字は${pos[align]}寄せ` : lang === "zh" ? `文字${pos[align]}对齐` : lang === "ko" ? `텍스트 ${pos[align]} 정렬` : `text aligned to the ${pos[align]}`);
+    const pos = lang === "ja" ? { start: "上", center: "中央", end: "下" } : lang === "zh" ? { start: "顶部", center: "垂直居中", end: "底部" } : lang === "ko" ? { start: "위", center: "가운데", end: "아래" } : lang === "fr" ? { start: "en haut", center: "au centre", end: "en bas" } : { start: "top", center: "middle", end: "bottom" };
+    parts.push(lang === "ja" ? `文字は${pos[align]}寄せ` : lang === "zh" ? `文字${pos[align]}对齐` : lang === "ko" ? `텍스트 ${pos[align]} 정렬` : lang === "fr" ? `texte aligné ${pos[align]}` : `text aligned to the ${pos[align]}`);
   }
   const across = it.textAlign;
   if (across && across !== "start") {
-    const word = lang === "ja" ? { center: "文字は中央揃え", end: "文字は右揃え" } : lang === "zh" ? { center: "文字居中", end: "文字右对齐" } : lang === "ko" ? { center: "텍스트 가운데 정렬", end: "텍스트 오른쪽 정렬" } : { center: "text centred", end: "text aligned to the end" };
+    const word = lang === "ja" ? { center: "文字は中央揃え", end: "文字は右揃え" } : lang === "zh" ? { center: "文字居中", end: "文字右对齐" } : lang === "ko" ? { center: "텍스트 가운데 정렬", end: "텍스트 오른쪽 정렬" } : lang === "fr" ? { center: "texte centré", end: "texte aligné à la fin" } : { center: "text centred", end: "text aligned to the end" };
     parts.push(word[across]);
   }
-  if (it.textColor) parts.push(lang === "ja" ? `文字色 ${it.textColor}` : lang === "zh" ? `文字颜色 ${it.textColor}` : lang === "ko" ? `텍스트 색상 ${it.textColor}` : `text in ${it.textColor}`);
+  if (it.textColor) parts.push(lang === "ja" ? `文字色 ${it.textColor}` : lang === "zh" ? `文字颜色 ${it.textColor}` : lang === "ko" ? `텍스트 색상 ${it.textColor}` : lang === "fr" ? `texte en ${it.textColor}` : `text in ${it.textColor}`);
   if (!parts.length) return "";
-  return lang === "en" ? ` (${parts.join(", ")})` : lang === "ko" ? ` (${parts.join(", ")})` : `（${parts.join("、")}）`;
+  return lang === "en" ? ` (${parts.join(", ")})` : lang === "ko" ? ` (${parts.join(", ")})` : lang === "fr" ? ` (${parts.join(", ")})` : `（${parts.join("、")}）`;
 }
 
 /** a card's background and corners when the author changed them, as one parenthetical */
 function cardLook(it: Item, lang: Lang): string {
   const parts: string[] = [];
-  if (it.fill) parts.push(lang === "ja" ? `背景 ${it.fill}` : lang === "zh" ? `背景 ${it.fill}` : lang === "ko" ? `배경 ${it.fill}` : `on ${it.fill}`);
+  if (it.fill) parts.push(lang === "ja" ? `背景 ${it.fill}` : lang === "zh" ? `背景 ${it.fill}` : lang === "ko" ? `배경 ${it.fill}` : lang === "fr" ? `fond ${it.fill}` : `on ${it.fill}`);
   if (it.corners) parts.push(boxCorners(it, lang));
-  else if (it.radiusTop !== undefined) parts.push(lang === "ja" ? `角丸 ${it.radiusTop}dp` : lang === "zh" ? `圆角 ${it.radiusTop}dp` : lang === "ko" ? `모서리 ${it.radiusTop}dp` : `${it.radiusTop}dp corners`);
+  else if (it.radiusTop !== undefined) parts.push(lang === "ja" ? `角丸 ${it.radiusTop}dp` : lang === "zh" ? `圆角 ${it.radiusTop}dp` : lang === "ko" ? `모서리 ${it.radiusTop}dp` : lang === "fr" ? `coins de ${it.radiusTop}dp` : `${it.radiusTop}dp corners`);
   if (!parts.length) return "";
-  return lang === "en" ? ` ${parts.join(", ")}` : lang === "ko" ? `(${parts.join(", ")})` : `（${parts.join("、")}）`;
+  return lang === "en" ? ` ${parts.join(", ")}` : lang === "ko" ? `(${parts.join(", ")})` : lang === "fr" ? ` (${parts.join(", ")})` : `（${parts.join("、")}）`;
 }
 
 /** an image's web address, when it was given as one rather than picked from a file */
@@ -159,13 +225,15 @@ function selectedText(it: Item, lang: Lang): string {
   if (lang === "ja") return i === 0 || !label ? "最初の項目が選択状態" : `「${label}」が選択状態`;
   if (lang === "zh") return i === 0 || !label ? "第一项为选中状态" : `“${label}”为选中状态`;
   if (lang === "ko") return i === 0 || !label ? "첫 항목 선택됨" : `"${label}" 선택됨`;
+  if (lang === "fr") return i === 0 || !label ? "le premier est sélectionné" : `« ${label} » est sélectionné`;
   return i === 0 || !label ? "the first one is selected" : `"${label}" is selected`;
 }
 
 const qj = (s: string) => `「${s.trim()}」`;
 const qe = (s: string) => `"${s.trim()}"`;
 const qz = (s: string) => `“${s.trim()}”`;
-const quote = (lang: Lang) => (lang === "ja" ? qj : lang === "zh" ? qz : qe);
+const qf = (s: string) => `« ${s.trim()} »`;
+const quote = (lang: Lang) => (lang === "ja" ? qj : lang === "zh" ? qz : lang === "fr" ? qf : qe);
 const trimEnd = (s: string) => s.trim().replace(/[。.\s]+$/, "");
 
 /** Rails without either expressive setting preserve their original export. */
@@ -176,6 +244,7 @@ function railStateText(it: Item, lang: Lang): string {
   if (lang === "ja") return `。${component}、${it.railExpanded ? "展開状態" : "折りたたみ状態"}、幅 ${width}dp。${it.railModal ? "モーダル型：展開時はスクリム付きで本文に重ね、レイアウトの占有幅は 96dp のまま" : "非モーダル型：現在の幅だけレイアウトを占有"}。上部のメニューボタンで展開・折りたたみを切り替える`;
   if (lang === "zh") return `。${component}，${it.railExpanded ? "展开状态" : "折叠状态"}，宽 ${width}dp。${it.railModal ? "模态覆盖：展开时带遮罩覆盖内容，布局占位保持 96dp" : "非模态布局：按当前宽度占据布局空间"}。顶部菜单按钮切换展开与折叠`;
   if (lang === "ko") return `. ${component}, ${it.railExpanded ? "펼친 상태" : "접힌 상태"}, 너비 ${width}dp. ${it.railModal ? "모달 오버레이: 펼치면 스크림과 함께 콘텐츠를 덮고 레이아웃 점유 너비는 96dp로 유지" : "비모달 레이아웃: 현재 너비만큼 레이아웃 공간을 차지"}. 상단 메뉴 버튼으로 펼치기와 접기를 전환한다`;
+  if (lang === "fr") return `. ${component}, ${it.railExpanded ? "déployé" : "replié"}, largeur ${width}dp. ${it.railModal ? "recouvrement modal : une fois ouvert, couvrir le contenu d'un voile tout en gardant une empreinte de 96dp dans la mise en page" : "mise en page non modale : réserver la largeur actuelle dans la mise en page"}. Basculer le déploiement avec le bouton de menu en haut`;
   return `; ${component}, ${it.railExpanded ? "expanded" : "collapsed"}, ${width}dp wide; ${it.railModal ? "modal overlay: when expanded, cover the content with a scrim while keeping the layout footprint at 96dp" : "non-modal layout: reserve the current width in the layout"}; toggle expansion with the top menu button`;
 }
 
@@ -188,11 +257,11 @@ function buttonSize(it: Item, lang: Lang): string {
   const key = buttonSizeKeyOf(h);
   const named = key ? ` / M3 ${key.toUpperCase()}` : "";
   const parts: string[] = [];
-  if (it.size) parts.push(lang === "ja" ? `幅 ${it.size}dp` : lang === "zh" ? `宽 ${it.size}dp` : lang === "ko" ? `너비 ${it.size}dp` : `${it.size}dp wide`);
-  if (h !== H) parts.push((lang === "ja" ? `高さ ${h}dp` : lang === "zh" ? `高 ${h}dp` : lang === "ko" ? `높이 ${h}dp` : `${h}dp tall`) + named);
+  if (it.size) parts.push(lang === "ja" ? `幅 ${it.size}dp` : lang === "zh" ? `宽 ${it.size}dp` : lang === "ko" ? `너비 ${it.size}dp` : lang === "fr" ? `largeur ${it.size}dp` : `${it.size}dp wide`);
+  if (h !== H) parts.push((lang === "ja" ? `高さ ${h}dp` : lang === "zh" ? `高 ${h}dp` : lang === "ko" ? `높이 ${h}dp` : lang === "fr" ? `hauteur ${h}dp` : `${h}dp tall`) + named);
   if (!parts.length) return "";
   const body = parts.join(lang === "ja" || lang === "zh" ? "、" : ", ");
-  return lang === "en" || lang === "ko" ? ` (${body})` : `（${body}）`;
+  return lang === "en" || lang === "ko" || lang === "fr" ? ` (${body})` : `（${body}）`;
 }
 
 /** how big an icon button is: its one measure, named by the M3 size it lands on. The medium
@@ -205,6 +274,7 @@ function iconButtonSize(it: Item, lang: Lang): string {
   if (lang === "ja") return `（${d}dp${named}）`;
   if (lang === "zh") return `（${d}dp${named}）`;
   if (lang === "ko") return `(${d}dp${named})`;
+  if (lang === "fr") return ` (${d}dp${named})`;
   return ` (${d}dp${named})`;
 }
 
@@ -213,10 +283,11 @@ function topBarSizeText(it: Item, lang: Lang): string {
   const h = topBarHeightOf(it);
   const size = [...TOP_BAR_SIZES].reverse().find((b) => h >= b.h) ?? TOP_BAR_SIZES[0];
   if (size.key === "s") return "";
-  const name = size.key === "m" ? (lang === "ja" ? "ミディアム" : lang === "zh" ? "中号" : lang === "ko" ? "중간" : "medium") : lang === "ja" ? "ラージ" : lang === "zh" ? "大号" : lang === "ko" ? "대형" : "large";
+  const name = size.key === "m" ? (lang === "ja" ? "ミディアム" : lang === "zh" ? "中号" : lang === "ko" ? "중간" : lang === "fr" ? "moyenne" : "medium") : lang === "ja" ? "ラージ" : lang === "zh" ? "大号" : lang === "ko" ? "대형" : lang === "fr" ? "grande" : "large";
   if (lang === "ja") return `（${name}サイズ、高さ ${h}dp、タイトルはアイコン列の下の行）`;
   if (lang === "zh") return `（${name}，高 ${h}dp，标题位于图标行下方）`;
   if (lang === "ko") return `(${name} 크기, 높이 ${h}dp, 제목은 아이콘 줄 아래)`;
+  if (lang === "fr") return ` (taille ${name}, ${h}dp de haut, titre sur sa propre ligne sous les icônes)`;
   return ` (${name} size, ${h}dp tall, title on its own line under the icons)`;
 }
 
@@ -229,6 +300,7 @@ function carouselCardsText(it: Item, lang: Lang): string {
   if (lang === "ja") return `、カードの見出し ${list}`;
   if (lang === "zh") return `，卡片标题 ${list}`;
   if (lang === "ko") return `, 카드 제목 ${list}`;
+  if (lang === "fr") return `, titres des cartes ${list}`;
   return `, card titles ${list}`;
 }
 
@@ -245,18 +317,21 @@ const CAROUSEL_TEXT: Record<Lang, Record<CarouselLayout, string>> = {
   en: { multiBrowse: "multi-browse", uncontained: "uncontained", hero: "hero", fullScreen: "full-screen" },
   zh: { multiBrowse: "多浏览", uncontained: "等宽滚动", hero: "主图", fullScreen: "全屏" },
   ko: { multiBrowse: "멀티 브라우즈", uncontained: "언컨테인드", hero: "히어로", fullScreen: "전체 화면" },
+  fr: { multiBrowse: "multi-parcours", uncontained: "non contenu", hero: "héro", fullScreen: "plein écran" },
 };
 const DATE_TEXT: Record<Lang, Record<DateLayout, string>> = {
   ja: { modal: "モーダルのダイアログ", docked: "入力欄に付くドッキング", input: "入力欄のみ" },
   en: { modal: "modal dialog", docked: "docked under a field", input: "text input only" },
   zh: { modal: "模态对话框", docked: "停靠在输入框下", input: "仅输入框" },
   ko: { modal: "모달 대화상자", docked: "입력란에 붙는 도킹", input: "입력란만" },
+  fr: { modal: "boîte de dialogue modale", docked: "ancré sous un champ", input: "champ de saisie uniquement" },
 };
 const TIME_TEXT: Record<Lang, Record<TimeLayout, string>> = {
   ja: { dial: "時計盤", input: "入力欄" },
   en: { dial: "dial", input: "text input" },
   zh: { dial: "表盘", input: "输入框" },
   ko: { dial: "시계판", input: "입력란" },
+  fr: { dial: "cadran", input: "champ de saisie" },
 };
 
 /** a chip drawn at anything but the 32dp M3 asks for says so */
@@ -266,6 +341,7 @@ function chipHeightText(it: Item, lang: Lang): string {
   if (lang === "ja") return `（高さ ${h}dp）`;
   if (lang === "zh") return `（高 ${h}dp）`;
   if (lang === "ko") return `(높이 ${h}dp)`;
+  if (lang === "fr") return ` (${h}dp de haut)`;
   return ` (${h}dp tall)`;
 }
 
@@ -273,11 +349,12 @@ function chipHeightText(it: Item, lang: Lang): string {
 function fabMenuText(it: Item, lang: Lang): string {
   if (!hasMenu(it)) return "";
   const q = quote(lang);
-  const items = (it.tabs ?? []).map((t) => `${q(t.label || "-")}(${t.icon || "-"})`).join(lang === "en" ? ", " : "、");
+  const items = (it.tabs ?? []).map((t) => `${q(t.label || "-")}(${t.icon || "-"})`).join(lang === "en" || lang === "fr" ? ", " : "、");
   const n = it.tabs?.length ?? 0;
   if (lang === "ja") return `。タップすると ${n} 項目のメニュー（${items}）がボタンの上にせり上がり、アイコンは close に変わる（M3 Expressive の FloatingActionButtonMenu）`;
   if (lang === "zh") return `。点击后在按钮上方展开 ${n} 个菜单项（${items}），图标变为 close（M3 Expressive 的 FloatingActionButtonMenu）`;
   if (lang === "ko") return `. 탭하면 버튼 위로 ${n}개 항목 메뉴(${items})가 올라오고 아이콘은 close로 바뀐다(M3 Expressive FloatingActionButtonMenu)`;
+  if (lang === "fr") return ` ; en le touchant, un menu de ${n} éléments (${items}) s'élève au-dessus du bouton et son icône devient close (le FloatingActionButtonMenu M3 Expressive)`;
   return `; tapping it raises a menu of ${n} items (${items}) above the button and turns its icon into close (the M3 Expressive FloatingActionButtonMenu)`;
 }
 
@@ -285,11 +362,12 @@ function fabMenuText(it: Item, lang: Lang): string {
 function splitMenuText(it: Item, lang: Lang): string {
   if (!splitOpens(it)) return "";
   const q = quote(lang);
-  const items = (it.tabs ?? []).map((t) => `${q(t.label || "-")}(${t.icon || "-"})`).join(lang === "en" ? ", " : "、");
+  const items = (it.tabs ?? []).map((t) => `${q(t.label || "-")}(${t.icon || "-"})`).join(lang === "en" || lang === "fr" ? ", " : "、");
   const n = it.tabs?.length ?? 0;
   if (lang === "ja") return `。矢印をタップすると ${n} 項目のメニュー（${items}）が開き、ボタンの下に収まらないときは上に開く`;
   if (lang === "zh") return `。点击箭头展开 ${n} 个菜单项（${items}）；按钮下方放不下时改为向上展开`;
   if (lang === "ko") return `. 화살표를 탭하면 ${n}개 항목 메뉴(${items})가 열리고, 버튼 아래에 공간이 없으면 위로 열린다`;
+  if (lang === "fr") return ` ; en touchant la flèche, un menu de ${n} éléments (${items}) s'ouvre sous le bouton, et au-dessus lorsqu'il n'y a pas de place en dessous`;
   return `; tapping the arrow opens a menu of ${n} items (${items}) below the button, and above it where there is no room below`;
 }
 
@@ -651,6 +729,103 @@ function itemKo(it: Item): string {
   }
 }
 
+function itemFr(it: Item): string {
+  const q = qf;
+  const v = VARIANT_TEXT.fr[it.variant];
+  const noun = KIND_TEXT.fr[it.kind]?.noun ?? it.kind;
+  switch (it.kind) {
+    case "button":
+      return `un bouton ${v}${hasText(it.label) ? ` ${q(it.label)}` : " sans libellé"}${it.icon ? ` avec une icône ${it.icon}` : ""}${buttonSize(it, "fr")}`;
+    case "carousel":
+      return `un carrousel ${CAROUSEL_TEXT.fr[carouselLayoutOf(it)]} de ${carouselCountOf(it)} cartes (${it.size2 ?? 180}dp de haut, chaque carte avec des coins de 16dp, défilement horizontal${carouselCardsText(it, "fr")})`;
+    case "datePicker":
+      return `un sélecteur de date sous forme de ${DATE_TEXT.fr[dateLayoutOf(it)]} (date du jour sélectionnée${dateLayoutOf(it) === "input" ? "" : ", avec la grille du mois et Annuler / OK"})`;
+    case "timePicker":
+      return `un sélecteur d'heure sur un ${TIME_TEXT.fr[timeLayoutOf(it)]} réglé sur l'heure actuelle, avec la bascule AM/PM et Annuler / OK`;
+    case "iconButton":
+      return `un bouton d'icône ${v} avec l'icône ${it.icon ?? "vide"}${iconButtonSize(it, "fr")}`;
+    case "fab":
+      return `un FAB ${v}${it.size && it.size >= 96 ? " grand" : it.size && it.size <= 40 ? " petit" : ""} avec l'icône ${it.icon ?? "vide"}${fabMenuText(it, "fr")}`;
+    case "extendedFab":
+      return `un FAB étendu ${v} ${q(it.label)}${it.icon ? ` avec une icône ${it.icon}` : ""}${it.size2 && it.size2 !== 56 ? ` (hauteur ${it.size2}dp)` : ""}${fabMenuText(it, "fr")}`;
+    case "chip":
+      return `une puce ${q(it.label)}${it.checked ? " (sélectionnée)" : ""}${it.icon && !it.checked ? ` avec une icône ${it.icon}` : ""}${chipHeightText(it, "fr")}`;
+    case "topAppBar":
+      return `une barre d'application supérieure intitulée ${q(it.label)}${topBarSizeText(it, "fr")}${it.icon ? `, avec un bouton d'icône ${it.icon} à gauche` : ""}${it.icon2 ? `${it.icon ? " et" : ", avec"} ${it.icon2} à droite` : ""}`;
+    case "bottomNav": {
+      const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "sans libellé")} (${t.icon || "sans icône"})`);
+      return `une barre de navigation à ${tabs.length} destinations : ${tabs.join(", ")} ; ${selectedText(it, "fr")}`;
+    }
+    case "navRail": {
+      const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "sans libellé")} (${t.icon || "sans icône"})`);
+      return `un rail de navigation à ${tabs.length} destinations : ${tabs.join(", ")} ; ${selectedText(it, "fr")}${railStateText(it, "fr")}`;
+    }
+    case "searchBar":
+      return `une barre de recherche avec le texte indicatif ${q(it.label)}${it.icon2 ? ` et une icône ${it.icon2} à la fin` : ""}`;
+    case "card": {
+      const style = it.variant === "elevated" ? "surélevée" : it.variant === "outlined" ? "à contour" : "remplie";
+      return `une carte ${style}${it.size2 ? ` (hauteur ${it.size2}dp)` : ""}${cardLook(it, "fr")} ${cardImage(it, "fr") || "avec "}le titre ${q(it.label)}${hasText(it.supporting) ? ` et le corps ${q(it.supporting!)}` : ""}${cardText(it, "fr")}`;
+    }
+    case "listItem":
+      return `${q(it.label)}${hasText(it.supporting) ? ` avec le texte d'appui ${q(it.supporting!)}` : ""}${it.icon ? `, une icône ${it.icon} au début${it.iconFill === "none" ? " (sans cercle de fond)" : it.iconFill ? ` (sur un cercle ${it.iconFill})` : ""}` : ""}${it.switch ? `, un interrupteur à la fin (initialement ${it.checked ? "activé" : "désactivé"})` : it.icon2 ? `, une icône ${it.icon2} à la fin` : ""}${it.fill && it.fill !== "surfaceContainerLow" ? `, sur un fond ${it.fill}` : ""}`;
+    case "dialog":
+      return `une boîte de dialogue intitulée ${q(it.label)}${hasText(it.supporting) ? ` avec le corps ${q(it.supporting!)}` : ""}${it.icon ? ` et une icône ${it.icon}` : ""}, avec des boutons de texte Annuler et OK`;
+    case "snackbar":
+      return `une snackbar ${q(it.label)}${hasText(it.supporting) ? ` avec une action ${q(it.supporting!)}` : ""}`;
+    case "textField":
+      return `un champ de texte ${it.variant === "filled" ? "rempli" : "à contour"} intitulé ${q(it.label)}${it.icon ? ` avec une icône ${it.icon} au début` : ""}${hasText(it.supporting) ? ` ; texte d'appui : ${q(it.supporting!)}` : ""}`;
+    case "select": {
+      const opts = (it.tabs ?? []).map((t) => q(t.label || "sans libellé"));
+      const initial = it.selected !== undefined && it.tabs?.[it.selected] ? `, initialement ${q(it.tabs[it.selected].label)}` : ", initialement aucune";
+      return `un menu déroulant ${it.variant === "filled" ? "rempli" : "à contour"} intitulé ${q(it.label)} qui ouvre un menu pour choisir une option (options ${opts.join(", ")}${initial})${it.icon ? `, avec une icône ${it.icon} au début` : ""}${hasText(it.supporting) ? ` ; texte d'appui : ${q(it.supporting!)}` : ""}`;
+    }
+    case "switch":
+      return `un interrupteur ${q(it.label)} (initialement ${it.checked ? "activé" : "désactivé"})`;
+    case "checkbox":
+      return `une case à cocher ${q(it.label)} (initialement ${it.checked ? "cochée" : "non cochée"})`;
+    case "slider":
+      return `un curseur (valeur initiale ${it.value ?? 40}%)`;
+    case "text":
+      return `texte ${q(it.label)}${it.bold ? " en gras" : ""} à ${it.size ?? 28}sp`;
+    case "image":
+      return `une image de ${imageDims(it)}${imageSrc(it) ? ` (chargée depuis ${imageSrc(it)})` : it.src ? " (utiliser l'image fournie)" : " (espace réservé)"}`;
+    case "camera":
+      return `un aperçu caméra ${viewSize(it, 4 / 3)}`;
+    case "map":
+      return `un plan ${viewSize(it, 3 / 4)}`;
+    case "divider":
+      return "un séparateur";
+    case "box":
+      return `une boîte de ${it.size ?? PHONE_W}×${it.size2 ?? 220}dp ${it.checked ? "avec une poignée de glissement en haut (panneau inférieur)" : ""}(fond ${it.fill ?? "surfaceContainerLow"}, ${boxCorners(it, "fr")})`;
+    case "bottomSheet":
+      return `un panneau inférieur de ${it.size ?? PHONE_W}×${it.size2 ?? 320}dp avec une poignée de glissement en haut (fond ${it.fill ?? "surfaceContainerLow"}, coins supérieurs de ${it.radiusTop ?? 28}dp)`;
+    case "loadingIndicator":
+      return `l'indicateur de chargement M3 Expressive qui change de forme${it.contained ? " (avec conteneur)" : ""}`;
+    case "linearProgress":
+      return `un indicateur de progression linéaire${it.wavy ? " ondulé" : ""} (${it.value === undefined ? "indéterminé" : `${it.value}%`}${progressThickness(it) !== 4 ? `, épaisseur de piste ${progressThickness(it)}dp` : ""})`;
+    case "circularProgress":
+      return `un indicateur de progression circulaire${it.wavy ? " ondulé" : ""} (${it.value === undefined ? "indéterminé" : `${it.value}%`}${progressThickness(it) !== 4 ? `, épaisseur de piste ${progressThickness(it)}dp` : ""})`;
+    case "splitButton":
+      return `un bouton fractionné ${v} ${q(it.label)}${it.icon ? ` avec une icône ${it.icon}` : ""} et un segment de menu à droite avec une flèche vers le bas${buttonSize(it, "fr")}${splitMenuText(it, "fr")}`;
+    case "fabMenu": {
+      const items = (it.tabs ?? []).map((t) => `${q(t.label || "sans libellé")} (${t.icon || "sans icône"})`);
+      return `un menu FAB ouvert depuis un FAB ${v}, dessiné ouvert avec ${items.length} éléments empilés au-dessus : ${items.join(", ")}`;
+    }
+    case "toolbar": {
+      const icons = (it.tabs ?? []).map((t) => t.icon || "vide").join(", ");
+      return `une barre d'outils flottante ${it.variant === "filled" ? "vibrante (primaryContainer)" : "standard"} avec les boutons d'icône ${icons}`;
+    }
+    case "tabs": {
+      const labels = (it.tabs ?? []).map((t) => q(t.label || "sans libellé"));
+      return `un rang d'onglets${isScrollableTabs(it) ? " à défilement horizontal" : ""} avec ${labels.length} onglets : ${labels.join(", ")} ; ${selectedText(it, "fr")}`;
+    }
+    case "radio":
+      return `un bouton radio ${q(it.label)} (initialement ${it.checked ? "sélectionné" : "non sélectionné"})`;
+    default:
+      return noun;
+  }
+}
+
 /** a box's corners in words: the top / bottom pairs, or each corner when they differ */
 function boxCorners(it: Item, lang: Lang): string {
   const c = it.corners;
@@ -659,6 +834,7 @@ function boxCorners(it: Item, lang: Lang): string {
     if (lang === "ja") return `角丸は左上 ${c.tl}dp・右上 ${c.tr}dp・左下 ${c.bl}dp・右下 ${c.br}dp`;
     if (lang === "zh") return `圆角左上 ${c.tl}dp、右上 ${c.tr}dp、左下 ${c.bl}dp、右下 ${c.br}dp`;
     if (lang === "ko") return `모서리 왼쪽 위 ${c.tl}dp / 오른쪽 위 ${c.tr}dp / 왼쪽 아래 ${c.bl}dp / 오른쪽 아래 ${c.br}dp`;
+    if (lang === "fr") return `coins de ${c.tl}dp en haut à gauche / ${c.tr}dp en haut à droite / ${c.bl}dp en bas à gauche / ${c.br}dp en bas à droite`;
     return `corner radius ${c.tl}dp top-left / ${c.tr}dp top-right / ${c.bl}dp bottom-left / ${c.br}dp bottom-right`;
   }
   const t = c ? c.tl : (it.radiusTop ?? 28);
@@ -667,15 +843,17 @@ function boxCorners(it: Item, lang: Lang): string {
     if (lang === "ja") return `角丸 ${t}dp`;
     if (lang === "zh") return `圆角 ${t}dp`;
     if (lang === "ko") return `모서리 ${t}dp`;
+    if (lang === "fr") return `coins de ${t}dp`;
     return `${t}dp corners`;
   }
   if (lang === "ja") return `角丸は上 ${t}dp・下 ${b}dp`;
   if (lang === "zh") return `圆角上 ${t}dp、下 ${b}dp`;
   if (lang === "ko") return `위쪽 모서리 ${t}dp / 아래쪽 ${b}dp`;
+  if (lang === "fr") return `coins de ${t}dp en haut / ${b}dp en bas`;
   return `corner radius ${t}dp top / ${b}dp bottom`;
 }
 
-const itemText = (it: Item, lang: Lang) => (lang === "ja" ? itemJa(it) : lang === "zh" ? itemZh(it) : lang === "ko" ? itemKo(it) : itemEn(it));
+const itemText = (it: Item, lang: Lang) => (lang === "ja" ? itemJa(it) : lang === "zh" ? itemZh(it) : lang === "ko" ? itemKo(it) : lang === "fr" ? itemFr(it) : itemEn(it));
 
 /* ================= connected runs ================= */
 
@@ -712,6 +890,15 @@ function groupText(g: Group, lang: Lang): string {
       : g.items.map((it) => `${q(it.label || "레이블 없음")}(${vt[it.variant]})`).join(", ");
     return `${names} 버튼 ${g.items.length}개를 가로로 연결한 버튼 그룹${same ? `(${vt[g.items[0].variant]})` : ""}`;
   }
+  if (lang === "fr") {
+    if (kind === "listItem") return `une liste de ${g.items.length} éléments, de haut en bas : ${g.items.map(itemFr).join(" ; ")}`;
+    if (kind === "chip") return `un groupe de puces : ${g.items.map((it) => q(it.label) + (it.checked ? " (sélectionnée)" : "")).join(", ")}${chipRunHeightText(g.items, "fr")}`;
+    if (kind === "iconButton") return `un groupe de boutons d'icône reliés : ${g.items.map((it) => it.icon ?? "vide").join(", ")}`;
+    const names = same
+      ? g.items.map((it) => q(it.label || "sans libellé")).join(", ")
+      : g.items.map((it) => `${q(it.label || "sans libellé")} (${vt[it.variant]})`).join(", ");
+    return `un groupe de ${g.items.length} boutons${same ? ` ${vt[g.items[0].variant]}` : ""} reliés horizontalement : ${names}`;
+  }
   if (kind === "listItem") return `a list of ${g.items.length} items, top to bottom: ${g.items.map(itemEn).join("; ")}`;
   if (kind === "chip") return `a chip group: ${g.items.map((it) => q(it.label) + (it.checked ? " (selected)" : "")).join(", ")}${chipRunHeightText(g.items, "en")}`;
   if (kind === "iconButton") return `a connected group of icon buttons: ${g.items.map((it) => it.icon ?? "empty").join(", ")}`;
@@ -726,11 +913,11 @@ function groupName(g: Group, lang: Lang): string {
   const it = g.items[0];
   const noun = KIND_TEXT[lang][it.kind]?.noun ?? it.kind;
   const q = quote(lang);
-  if (g.items.length > 1) return lang === "en" ? `the ${noun} group` : lang === "zh" ? `${noun}组` : lang === "ko" ? `${noun} 그룹` : `${noun}のグループ`;
-  if (it.kind === "box") return lang === "en" ? "the box" : lang === "zh" ? "容器框" : lang === "ko" ? "상자" : "ボックス";
-  if (it.kind === "bottomSheet") return lang === "en" ? "the bottom sheet" : lang === "zh" ? "底部面板" : lang === "ko" ? "하단 시트" : "ボトムシート";
-  if (hasText(it.label) && it.kind !== "text") return lang === "en" ? `the ${q(it.label)} ${noun}` : `${q(it.label)}${lang === "ko" ? " " : ""}${noun}`;
-  return lang === "en" ? `the ${noun}` : noun;
+  if (g.items.length > 1) return lang === "en" ? `the ${noun} group` : lang === "zh" ? `${noun}组` : lang === "ko" ? `${noun} 그룹` : lang === "fr" ? `le groupe ${frOfNoun(FR_RUN_NOUN[it.kind] ?? noun)}` : `${noun}のグループ`;
+  if (it.kind === "box") return lang === "en" ? "the box" : lang === "zh" ? "容器框" : lang === "ko" ? "상자" : lang === "fr" ? "la boîte" : "ボックス";
+  if (it.kind === "bottomSheet") return lang === "en" ? "the bottom sheet" : lang === "zh" ? "底部面板" : lang === "ko" ? "하단 시트" : lang === "fr" ? "le panneau inférieur" : "ボトムシート";
+  if (hasText(it.label) && it.kind !== "text") return lang === "en" ? `the ${q(it.label)} ${noun}` : lang === "fr" ? `${frNounPhrase(it.kind, noun)} ${q(it.label)}` : `${q(it.label)}${lang === "ko" ? " " : ""}${noun}`;
+  return lang === "en" ? `the ${noun}` : lang === "fr" ? `${frNounPhrase(it.kind, noun)}` : noun;
 }
 
 /* ================= behavior notes ================= */
@@ -745,18 +932,20 @@ function actionText(a: Action, frames: Frame[], lang: Lang): string | null {
     if (lang === "ja") return `${href} をブラウザの別タブで開く`;
     if (lang === "zh") return `在浏览器的新标签页中打开 ${href}`;
     if (lang === "ko") return `${href}를 브라우저 새 탭에서 연다`;
+    if (lang === "fr") return `ouvre ${href} dans un nouvel onglet du navigateur`;
     return `opens ${href} in a new browser tab`;
   }
   if (a.to === BACK_TARGET) {
-    return lang === "ja" ? "前の画面に戻る（入ったときの遷移を逆再生する）" : lang === "zh" ? "返回上一个屏幕（反向播放进入时的过渡动画）" : lang === "ko" ? "이전 화면으로 돌아간다(진입 전환을 반대로 재생)" : "goes back to the previous screen (playing the entry transition in reverse)";
+    return lang === "ja" ? "前の画面に戻る（入ったときの遷移を逆再生する）" : lang === "zh" ? "返回上一个屏幕（反向播放进入时的过渡动画）" : lang === "ko" ? "이전 화면으로 돌아간다(진입 전환을 반대로 재생)" : lang === "fr" ? "revient à l'écran précédent (en rejouant la transition d'entrée à l'envers)" : "goes back to the previous screen (playing the entry transition in reverse)";
   }
   const target = frames.find((f) => f.id === a.to);
   if (!target) return null;
   const tr = TRANSITION_TEXT[lang][a.transition];
-  const name = q(target.name || (lang === "en" ? "screen" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "画面"));
+  const name = q(target.name || (lang === "en" ? "screen" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : lang === "fr" ? "écran" : "画面"));
   if (lang === "ja") return `${name}画面へ${a.transition !== "none" ? `${tr}で` : ""}遷移する`;
   if (lang === "zh") return `${a.transition !== "none" ? `以${tr}的方式` : ""}跳转到${name}屏幕`;
   if (lang === "ko") return `${name} 화면으로${a.transition !== "none" ? ` ${tr} 전환하여` : ""} 이동한다`;
+  if (lang === "fr") return `ouvre l'écran ${name}${a.transition !== "none" ? ` avec ${tr}` : ""}`;
   return `opens the ${name} screen${a.transition !== "none" ? ` with ${tr}` : ""}`;
 }
 
@@ -771,12 +960,14 @@ function slotName(it: Item, slot: string, lang: Lang): string {
     if (lang === "ja") return `${label}の${menu ? "メニュー項目" : "項目"}`;
     if (lang === "zh") return `${label}${menu ? "菜单项" : "项"}`;
     if (lang === "ko") return `${label} ${menu ? "메뉴 항목" : "항목"}`;
+    if (lang === "fr") return menu ? `l'élément de menu ${label}` : `la destination ${label}`;
     return `the ${label} ${menu ? "menu item" : "destination"}`;
   }
   const icon = slot === "icon2" ? it.icon2 : it.icon;
   if (lang === "ja") return `${slot === "icon2" ? "右" : "左"}の ${icon ?? ""} アイコンボタン`;
   if (lang === "zh") return `${slot === "icon2" ? "右侧" : "左侧"}的 ${icon ?? ""} 图标按钮`;
   if (lang === "ko") return `${slot === "icon2" ? "오른쪽" : "왼쪽"} ${icon ?? ""} 아이콘 버튼`;
+  if (lang === "fr") return `le bouton d'icône ${icon ?? ""} ${slot === "icon2" ? "à droite" : "à gauche"}`;
   return `the ${icon ?? ""} icon button on the ${slot === "icon2" ? "right" : "left"}`;
 }
 
@@ -785,11 +976,11 @@ function notes(g: Group, frames: Frame[], lang: Lang): string[] {
   const q = quote(lang);
   for (const it of g.items) {
     const noun = KIND_TEXT[lang][it.kind]?.noun ?? it.kind;
-    const name = hasText(it.label) && it.kind !== "text" ? (lang === "en" ? `The ${q(it.label)} ${noun}` : `${q(it.label)}${lang === "ko" ? " " : ""}${noun}`) : lang === "en" ? `The ${noun}` : hasText(it.label) ? (lang === "ja" ? `テキスト${q(it.label)}` : lang === "zh" ? `文本${q(it.label)}` : `텍스트 ${q(it.label)}`) : noun;
+    const name = hasText(it.label) && it.kind !== "text" ? (lang === "en" ? `The ${q(it.label)} ${noun}` : lang === "fr" ? `${frNounPhrase(it.kind, noun)} ${q(it.label)}` : `${q(it.label)}${lang === "ko" ? " " : ""}${noun}`) : lang === "en" ? `The ${noun}` : lang === "fr" ? (hasText(it.label) ? `le texte ${q(it.label)}` : `${frNounPhrase(it.kind, noun)}`) : hasText(it.label) ? (lang === "ja" ? `テキスト${q(it.label)}` : lang === "zh" ? `文本${q(it.label)}` : `텍스트 ${q(it.label)}`) : noun;
     const parts: string[] = [];
     if (it.action) {
       const a = actionText(it.action, frames, lang);
-      if (a) parts.push(lang === "ja" ? `タップすると${a}` : lang === "zh" ? `点击后${a}` : lang === "ko" ? `탭하면 ${a}` : `${a} when tapped`);
+      if (a) parts.push(lang === "ja" ? `タップすると${a}` : lang === "zh" ? `点击后${a}` : lang === "ko" ? `탭하면 ${a}` : lang === "fr" ? `${a} au toucher` : `${a} when tapped`);
     }
     for (const [slot, action] of Object.entries(it.actions ?? {})) {
       if (!action) continue;
@@ -797,6 +988,7 @@ function notes(g: Group, frames: Frame[], lang: Lang): string[] {
       if (!a) continue;
       const s = slotName(it, slot, lang);
       if (lang === "en") out.push(`Tapping ${s} of ${name.replace(/^The /, "the ")} ${a}.`);
+      else if (lang === "fr") out.push(`Toucher ${s} sur ${name} ${a}.`);
       else parts.push(lang === "ja" ? `${s}をタップすると${a}` : lang === "zh" ? `点击${s}后${a}` : `${s}을 탭하면 ${a}`);
     }
     if (it.toggle) {
@@ -823,6 +1015,12 @@ function notes(g: Group, frames: Frame[], lang: Lang): string[] {
         else if (icon === null) changes.push("아이콘이 사라진다");
         if (variant) changes.push(`변경할 스타일: ${vt[variant]}`);
         parts.push(`탭할 때마다 켜짐/꺼짐이 전환되는 토글 버튼으로 만든다${changes.length ? `(켜졌을 때 ${changes.join(", ")})` : ""}`);
+      } else if (lang === "fr") {
+        if (label !== undefined) changes.push(`le libellé devient ${qf(label)}`);
+        if (icon) changes.push(`l'icône devient ${icon}`);
+        else if (icon === null) changes.push("l'icône disparaît");
+        if (variant) changes.push(`le style devient ${vt[variant]}`);
+        parts.push(`alterne activé / désactivé à chaque toucher${changes.length ? ` (quand il est activé : ${changes.join(" ; ")})` : ""}`);
       } else {
         if (label !== undefined) changes.push(`the label becomes ${qe(label)}`);
         if (icon) changes.push(`the icon becomes ${icon}`);
@@ -836,6 +1034,7 @@ function notes(g: Group, frames: Frame[], lang: Lang): string[] {
     if (lang === "ja") out.push(`${name}は、${parts.join("。また、")}。`);
     else if (lang === "zh") out.push(`${name}：${parts.join("；")}。`);
     else if (lang === "ko") out.push(`${name}: ${parts.join(". 또한 ")}.`);
+    else if (lang === "fr") out.push(`${name[0].toUpperCase() + name.slice(1)} : ${parts.join(" ; ")}.`);
     else out.push(`${name} ${parts.join(". It also ")}.`);
   }
   return out;
@@ -844,7 +1043,7 @@ function notes(g: Group, frames: Frame[], lang: Lang): string[] {
 function swipeNotes(f: Frame, frames: Frame[], lang: Lang): string[] {
   const out: string[] = [];
   const q = quote(lang);
-  const screen = lang === "en" ? "screen" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "画面";
+  const screen = lang === "en" ? "screen" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : lang === "fr" ? "écran" : "画面";
   for (const d of SWIPE_DIRS) {
     const to = f.swipe?.[d.key];
     if (!to) continue;
@@ -855,6 +1054,7 @@ function swipeNotes(f: Frame, frames: Frame[], lang: Lang): string[] {
     if (lang === "ja") out.push(`${name}画面は、${sw}すると指の動きに追従して${a}。`);
     else if (lang === "zh") out.push(`${name}屏幕：${sw}时跟随手指移动并${a}。`);
     else if (lang === "ko") out.push(`${name} 화면은 ${sw}하면 손가락을 따라 움직이며 ${a}.`);
+    else if (lang === "fr") out.push(`L'écran ${name} ${a} avec un ${sw} ; l'écran suit le doigt pendant le geste.`);
     else out.push(`The ${name} screen ${a} when ${sw}; the screen follows the finger while dragging.`);
   }
   return out;
@@ -937,6 +1137,12 @@ function zone(bb: Rect, within: Rect, lang: Lang, phone: boolean): string {
     const hh = horiz < 0 ? "" : [" 왼쪽 정렬로", "", " 오른쪽 정렬로"][horiz];
     return `${v}${hh}`;
   }
+  if (lang === "fr") {
+    const v = ["En haut", "Au centre", "En bas"][vert];
+    if (horiz === 1) return `${v}${", centré"}`;
+    const hh = horiz < 0 ? "" : [", aligné à gauche", "", ", aligné à droite"][horiz];
+    return `${v}${hh}`;
+  }
   const v = ["Near the top", "In the middle", "Near the bottom"][vert];
   const hh = horiz < 0 ? "" : [", aligned left", ", centered", ", aligned right"][horiz];
   return `${v}${hh}`;
@@ -946,7 +1152,7 @@ function zone(bb: Rect, within: Rect, lang: Lang, phone: boolean): string {
 function rowText(row: LNode[], where: string, lang: Lang, within: Rect): string {
   if (row.length === 1) {
     const d = groupText(row[0].g, lang);
-    return lang === "ja" ? `${where}${d}を置きます。` : lang === "zh" ? `${where}放置${d}。` : lang === "ko" ? `${where} 다음 항목을 배치합니다: ${d}.` : `${where}: ${d}.`;
+    return lang === "ja" ? `${where}${d}を置きます。` : lang === "zh" ? `${where}放置${d}。` : lang === "ko" ? `${where} 다음 항목을 배치합니다: ${d}.` : lang === "fr" ? `${where} : ${d}.` : `${where}: ${d}.`;
   }
   const last = row[row.length - 1];
   const fillsRight = last.bb.r >= within.r - 24;
@@ -962,6 +1168,10 @@ function rowText(row: LNode[], where: string, lang: Lang, within: Rect): string 
   if (lang === "ko") {
     const stretch = fillsRight ? `, 마지막 항목(${groupName(last.g, "ko")})은 오른쪽 끝까지 남은 너비를 채웁니다` : "";
     return `${where}, 왼쪽부터 한 행에 다음 항목을 배치합니다: ${descs.join(", ")}(같은 줄에 세로 중앙 정렬하고 쌓거나 줄 바꿈하지 않음${stretch}).`;
+  }
+  if (lang === "fr") {
+    const stretch = fillsRight ? ` ; ${groupName(last.g, "fr")} s'étire pour remplir la largeur restante jusqu'au bord droit` : "";
+    return `${where}, sur une même ligne de gauche à droite : ${descs.join(", ")} (les garder sur la même ligne, centrés verticalement ; ne jamais les empiler ni les faire passer à la ligne${stretch}).`;
   }
   const stretch = fillsRight ? `; ${groupName(last.g, "en")} stretches to fill the remaining width to the right edge` : "";
   return `${where}, in one row from left to right: ${descs.join(", ")} (keep them on the same line, vertically centered; never stack or wrap them${stretch}).`;
@@ -1013,13 +1223,15 @@ function gridText(grid: Grid, where: string, lang: Lang): string {
   const noun = KIND_TEXT[lang][kind]?.noun ?? kind;
   const n = cells.length;
   const c = grid.cols;
-  const list = cells.map((x, i) => `(${i + 1}) ${groupText(x.g, lang)}`).join(lang === "en" || lang === "ko" ? "; " : "；");
+  const list = cells.map((x, i) => `(${i + 1}) ${groupText(x.g, lang)}`).join(lang === "en" || lang === "ko" || lang === "fr" ? "; " : "；");
   if (lang === "ja")
     return `${where}、${noun}${n}個を${c}列のグリッドに並べます（列の間隔 ${grid.colGap}dp、行の間隔 ${grid.rowGap}dp。セルはすべて同じ幅で、左から右へ、上の行から順に埋める。1行に並べたり縦1列に積んだりせず${c}列を保つ）: ${list}。`;
   if (lang === "zh")
     return `${where}，将 ${n} 个${noun}排成 ${c} 列网格（列间距 ${grid.colGap}dp，行间距 ${grid.rowGap}dp；所有单元格等宽，从左到右、从上一行开始依次填充；保持 ${c} 列，不要排成一行或竖着堆叠）：${list}。`;
   if (lang === "ko")
     return `${where}, ${noun} ${n}개를 ${c}열 그리드로 배치합니다(열 간격 ${grid.colGap}dp, 행 간격 ${grid.rowGap}dp. 모든 칸은 같은 너비이며 왼쪽에서 오른쪽으로, 위 행부터 채운다. 한 줄로 늘어놓거나 세로로 쌓지 않고 ${c}열을 유지): ${list}.`;
+  if (lang === "fr")
+    return `${where}, une grille de ${n} ${noun}s en ${c} colonnes (${grid.colGap}dp entre les colonnes, ${grid.rowGap}dp entre les lignes ; chaque cellule de même largeur, remplie de gauche à droite, ligne par ligne ; garder ${c} colonnes plutôt qu'une longue rangée ou une pile) : ${list}.`;
   return `${where}, a grid of ${n} ${noun}s in ${c} columns (${grid.colGap}dp between columns, ${grid.rowGap}dp between rows; every cell the same width, filled left to right, row by row; keep ${c} columns rather than one long row or a single stack): ${list}.`;
 }
 
@@ -1045,7 +1257,7 @@ function describeNodes(lines: string[], nodes: LNode[], within: Rect | null, wid
     };
     let where: string;
     if (within) where = zone(rowRect, box, lang, phone);
-    else where = lang === "ja" ? (i === 0 ? "まず" : "その下に") : lang === "zh" ? (i === 0 ? "首先" : "其下方") : lang === "ko" ? (i === 0 ? "먼저" : "그 아래에") : i === 0 ? "First" : "Below that";
+    else where = lang === "ja" ? (i === 0 ? "まず" : "その下に") : lang === "zh" ? (i === 0 ? "首先" : "其下方") : lang === "ko" ? (i === 0 ? "먼저" : "그 아래에") : lang === "fr" ? (i === 0 ? "D'abord" : "En dessous") : i === 0 ? "First" : "Below that";
     if (grid) {
       lines.push(`${pad}- ${gridText(grid, where, lang)}`);
       i += grid.rows.length - 1;
@@ -1062,28 +1274,29 @@ function describeNodes(lines: string[], nodes: LNode[], within: Rect | null, wid
     }
     let line = rowText(row, where, lang, box);
     if (overlaps.length) {
-      const o = overlaps.join(lang === "en" ? " and " : lang === "ko" ? ", " : "、");
-      line = lang === "ja" ? `${line.replace(/。$/, "")}（${o}の上に一部重ねて前面に描画）。` : lang === "zh" ? `${line.replace(/。$/, "")}（部分覆盖在${o}之上，绘制在前面）。` : lang === "ko" ? `${line.replace(/\.$/, "")}(${o} 위에 일부 겹쳐 앞쪽에 그림).` : `${line.replace(/\.$/, "")} (partly overlapping ${o}, drawn on top).`;
+      const o = overlaps.join(lang === "en" ? " and " : lang === "ko" ? ", " : lang === "fr" ? " et " : "、");
+      line = lang === "ja" ? `${line.replace(/。$/, "")}（${o}の上に一部重ねて前面に描画）。` : lang === "zh" ? `${line.replace(/。$/, "")}（部分覆盖在${o}之上，绘制在前面）。` : lang === "ko" ? `${line.replace(/\.$/, "")}(${o} 위에 일부 겹쳐 앞쪽에 그림).` : lang === "fr" ? `${line.replace(/\.$/, "")} (recouvrant partiellement ${o}, dessiné au premier plan).` : `${line.replace(/\.$/, "")} (partly overlapping ${o}, drawn on top).`;
     }
     lines.push(`${pad}- ${line}`);
     for (const n of row) {
       if (!n.children.length) continue;
       const name = groupName(n.g, lang);
       lines.push(
-        `${pad}  - ${lang === "ja" ? `${name}の中には次を重ねて配置します（ボックス側を背景にし、以下はその前面に載せる。位置はボックス内での相対位置）:` : lang === "zh" ? `${name}内部叠放以下内容（以容器为背景，下列组件绘制在其前面，位置为容器内的相对位置）：` : lang === "ko" ? `${name} 안에 다음 항목을 겹쳐 배치합니다(컨테이너를 배경으로 하고 다음 부품은 그 앞에 배치하며, 위치는 컨테이너 내부 기준):` : `Inside ${name}, layered on top of it (the container is the background; positions are relative to it):`}`,
+        `${pad}  - ${lang === "ja" ? `${name}の中には次を重ねて配置します（ボックス側を背景にし、以下はその前面に載せる。位置はボックス内での相対位置）:` : lang === "zh" ? `${name}内部叠放以下内容（以容器为背景，下列组件绘制在其前面，位置为容器内的相对位置）：` : lang === "ko" ? `${name} 안에 다음 항목을 겹쳐 배치합니다(컨테이너를 배경으로 하고 다음 부품은 그 앞에 배치하며, 위치는 컨테이너 내부 기준):` : lang === "fr" ? `Dans ${name}, empilé au-dessus (le conteneur est le fond ; les positions lui sont relatives) :` : `Inside ${name}, layered on top of it (the container is the background; positions are relative to it):`}`,
       );
       describeNodes(lines, n.children, n.bb, widths, lang, depth + 2, false);
     }
   }
 }
 
-const RAIL_LEAD: Record<Lang, string> = { ja: "左端に", en: "Along the left edge: ", zh: "左缘：", ko: "왼쪽 가장자리에 " };
+const RAIL_LEAD: Record<Lang, string> = { ja: "左端に", en: "Along the left edge: ", zh: "左缘：", ko: "왼쪽 가장자리에 ", fr: "Le long du bord gauche : " };
 
 const WIDE_RAIL_STYLE: Record<Lang, string> = {
   ja: "M3 Expressive ナビゲーションレール: 折りたたみ時は幅 96dp、アイコンの下にラベル。展開時は幅 220dp、高さ 56dp の項目内でアイコンとラベルを横並びにし、間隔は 8dp。既存のトップアプリバーに合わせ、両モードの開閉状態すべてで背景は surfaceContainer。選択項目は secondaryContainer のピル型インジケータ、アイコンは onSecondaryContainer、ラベルは secondary を優先し、実際の背景（折りたたみ時は surfaceContainer、展開時は secondaryContainer）とのコントラストが 4.5:1 未満なら、それぞれ onSurface / onSecondaryContainer を使う。上部のメニューボタンで開閉する。非モーダル型は本文の横に配置し、モーダル型は展開時にスクリムとともに本文に重ね、背景操作を遮断する。スクリムのタップまたは Escape で閉じる。",
   en: "M3 Expressive navigation rail: 96dp wide when collapsed, with labels below icons. Expanded width is 220dp, with 56dp-high destinations and horizontal icon/label rows separated by 8dp. Match the existing top app bar with a surfaceContainer background in both modes, whether collapsed or expanded. The selected destination uses a secondaryContainer pill, onSecondaryContainer icon, and a label that prefers secondary. If its contrast against the actual background (surfaceContainer when collapsed, secondaryContainer when expanded) is below 4.5:1, use onSurface / onSecondaryContainer respectively. A top menu button toggles expansion. The non-modal variant sits beside the content; the modal variant overlays it with a scrim when expanded and blocks background interaction. Dismiss with a scrim tap or Escape.",
   zh: "M3 Expressive 侧边导航栏：折叠宽 96dp，标签位于图标下方。展开宽 220dp，项目高 56dp，图标与标签横向排列，间距 8dp。沿用现有顶部应用栏配色，两种模式在折叠与展开时均使用 surfaceContainer 背景。选中项用 secondaryContainer 胶囊指示器，图标为 onSecondaryContainer，文字优先使用 secondary；若与实际背景（折叠为 surfaceContainer，展开为 secondaryContainer）的对比度低于 4.5:1，则分别使用 onSurface / onSecondaryContainer。顶部菜单按钮切换展开与折叠。非模态型位于内容旁；模态型展开时带遮罩覆盖内容并阻止背景交互，点击遮罩或按 Escape 关闭。",
   ko: "M3 Expressive 내비게이션 레일: 접으면 너비 96dp, 아이콘 아래에 레이블을 배치한다. 펼치면 너비 220dp, 항목 높이 56dp, 아이콘과 레이블을 8dp 간격으로 가로 배치한다. 기존 상단 앱 바와 맞추어 두 모드의 접힌 상태와 펼친 상태 모두 surfaceContainer 배경을 사용한다. 선택 항목은 secondaryContainer 알약 표시기, onSecondaryContainer 아이콘, 레이블은 secondary를 우선 사용한다. 실제 배경(접힘: surfaceContainer, 펼침: secondaryContainer)과의 대비가 4.5:1 미만이면 각각 onSurface / onSecondaryContainer를 사용한다. 상단 메뉴 버튼으로 펼치기와 접기를 전환한다. 비모달은 콘텐츠 옆에 배치하고 모달은 펼칠 때 스크림과 함께 콘텐츠를 덮어 배경 조작을 차단한다. 스크림을 탭하거나 Escape를 누르면 닫힌다.",
+  fr: "Rail de navigation M3 Expressive : 96dp de large quand il est replié, libellés sous les icônes. Déployé, il fait 220dp de large, avec des destinations de 56dp de haut présentant icône et libellé côte à côte, séparés de 8dp. Suivre la barre d'application supérieure existante avec un fond surfaceContainer dans les deux modes, replié ou déployé. La destination sélectionnée utilise un indicateur pilule secondaryContainer, une icône onSecondaryContainer et un libellé qui privilégie secondary. Si son contraste avec le fond réel (surfaceContainer quand il est replié, secondaryContainer quand il est déployé) est inférieur à 4.5:1, utiliser onSurface / onSecondaryContainer selon le cas. Un bouton de menu en haut bascule le déploiement. La variante non modale se place à côté du contenu ; la variante modale le recouvre d'un voile quand elle est déployée et bloque les interactions en arrière-plan. Fermer en touchant le voile ou avec Échap.",
 };
 
 function describeScreen(lines: string[], groups: Group[], frameRect: Rect | null, widths: Record<string, number>, lang: Lang) {
@@ -1350,6 +1563,44 @@ const STYLE_NOTES: Record<Lang, Partial<Record<Kind, string>>> = {
     tabs: "탭: M3 기본 탭. 높이 48dp, 레이블 titleSmall. 선택 탭은 primary 텍스트와 레이블 너비의 3dp 표시기를 사용하고 아래에 outlineVariant 구분선을 둔다.",
     radio: "라디오 버튼: 20dp 원형. 선택 시 primary 테두리와 가운데 점, 미선택 시 onSurfaceVariant 테두리. 그룹에서 하나만 선택되며 레이블은 오른쪽 bodyLarge.",
   },
+  fr: {
+    button: "Boutons : de taille moyenne, 56dp de haut, entièrement arrondis (pilule). Le rempli utilise primary, le tonal utilise secondaryContainer, le contour a une bordure outline de 1dp. Un groupe de boutons reliés est une rangée avec des espaces de 3dp où seuls les coins internes adjacents se réduisent à 8dp et les coins externes restent arrondis (le groupe de boutons reliés M3 Expressive).",
+    iconButton: "Boutons d'icône : cercles de 48dp dans le style rempli / tonal / contour / standard comme spécifié. Une rangée reliée de boutons d'icône est un groupe de boutons reliés.",
+    carousel: "Carrousel : le Carousel M3 (HorizontalMultiBrowseCarousel / HorizontalUncontainedCarousel en Compose ; une rangée de cartes à défilement latéral sur le web). Les cartes sont des conteneurs à coins de 16dp ; multi-parcours et héro affichent la première carte en grand et les suivantes plus petites, non contenu affiche toutes les cartes à la même largeur, plein écran donne la rangée à une seule carte. Il court bord à bord avec une marge de début de 16dp et 8dp entre les cartes. Le titre d'une carte longe son bord inférieur.",
+    datePicker: "Sélecteur de date : le DatePicker M3. La version modale est une boîte de dialogue à coins de 28dp avec un titre, le sélecteur de mois, la rangée des jours de la semaine, la grille des jours et Annuler / OK ; ancré, le même calendrier pend sous un champ de texte ; la saisie seule est un champ de texte à contour avec une icône de calendrier à sa fin. Le jour sélectionné est un cercle primary.",
+    timePicker: "Sélecteur d'heure : le TimePicker M3. L'heure et les minutes sont deux grands cadrans de chiffres (celui sélectionné en primaryContainer, l'autre en surfaceContainerHighest) à côté d'une bascule AM/PM verticale. Le cadran est un cercle surfaceContainerHighest avec une aiguille primary ; la disposition en saisie tape les nombres directement. Annuler / OK sont en bas avec une icône qui bascule entre cadran et clavier.",
+    fab: "FAB : 56dp avec des coins de 16dp ; la grande fait 96dp avec des coins de 28dp ; la petite fait 40dp avec des coins de 12dp. Le tonal utilise primaryContainer, le rempli utilise primary. La faire flotter à 16dp du bord de l'écran avec une ombre de niveau 3.",
+    extendedFab: "FAB étendue : 56dp de haut, coins de 16dp, icône à gauche et libellé à droite.",
+    chip: "Puces : 32dp de haut, coins de 8dp. L'état sélectionné se remplit de secondaryContainer et affiche une icône de coche au début. Un groupe de puces est une rangée avec des espaces de 8dp qui défile horizontalement quand il déborde.",
+    topAppBar: "Barre d'application supérieure : 64dp de haut sur surface, avec le fond étendu derrière la barre d'état (marge en haut égale à l'encart système). Titre en titleLarge, boutons d'icône de 48dp de chaque côté. La teinte standard vers surfaceContainer au défilement convient.",
+    bottomNav: "Barre de navigation : 80dp de haut sur surfaceContainer, avec le fond étendu vers le bas dans la zone de navigation gestuelle (marge en bas égale à l'encart système). La destination active affiche un indicateur pilule secondaryContainer (64×32dp), une icône remplie et un libellé labelMedium.",
+    navRail: "Rail de navigation : 80dp de large sur surfaceContainer, courant sur toute la hauteur du bord gauche. Les destinations s'empilent depuis le haut ; la plus active affiche un indicateur pilule secondaryContainer (56×32dp) avec une icône remplie et un libellé labelMedium en dessous. Le contenu se place à droite du rail.",
+    searchBar: "Barre de recherche : 56dp de haut, entièrement arrondie, sur surfaceContainerHigh, avec une icône de recherche au début et l'icône spécifiée à la fin.",
+    card: "Cartes : coins de 20dp. Placer la zone d'image de chaque carte là où sa ligne l'indique — en haut, remplissant le côté de début ou de fin, ou en fond pleine page (un voile se dégrade depuis le côté du texte : sombre sous un texte clair, clair sous un texte sombre). Les images gardent leur proportion et sont recadrées au centre pour remplir leur zone. La variante remplie utilise surfaceContainerHighest, la surélevée surfaceContainerLow avec une ombre de niveau 1, et la version à contour une bordure outlineVariant de 1dp. Titre en titleMedium, corps en bodyMedium. Marges internes de 20dp, 4dp entre le titre et le corps, 12dp entre l'image et le texte.",
+    listItem: "Éléments de liste : 72dp de haut, icône de début de 24dp (sur un cercle primaryContainer de 40dp sauf indication contraire), titre en bodyLarge, texte d'appui en bodyMedium sur onSurfaceVariant, sur le rôle de fond spécifié (surfaceContainerLow sauf indication contraire). Une liste empilée est une suite verticale avec des espaces de 3dp, des coins externes de 28dp et des coins internes de 8dp (le traitement de liste M3 Expressive).",
+    dialog: "Boîtes de dialogue : 312dp de large, coins de 28dp, sur surfaceContainerHigh. Titre en headlineSmall, corps en bodyMedium, boutons de texte alignés à droite en bas.",
+    snackbar: "Snackbar : 48dp de haut, coins de 8dp, fond inverseSurface avec texte inverseOnSurface ; l'action est un bouton de texte inversePrimary. L'afficher à 16dp du bord inférieur et la faire disparaître après quelques secondes.",
+    textField: "Champs de texte : 56dp de haut. Le à contour a des coins de 16dp et une bordure outline ; le rempli repose sur surfaceContainerHighest avec un soulignement. Au focus, le libellé flotte et la bordure devient primary à 2dp. Le texte d'appui va dessous en bodySmall.",
+    select: "Menus déroulants : ressemblent à un champ de texte (56dp de haut, à contour ou rempli) avec une icône arrow_drop_down à la fin. Les implémenter comme un menu déroulant exposé : un toucher ouvre un menu dessous (surfaceContainer, coins de 4dp, éléments de 48dp) et la valeur choisie s'affiche dans le champ.",
+    switch: "Interrupteurs : taille M3 standard (piste de 52×32dp). Activé utilise primary ; désactivé surfaceContainerHighest avec une bordure outline. Libellé à gauche, interrupteur au bord de fin.",
+    checkbox: "Cases à cocher : carré de 18dp avec des coins de 2dp, primary quand c'est coché, libellé à droite en bodyLarge.",
+    slider: "Curseurs : la piste épaisse M3 Expressive (16dp) avec une poignée haute (4×44dp). Primary à gauche de la poignée, secondaryContainer à droite. Glisser change la valeur.",
+    text: "Texte : la taille en sp spécifiée ; les titres sur onSurface, les descriptions sur onSurfaceVariant, hauteur de ligne 1,3–1,5× la taille. Aucune ondulation ni retour d'appui au toucher.",
+    image: "Images : coins de 20dp ; un espace réservé surfaceContainerHighest quand aucune n'est fournie. Garder la proportion et recadrer au centre.",
+    camera: "Aperçu caméra : coins de 20dp. Afficher le flux de la caméra de l'appareil dans cette zone ; tant que la permission manque, afficher une icône d'appareil photo sur un panneau sombre inverseSurface.",
+    map: "Plan : coins de 20dp. Placer la vue du SDK cartographique dans cette zone ; pendant son chargement, afficher une icône de plan sur surfaceContainerHighest.",
+    divider: "Séparateurs : outlineVariant à 1dp avec des marges internes horizontales de 16dp.",
+    box: "Boîtes : de simples conteneurs avec le jeton de fond et les rayons de coin spécifiés. Elles servent de fond à tout ce qui est empilé dessus et n'ont aucun comportement propre.",
+    bottomSheet: "Panneaux inférieurs : panneaux inférieurs modaux qui montent depuis le bord inférieur. Une poignée de glissement centrée en haut, le jeton de fond et le rayon de coin supérieur spécifiés ; les coins inférieurs restent droits.",
+    loadingIndicator: "Chargement : utiliser l'indicateur de chargement M3 Expressive à morphing de forme (le polygone rotatif qui se transforme d'une forme à l'autre). La variante avec conteneur se place dans un cercle secondaryContainer.",
+    linearProgress: "Progression linéaire : utiliser l'épaisseur de piste indiquée (4dp sauf indication contraire) avec des extrémités rondes, et le style ondulé M3 Expressive quand il est spécifié. La piste est secondaryContainer, la progression primary.",
+    circularProgress: "Progression circulaire : utiliser l'épaisseur de piste indiquée (4dp sauf indication contraire) avec des extrémités rondes, et le style ondulé M3 Expressive quand il est spécifié.",
+    splitButton: "Bouton fractionné : le SplitButton M3 Expressive. Le segment de début est l'action principale et le segment de flèche à la fin ouvre un menu. Les deux segments sont espacés de 2dp avec des coins externes entièrement arrondis et des coins internes de 8dp ; ouvrir le menu fait pivoter la flèche et arrondit le segment.",
+    fabMenu: "Menu FAB : le FloatingActionButtonMenu M3 Expressive. Fermé, c'est une FAB normale ; un toucher fait apparaître les éléments vers le haut l'un après l'autre et l'icône de la FAB devient close. Chaque élément fait 56dp de haut, est entièrement arrondi, aligné à droite avec une icône et un libellé.",
+    toolbar: "Barre d'outils flottante : la HorizontalFloatingToolbar M3 Expressive. 64dp de haut, entièrement arrondie, flottant à 16dp au-dessus du bord inférieur par-dessus le contenu. Standard utilise surfaceContainer, vibrant utilise primaryContainer. Les boutons d'icône à l'intérieur font 48dp.",
+    tabs: "Onglets : onglets primaires M3. 48dp de haut, libellés en titleSmall ; l'onglet sélectionné a un texte primary et un indicateur de 3dp à la largeur du libellé avec des coins supérieurs arrondis, avec un séparateur outlineVariant dessous. Toucher un onglet change le contenu.",
+    radio: "Boutons radio : cercles de 20dp. Sélectionné affiche un anneau primary avec un point au centre, non sélectionné un anneau onSurfaceVariant. Un seul peut être sélectionné dans un groupe. Libellé à droite en bodyLarge.",
+  },
 };
 
 /* ---------- theme: shape, type, motion ---------- */
@@ -1359,6 +1610,7 @@ const FONT_NOTE: Record<Lang, (name: string) => string> = {
   en: (n) => `Use ${n} as the typeface.`,
   zh: (n) => `字体使用 ${n}。`,
   ko: (n) => `사용할 글꼴: ${n}.`,
+  fr: (n) => `Utiliser ${n} comme police.`,
 };
 
 const THEME_NOTES: Record<Lang, { shape: Record<Theme["shape"], string>; emphasized: string; plainType: string; motion: Record<Theme["motion"], string> }> = {
@@ -1414,13 +1666,26 @@ const THEME_NOTES: Record<Lang, { shape: Record<Theme["shape"], string>; emphasi
       expressive: "모션은 MotionScheme.expressive()를 사용한다. 화면 전환과 상태 변화에 가볍게 튀는 스프링 효과를 적용한다.",
     },
   },
+  fr: {
+    shape: {
+      square: "Garder des coins mesurés : réduire l'échelle des formes M3 partout (boutons et puces 8–12dp, cartes et images 8dp, boîtes de dialogue environ 12dp) et éviter les formes pilule.",
+      rounded: "Les coins suivent les valeurs par défaut M3 Expressive (boutons pilule, cartes à 20dp, boîtes de dialogue à 28dp).",
+      full: "Pousser les coins au maximum : boutons, puces et champs de texte en pilule, cartes et images à 32dp, boîtes de dialogue et panneaux à environ 40dp.",
+    },
+    emphasized: "Les titres, les libellés de boutons et les onglets utilisent la typographie accentuée M3 Expressive (les styles plus gras headlineMediumEmphasized et similaires).",
+    plainType: "La typographie utilise les graisses standard M3.",
+    motion: {
+      standard: "Le mouvement utilise MotionScheme.standard() : des transitions et des changements d'état fluides, sans rebond.",
+      expressive: "Le mouvement utilise MotionScheme.expressive() : un léger rebond à ressort sur les transitions et les changements d'état.",
+    },
+  },
 };
 
 function themeLines(th: Theme, lang: Lang): string[] {
   const n = THEME_NOTES[lang];
   const font = FONTS.find((f) => f.key === th.font);
-  const fontName = font?.key === "system" ? (lang === "ja" ? "端末のシステムフォント" : lang === "zh" ? "设备的系统字体" : lang === "ko" ? "기기의 시스템 글꼴" : "the device's system font") : (font?.label ?? "Roboto");
-  const sp = lang === "en" || lang === "ko" ? " " : "";
+  const fontName = font?.key === "system" ? (lang === "ja" ? "端末のシステムフォント" : lang === "zh" ? "设备的系统字体" : lang === "ko" ? "기기의 시스템 글꼴" : lang === "fr" ? "la police système de l'appareil" : "the device's system font") : (font?.label ?? "Roboto");
+  const sp = lang === "en" || lang === "ko" || lang === "fr" ? " " : "";
   return [`- ${n.shape[th.shape]}`, `- ${FONT_NOTE[lang](fontName)}${sp}${th.emphasized ? n.emphasized : n.plainType}`, `- ${n.motion[th.motion]}`];
 }
 
@@ -1478,6 +1743,19 @@ const GENERAL: Record<Lang, (string | ((pl: Platform) => string))[]> = {
     "탭 가능한 부품에는 리플과 약한 축소 피드백을 준다. '뒤로'는 진입 전환을 반대로 재생하고 시스템 뒤로 제스처나 버튼도 같은 동작을 수행한다.",
     "아이콘은 Material Symbols Rounded를 사용한다.",
   ],
+  fr: [
+    "Déterminer le type d'application que c'est à partir de la finalité des écrans, et implémenter les fonctions qu'une telle application doit normalement avoir (créer, lister, détail, modifier, supprimer, rechercher, réglages, selon le cas) même là où le croquis ne les montre pas.",
+    (pl: Platform) => `Traiter les données comme réelles. Conserver ce que l'utilisateur crée ${pl === "web" ? "dans le navigateur (IndexedDB ou similaire) pour qu'il survive aux rechargements" : "sur l'appareil (Room, DataStore ou similaire) pour qu'il survive aux redémarrages"}. Ne pas livrer de données factices ou d'exemple ; afficher un état vide quand il n'y a encore rien. Valider les saisies, et confirmer ou signaler les échecs et les suppressions de façon appropriée.`,
+    "Compléter les comportements que le croquis omet à partir de la finalité de l'écran et des libellés des pièces. Un bouton ou un élément sans comportement spécifié doit faire ce que son libellé implique (enregistrer, envoyer, ouvrir un écran de détail, etc.), jamais rien.",
+    "La mise en page n'a besoin que de garder l'intention (ordre, regroupement, placement relatif) ; les dimensions et les espacements peuvent être ajustés au contenu. Si quelque chose se cassait sur un appareil, privilégier un fonctionnement correct au respect strict du croquis.",
+    (pl: Platform) => `Utiliser les composants standard de ${pl === "web" ? "Material Web" : "Jetpack Compose material3 (dernière version, incluant les API Expressive)"} ; ne pas dessiner soi-même des pièces que la bibliothèque fournit.`,
+    "Toujours référencer les couleurs par les rôles du schéma ci-dessus (primary, surfaceContainer, …) au lieu de valeurs codées en dur.",
+    "Garder des marges d'écran de 16dp et 8–16dp entre les pièces, et utiliser les styles de texte M3 (titleLarge, bodyMedium, …).",
+    "Les pièces décrites comme « sur une même ligne » doivent partager une seule Row (conteneur horizontal) sur la même ligne ; ne jamais les empiler verticalement ni les faire passer à la ligne. La rangée a la hauteur de sa pièce la plus haute et les autres y sont centrées verticalement.",
+    "Les pièces décrites comme « empilées à l'intérieur » d'un conteneur sont dessinées par-dessus ce conteneur (une Box avec le conteneur en fond). Le chevauchement est voulu : ne pas les séparer ni changer leur ordre pour des raisons de mise en page. Les éléments décrits plus tard sont dessinés devant ceux décrits avant.",
+    "Donner à chaque pièce touchable une ondulation (ripple) plus une légère réduction à l'appui. « Retour » rejoue la transition d'entrée à l'envers, et le geste / bouton système de retour doit faire de même.",
+    "Utiliser Material Symbols Rounded pour les icônes.",
+  ],
 };
 
 /** notes that differ on the web, where a browser has no status bar or gesture area to inset for */
@@ -1498,6 +1776,10 @@ const STYLE_NOTES_WEB: Record<Lang, Partial<Record<Kind, string>>> = {
     topAppBar: "顶部应用栏：高 64dp，背景为 surface。标题用 titleLarge，左右图标按钮 48dp。滚动时变为 surfaceContainer 的标准行为即可。",
     bottomNav: "导航栏：高 80dp，背景为 surfaceContainer。选中项用 secondaryContainer 的胶囊指示器（宽 64dp、高 32dp）表示，图标为填充样式，标签用 labelMedium。",
   },
+  fr: {
+    topAppBar: "Barre d'application supérieure : 64dp de haut sur surface. Titre en titleLarge, boutons d'icône de 48dp de chaque côté. La teinte standard vers surfaceContainer au défilement convient.",
+    bottomNav: "Barre de navigation : 80dp de haut sur surfaceContainer. La destination active affiche un indicateur pilule secondaryContainer (64×32dp), une icône remplie et un libellé labelMedium.",
+  },
 };
 
 /* ---------- fixed phrases ---------- */
@@ -1513,7 +1795,7 @@ const viewportOf = (frames: Frame[], phone: boolean): Viewport => {
 const sizeLabel = (f: Frame, vp: Viewport, lang: Lang): string | undefined => {
   if (vp !== "mixed") return undefined;
   const { w, h } = frameSizeOf(f);
-  const kind = isPhoneFrame(f) ? { ja: "スマホ", en: "phone", zh: "手机", ko: "휴대전화" } : { ja: "デスクトップ", en: "desktop", zh: "桌面", ko: "데스크톱" };
+  const kind = isPhoneFrame(f) ? { ja: "スマホ", en: "phone", zh: "手机", ko: "휴대전화", fr: "téléphone" } : { ja: "デスクトップ", en: "desktop", zh: "桌面", ko: "데스크톱", fr: "bureau" };
   return `${kind[lang]} ${w}×${h}`;
 };
 
@@ -1679,6 +1961,50 @@ const PH = {
     styleIntro: "사용된 부품별 지침입니다. 수치는 M3 Expressive 기본값이며 표준 컴포넌트가 제공하는 동작은 그대로 사용하고 내용에 맞게 조정할 수 있습니다.",
     hGeneral: "## 전체 지침",
   },
+  fr: {
+    screen: "écran",
+    intro: (title: string, brief: string) => `Veuillez implémenter ${title} dans le langage de conception Material 3 Expressive.${brief ? ` ${trimEnd(brief)}.` : ""}`,
+    titleOnly: (name: string) => `l'écran ${name}`,
+    titleAll: (n: number) => (n > 1 ? "cette application" : "cet écran"),
+    target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
+      `${
+        vp === "phone"
+          ? "Cibler un écran de téléphone en portrait (412×892dp)"
+          : vp === "desktop"
+            ? pl === "web"
+              ? "Cibler un viewport de navigateur de bureau (référence 1280×800)"
+              : "Cibler un écran de tablette en paysage (référence 1280×800dp)"
+            : vp === "mixed"
+              ? `Cibler à la fois un téléphone en portrait (412×892) et ${pl === "web" ? "un viewport de navigateur de bureau" : "une tablette en paysage"} (1280×800) ; les écrans qui partagent un nom sont un seul écran à deux largeurs, donc les construire de façon responsive`
+              : "La mise en page est libre"
+      }, ${both ? "prenant en charge le mode clair et le mode sombre, en suivant le réglage système de l'appareil" : `mode ${dark ? "sombre" : "clair"} uniquement`}.`,
+    platform: (pl: Platform) => (pl === "web" ? "Implémentez-le pour le web, en tant qu'app qui s'exécute dans le navigateur." : "Implémentez-le pour Android, en tant qu'app native."),
+    schemeHead: (dark: boolean) => (dark ? "Schéma sombre :" : "Schéma clair :"),
+    sketch:
+      "La structure ci-dessous est un croquis approximatif qui transmet l'intention, pas une spécification finale. Ne la reproduisez pas comme une image statique ; construisez l'application complète et réellement utilisable qu'un tel produit est normalement censé être.",
+    hColor: "## Couleurs",
+    dynamic: (pl: Platform) =>
+      pl === "web"
+        ? "Utiliser la couleur dynamique : quand le navigateur ou l'OS expose la couleur d'accent de l'utilisateur, générer le schéma Material 3 à partir d'elle comme graine, et retomber sur les couleurs ci-dessous quand elle n'est pas disponible."
+        : "Utiliser la couleur dynamique : sur Android 12+, appliquer le schéma généré à partir du fond d'écran de l'utilisateur (dynamicLightColorScheme / dynamicDarkColorScheme), et retomber sur les couleurs ci-dessous quand il n'est pas disponible.",
+    colorIntro: (label: string, fallback: boolean, th: Theme) => {
+      const scheme = `le schéma de couleurs Material 3 ${th.bothModes ? "clair et sombre" : th.dark ? "sombre" : "clair"}${th.contrast === "high" ? " (contraste élevé)" : th.contrast === "medium" ? " (contraste moyen)" : ""}`;
+      return `Le ${fallback ? "thème de secours" : "thème"} est ${label}. Définir ces couleurs sur ${scheme} et référencer chaque couleur de l'interface par son rôle.`;
+    },
+    hTheme: "## Forme, typographie et mouvement",
+    hLayout: "## Structure des écrans",
+    empty: "Rien n'a encore été placé sur l'écran.",
+    screens: (names: string[]) => `Il y a ${names.length} écrans : ${names.join(", ")}.`,
+    placement: (place: Place) => (place === "center" ? "Les pièces du corps sont regroupées au centre vertical de l'écran." : place === "bottom" ? "Les pièces du corps se placent vers le bas de l'écran, au-dessus de la barre de navigation." : "Les pièces du corps sont réparties sur la hauteur de l'écran à intervalles égaux (une seule rangée se place au centre vertical)."),
+    scrolls: (length: number, view: number) => `L'écran mesure ${length}dp, plus long que les ${view}dp que l'appareil affiche : son corps défile verticalement ; les barres et tout ce qui flotte au-dessus du contenu (un FAB, une snackbar) restent fixes pendant le défilement.`,
+    screenHead: (name: string, bg: string | undefined, has: boolean, size?: string) => `L'écran ${name}${size || bg ? ` (${[size, bg ? `fond ${bg}` : ""].filter(Boolean).join(", ")})` : ""}${has ? ", de haut en bas (les pièces qui se chevauchent sont signalées) :" : " est encore vide."}`,
+    loose: "Pièces placées hors des écrans (pièces partagées ou références) :",
+    freeform: "L'écran, de haut en bas :",
+    hBehavior: "## Comportement et navigation",
+    hStyle: "## Styles des composants",
+    styleIntro: "Des indications par composant pour les pièces utilisées. Les nombres sont les valeurs par défaut M3 Expressive : laisser les composants standard faire ce qu'ils font déjà, et ajuster là où le contenu le demande.",
+    hGeneral: "## Directives générales",
+  },
 };
 
 /** The lines an author may add to the general guidance with one tap: each is a short choice in
@@ -1718,6 +2044,13 @@ export const PROMPT_OPTION_TEXT: Record<Lang, Record<PromptOption, { label: stri
     languages: { label: "일본어와 영어", icon: "translate", line: "UI 문구를 일본어와 영어로 모두 준비하고 기기 언어 설정을 따른다." },
     offline: { label: "오프라인 지원", icon: "cloud_off", line: "네트워크가 없어도 주요 기능을 쓸 수 있게 하고, 필요하면 재연결 시 동기화한다." },
   },
+  fr: {
+    deliverable: { label: "Aucune vérification, livrable uniquement", icon: "package_2", line: (pl) => `Ne pas vérifier ${pl === "web" ? "dans un navigateur" : "sur un émulateur ou un appareil"}. Une fois l'implémentation terminée, ${pl === "web" ? "lancer la production build et fournir sa sortie" : "produire un release APK signé"} comme livrable.` },
+    tests: { label: "Écrire des tests", icon: "science", line: "Écrire des tests unitaires pour la logique principale et livrer avec tous les tests au vert." },
+    darkMode: { label: "Mode sombre", icon: "dark_mode", line: "Prendre en charge les jeux de couleurs clair et sombre, en suivant le réglage du système." },
+    languages: { label: "Japonais et anglais", icon: "translate", line: "Fournir les libellés de l'interface en japonais et en anglais, en suivant la langue de l'appareil." },
+    offline: { label: "Fonctionne hors ligne", icon: "cloud_off", line: "Garder les fonctions principales utilisables sans réseau, et synchroniser à son retour si besoin." },
+  },
 };
 
 /** A place in the prompt the outline can point at: a section heading, or the line a screen
@@ -1739,6 +2072,7 @@ export function promptMarks(text: string, frames: Frame[], lang: Lang = getLang(
     }
     const at = left.findIndex((f) => {
       const name = q(f.name || ph.screen);
+      if (lang === "fr") return l.startsWith(`L'écran ${name}`);
       return word ? l.startsWith(name + word) : l.startsWith(`The ${name} screen`);
     });
     if (at < 0) return;
