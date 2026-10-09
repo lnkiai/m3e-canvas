@@ -8,7 +8,7 @@ describe("isLang", () => {
   });
 
   it("rejects anything else", () => {
-    expect(isLang("fr")).toBe(false);
+    expect(isLang("de")).toBe(false);
     expect(isLang(undefined)).toBe(false);
   });
 });

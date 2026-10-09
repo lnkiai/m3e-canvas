@@ -4,7 +4,7 @@ import { Lang, setGlobalLang } from "./i18n";
 import { buildPrompt } from "./prompt";
 import { BACK_TARGET, DEFAULT_THEME, Doc, Item, Platform, defaultTabs, makeItem, paletteOf } from "./tokens";
 
-const LANGS: Lang[] = ["ja", "en", "zh", "ko"];
+const LANGS: Lang[] = ["ja", "en", "zh", "ko", "fr"];
 
 /* Section headings in the order buildPrompt must emit them. */
 const SECTIONS: Record<Lang, string[]> = {
@@ -12,6 +12,7 @@ const SECTIONS: Record<Lang, string[]> = {
   en: ["## Colors", "## Shape, type and motion", "## Layout", "## Behavior and navigation", "## Component styles", "## General guidance"],
   zh: ["## 配色", "## 形状、字体与动效", "## 屏幕结构", "## 行为与屏幕跳转", "## 各组件的样式", "## 整体原则"],
   ko: ["## 색상", "## 모양, 글꼴 및 모션", "## 화면 구성", "## 동작 및 화면 전환", "## 부품별 스타일", "## 전체 지침"],
+  fr: ["## Couleurs", "## Forme, typographie et mouvement", "## Structure des écrans", "## Comportement et navigation", "## Styles des composants", "## Directives générales"],
 };
 
 const PLATFORM_LINE: Record<Lang, Record<Platform, string>> = {
@@ -19,6 +20,7 @@ const PLATFORM_LINE: Record<Lang, Record<Platform, string>> = {
   en: { android: "Build it for Android, as a native app.", web: "Build it for the web, as an app that runs in the browser." },
   zh: { android: "实现目标是 Android（原生应用）。", web: "实现目标是 Web（在浏览器中运行的应用）。" },
   ko: { android: "Android 네이티브 앱으로 구현한다.", web: "브라우저에서 실행되는 웹 앱으로 구현한다." },
+  fr: { android: "Implémentez-le pour Android, en tant qu'app native.", web: "Implémentez-le pour le web, en tant qu'app qui s'exécute dans le navigateur." },
 };
 
 /* One phone screen with a top app bar, a connected pair of buttons (one with a
@@ -66,13 +68,14 @@ const QUOTED: Record<Lang, { label: string; others: string[] }> = {
   en: { label: '"Save"', others: ["「Save」", "“Save”"] },
   zh: { label: "“Save”", others: ["「Save」", '"Save"'] },
   ko: { label: '"Save"', others: ["「Save」", "“Save”"] },
+  fr: { label: "« Save »", others: ["「Save」", '"Save"', "“Save”"] },
 };
 
 describe("progress track thickness", () => {
   afterEach(() => setGlobalLang("ja"));
 
   it.each(LANGS)("describes the selected thickness, including the legacy default, in %s", (lang) => {
-    const label = { ja: "トラックの太さ", en: "track thickness", zh: "轨道粗细", ko: "트랙 두께" }[lang];
+    const label = { ja: "トラックの太さ", en: "track thickness", zh: "轨道粗细", ko: "트랙 두께", fr: "épaisseur de piste" }[lang];
     for (const kind of ["linearProgress", "circularProgress"] as const) {
       for (const trackThickness of [undefined, 4, 6, 8] as const) {
         const doc = fixture();
@@ -99,12 +102,14 @@ describe("card image placement", () => {
     en: { top: "on top", bottom: "along the bottom", leading: "filling the leading side", trailing: "filling the trailing side", background: "as a full-bleed background" },
     zh: { top: "顶部是", bottom: "底部是", leading: "左侧（全高）是", trailing: "右侧（全高）是", background: "整张卡片的背景是" },
     ko: { top: "위쪽에", bottom: "아래쪽에", leading: "앞쪽(전체 높이)에", trailing: "뒤쪽(전체 높이)에", background: "배경 전체에" },
+    fr: { top: "en haut", bottom: "en bas", leading: "remplissant le côté de début", trailing: "remplissant le côté de fin", background: "fond pleine page" },
   };
   const SIZED: Record<Lang, { top: string; side: string }> = {
     ja: { top: "（高さ 96dp）", side: "（幅 96dp）" },
     en: { top: "(96dp tall)", side: "(96dp wide)" },
     zh: { top: "（高 96dp）", side: "（宽 96dp）" },
     ko: { top: "(높이 96dp)", side: "(너비 96dp)" },
+    fr: { top: "(96dp de haut)", side: "(96dp de large)" },
   };
   /* the screen-layout section alone — the card's own style note also names the placements —
    * for a card standing in its own group so its full sentence is written out */
@@ -117,7 +122,7 @@ describe("card image placement", () => {
   }
 
   it.each(LANGS)("says where the image area sits, treating no placement as the top, in %s", (lang) => {
-    for (const pos of [undefined, "top", "leading", "trailing", "background"] as const) {
+    for (const pos of [undefined, "top", "bottom", "leading", "trailing", "background"] as const) {
       expect(cardLayout(lang, { imagePos: pos }), `${lang} ${pos}`).toContain(PLACEMENT[lang][pos ?? "top"]);
     }
   });
@@ -131,13 +136,13 @@ describe("card image placement", () => {
   });
 
   it.each(LANGS)("mentions a text position or color only when it differs from the automatic one in %s", (lang) => {
-    const color: Record<Lang, string> = { ja: "文字色 primary", en: "text in primary", zh: "文字颜色 primary", ko: "텍스트 색상 primary" };
-    const bottom: Record<Lang, string> = { ja: "文字は下寄せ", en: "text aligned to the bottom", zh: "文字底部对齐", ko: "텍스트 아래 정렬" };
+    const color: Record<Lang, string> = { ja: "文字色 primary", en: "text in primary", zh: "文字颜色 primary", ko: "텍스트 색상 primary", fr: "texte en primary" };
+    const bottom: Record<Lang, string> = { ja: "文字は下寄せ", en: "text aligned to the bottom", zh: "文字底部对齐", ko: "텍스트 아래 정렬", fr: "texte aligné en bas" };
     expect(cardLayout(lang, {})).not.toContain(color[lang]);
     expect(cardLayout(lang, { textColor: "primary" })).toContain(color[lang]);
     expect(cardLayout(lang, { contentAlign: "end" })).toContain(bottom[lang]);
     expect(cardLayout(lang, { imagePos: "background", contentAlign: "end" })).not.toContain(bottom[lang]);
-    const centred: Record<Lang, string> = { ja: "文字は中央揃え", en: "text centred", zh: "文字居中", ko: "텍스트 가운데 정렬" };
+    const centred: Record<Lang, string> = { ja: "文字は中央揃え", en: "text centred", zh: "文字居中", ko: "텍스트 가운데 정렬", fr: "texte centré" };
     expect(cardLayout(lang, { textAlign: "start" })).not.toContain(centred[lang]);
     expect(cardLayout(lang, { textAlign: "center" })).toContain(centred[lang]);
   });
@@ -188,10 +193,10 @@ describe("navigation rail expansion", () => {
   });
 
   it.each(LANGS)("exports only the selected rail state and presentation in %s", (lang) => {
-    const expandedText = { ja: "展開状態", en: "NavigationRail, expanded,", zh: "展开状态", ko: "펼친 상태" }[lang];
-    const collapsedText = { ja: "折りたたみ状態", en: "NavigationRail, collapsed,", zh: "折叠状态", ko: "접힌 상태" }[lang];
-    const modalText = { ja: "モーダル型：展開時", en: "modal overlay:", zh: "模态覆盖：", ko: "모달 오버레이:" }[lang];
-    const nonModalText = { ja: "非モーダル型：現在", en: "non-modal layout:", zh: "非模态布局：", ko: "비모달 레이아웃:" }[lang];
+    const expandedText = { ja: "展開状態", en: "NavigationRail, expanded,", zh: "展开状态", ko: "펼친 상태", fr: "déployé" }[lang];
+    const collapsedText = { ja: "折りたたみ状態", en: "NavigationRail, collapsed,", zh: "折叠状态", ko: "접힌 상태", fr: "replié" }[lang];
+    const modalText = { ja: "モーダル型：展開時", en: "modal overlay:", zh: "模态覆盖：", ko: "모달 오버레이:", fr: "recouvrement modal :" }[lang];
+    const nonModalText = { ja: "非モーダル型：現在", en: "non-modal layout:", zh: "非模态布局：", ko: "비모달 레이아웃:", fr: "mise en page non modale :" }[lang];
     for (const platform of ["android", "web"] as const) {
       for (const railExpanded of [false, true]) {
         for (const railModal of [false, true]) {
@@ -211,7 +216,7 @@ describe("navigation rail expansion", () => {
           expect(layout).not.toContain(railModal ? nonModalText : modalText);
           expect(layout).toContain(`${railExpanded ? 220 : 96}dp`);
           expect(layout).toContain(railModal ? "ModalWideNavigationRail" : "WideNavigationRail");
-          expect(layout).toContain({ ja: "「Saved」が選択状態", en: '"Saved" is selected', zh: "“Saved”为选中状态", ko: '"Saved" 선택됨' }[lang]);
+          expect(layout).toContain({ ja: "「Saved」が選択状態", en: '"Saved" is selected', zh: "“Saved”为选中状态", ko: '"Saved" 선택됨', fr: "« Saved » est sélectionné" }[lang]);
           const styles = styleBullets(prompt, lang).join("\n");
           expect(styles).toContain("220dp");
           expect(styles).toContain("96dp");
@@ -309,6 +314,7 @@ describe("buildPrompt for the camera, map and dropdown parts", () => {
     en: ["camera preview", "map"],
     zh: ["相机预览", "地图"],
     ko: ["카메라 미리보기", "지도"],
+    fr: ["aperçu caméra", "plan"],
   };
 
   function screen(lang: Lang, items: Item[]) {
@@ -353,7 +359,7 @@ describe("scrollable tab rows in the prompt", () => {
     frames: [{ id: "f", name: "Home", x: 0, y: 0 }],
     groups: [{ id: "g", x: 0, y: 100, axis: "x", items: [withTabs(n)] }],
   });
-  const marker: Record<Lang, string> = { ja: "横にスクロールするタブ", en: "horizontally scrolling tab row", zh: "可横向滚动", ko: "가로로 스크롤되는 탭" };
+  const marker: Record<Lang, string> = { ja: "横にスクロールするタブ", en: "horizontally scrolling tab row", zh: "可横向滚动", ko: "가로로 스크롤되는 탭", fr: "à défilement horizontal" };
 
   it.each(LANGS)("says a row of seven tabs scrolls in %s, and a row of five does not", (lang) => {
     expect(buildPrompt(doc(7), {}, undefined, lang)).toContain(marker[lang]);
@@ -373,6 +379,7 @@ describe("bottom sheet", () => {
       en: ["bottom sheet with a drag handle at the top", "16dp top corners", "modal bottom sheets"],
       zh: ["底部面板（顶部带拖动条", "上方圆角 16dp", "ModalBottomSheet"],
       ko: ["하단 시트(위쪽 드래그 핸들 포함", "위 모서리 16dp", "ModalBottomSheet"],
+      fr: ["panneau inférieur de", "coins supérieurs de 16dp", "panneaux inférieurs modaux"],
     }[lang];
     for (const w of words) expect(prompt).toContain(w);
   });
@@ -394,8 +401,9 @@ describe("cards and images laid out as a grid", () => {
     en: (c) => `in ${c} columns`,
     zh: (c) => `${c} 列网格`,
     ko: (c) => `${c}열 그리드`,
+    fr: (c) => `en ${c} colonnes`,
   };
-  const ONE_ROW: Record<Lang, string> = { ja: "横一列に並べます", en: "in one row from left to right", zh: "横向排成一行", ko: "한 행에 다음 항목을 배치합니다" };
+  const ONE_ROW: Record<Lang, string> = { ja: "横一列に並べます", en: "in one row from left to right", zh: "横向排成一行", ko: "한 행에 다음 항목을 배치합니다", fr: "sur une même ligne de gauche à droite" };
 
   /* cells of `w` wide cards (or images) at the given column and row offsets inside a phone screen */
   function layout(lang: Lang, cells: { x: number; y: number; kind?: Item["kind"]; w?: number }[]) {
@@ -452,6 +460,7 @@ describe("a screen whose body scrolls", () => {
     en: "The screen runs 1784dp, longer than the 892dp the device shows, so its body scrolls vertically;",
     zh: "屏幕总长 1784dp，超过设备可显示的 892dp，因此内容区域可纵向滚动；",
     ko: "화면 길이는 1784dp로 기기에 보이는 892dp보다 길어서 본문이 세로로 스크롤된다.",
+    fr: "L'écran mesure 1784dp, plus long que les 892dp que l'appareil affiche : son corps défile verticalement ;",
   };
   const prompt = (lang: Lang, length?: number) => {
     setGlobalLang(lang);

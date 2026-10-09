@@ -28,7 +28,7 @@ function initialLanguage(): Lang {
     if (isLang(ui?.lang)) return ui.lang;
   } catch {}
   const language = (navigator.language ?? "").toLowerCase();
-  return language.startsWith("zh") ? "zh" : language.startsWith("ko") ? "ko" : language.startsWith("ja") ? "ja" : "en";
+  return language.startsWith("fr") ? "fr" : language.startsWith("zh") ? "zh" : language.startsWith("ko") ? "ko" : language.startsWith("ja") ? "ja" : "en";
 }
 
 /** how long the overlay takes to fade; matches .m3e-boot in globals.css */
