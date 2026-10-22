@@ -126,6 +126,7 @@ import { TidyState, PANEL_FADE_H } from "@/components/ui";
 import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
 import { barSlotOf, bodyRect, carryFrame, holdsEdgeBar, maxFrameLength, minFrameLength, pullInto, stretchFrame, tidyFrame } from "@/lib/tidy";
 import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
+import { joinRun, landMoved, liftSelection, sequenceOf, sequenceSize } from "@/lib/move";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
@@ -233,7 +234,30 @@ type Gesture =
       groups: { id: string; x: number; y: number }[];
       moved: boolean;
     }
-  | { kind: "group"; id: string; sx: number; sy: number; gx: number; gy: number; moved: boolean; overBin: boolean; guide?: Guide | null };
+  | { kind: "group"; id: string; sx: number; sy: number; gx: number; gy: number; moved: boolean; overBin: boolean; guide?: Guide | null }
+  | {
+      /** several selected parts carried together; they are lifted out of their runs once the
+       *  pointer has travelled, and a press that never moves selects just the pressed part */
+      kind: "multi";
+      ids: string[];
+      click: string[];
+      sx: number;
+      sy: number;
+      moved: boolean;
+      overBin: boolean;
+      guide?: Guide | null;
+      /** some of the selection sits in a locked group, so nothing moves */
+      locked?: boolean;
+      /** the moving groups as they stood once lifted, their screens then, and their joint bounds */
+      start?: { id: string; x: number; y: number }[];
+      from?: Map<string, string | undefined>;
+      box?: { l: number; t: number; r: number; b: number };
+      /** the parts in the order a run would take them, when they can all join one, and the
+       *  room they take there */
+      seq?: { units: { id: string; box: { l: number; t: number; r: number; b: number } }[]; items: Item[]; size: { w: number; h: number }; lead: { x: number; y: number } } | null;
+      /** the run the sequence is being held over, as a single part's magnet */
+      snap?: Snap | null;
+    };
 
 /** everything in a document apart from its screens and parts */
 type DocMeta = Omit<Doc, "groups" | "frames">;
@@ -1164,16 +1188,17 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   /** Nearest slot inside the magnetic field with an attraction that ramps
    *  from 0 at the edge to 1 on target. A part only fuses with its own kind. */
   const findSnap = useCallback(
-    (item: Item, left: number, top: number): Snap | null => {
+    (item: Item, left: number, top: number, opts?: { size?: { w: number; h: number }; skip?: Set<string> }): Snap | null => {
       const spec = connectSpecOf(item);
       if (!spec) return null;
       let best: Snap | null = null;
       let bestD = 1;
       for (const g of groupsRef.current) {
         /* a locked run is finished: nothing joins it, so it never moves to make room */
-        if (g.free || g.locked || g.axis !== spec.axis || !g.items[0] || !canJoin(g.items[0], item))
+        if (g.free || g.locked || opts?.skip?.has(g.id) || g.axis !== spec.axis || !g.items[0] || !canJoin(g.items[0], item))
           continue;
-        const sz = sizeRef(item);
+        /* several parts carried as one sequence look for the room the whole sequence takes */
+        const sz = opts?.size ?? sizeRef(item);
         /* across the run, the part and the band it would join are lined up by their middles:
          * a small part carried onto a tall run should still find it, and it takes the run's
          * size as it lands anyway */
@@ -1327,6 +1352,18 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     e.preventDefault();
     e.stopPropagation();
     flushPending();
+    /* a part pressed inside a larger selection carries the whole selection with it; a plain
+     * click (no travel) still narrows the selection to what was pressed */
+    const unit = new Set(g.free ? g.items.map((it) => it.id) : [item.id]);
+    if (!e.shiftKey && !mobileRef.current && selectedIds.includes(item.id) && selectedIds.some((id) => !unit.has(id))) {
+      setSelectedFrameId(null);
+      setSelectedLinkId(null);
+      setRightTab("edit");
+      const mg: Gesture = { kind: "multi", ids: selectedIds, click: [...unit], sx: e.clientX, sy: e.clientY, moved: false, overBin: false };
+      gestureRef.current = mg;
+      setGesture(mg);
+      return;
+    }
     if (g.free) {
       setSelectedIds((cur) => (e.shiftKey ? [...cur.filter((x) => !g.items.some((it) => it.id === x)), ...g.items.map((it) => it.id)] : g.items.map((it) => it.id)));
       setSelectedFrameId(null);
@@ -2004,6 +2041,91 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
         setGroups((gs) => gs.map((x) => (x.id === g.id ? placed : x)));
         return;
       }
+      if (g.kind === "multi") {
+        const z = viewRef.current.z;
+        const dx = (e.clientX - g.sx) / z;
+        const dy = (e.clientY - g.sy) / z;
+        if (!g.moved) {
+          if (Math.hypot(dx, dy) * z < 4) return;
+          g.moved = true;
+          const ids = new Set(g.ids);
+          /* a locked group stays where it is, and the rest of the selection does not move without it */
+          if (groupsRef.current.some((x) => x.locked && x.items.some((it) => ids.has(it.id)))) {
+            g.locked = true;
+            showToast(lockedGroupMsg());
+            return;
+          }
+          /* one undo step for the whole move, taken before anything is lifted out of its run */
+          snapshot();
+          const lifted = liftSelection(groupsRef.current, ids, widthsRef.current, uid);
+          const moving = new Set(lifted.moving);
+          const units = lifted.groups.filter((x) => moving.has(x.id));
+          g.start = units.map((x) => ({ id: x.id, x: x.x, y: x.y }));
+          g.from = new Map(units.map((x) => [x.id, frameOfGroup(x, framesRef.current, widthsRef.current)?.id] as const));
+          g.box = units
+            .map((x) => groupBounds(x, widthsRef.current))
+            .reduce((a, o) => ({ l: Math.min(a.l, o.l), t: Math.min(a.t, o.t), r: Math.max(a.r, o.r), b: Math.max(a.b, o.b) }));
+          const seq = sequenceOf(units, widthsRef.current);
+          const lead = seq && groupBounds(seq.units[0], widthsRef.current);
+          g.seq = seq && lead && { units: seq.units.map((x) => ({ id: x.id, box: groupBounds(x, widthsRef.current) })), items: seq.items, size: sequenceSize(seq.items, seq.units[0].axis, widthsRef.current), lead: { x: lead.l, y: lead.t } };
+          for (const x of lifted.groups) instantRef.current.add(x.id);
+          setGroups(lifted.groups);
+        }
+        if (g.locked || !g.start || !g.box) return;
+        g.overBin = inBin(e.clientX);
+        const b = g.box;
+        const w = b.r - b.l;
+        const h = b.b - b.t;
+        const loose = e.ctrlKey || e.metaKey;
+        const at = new Map(g.start.map((o) => [o.id, o]));
+        for (const o of g.start) instantRef.current.add(o.id);
+        /* parts that can all join one run are drawn to it like a single part is: the run opens a
+         * hole the size of the whole sequence, and the parts line up toward it in their order */
+        const seq = g.seq;
+        const leadAt = seq?.lead;
+        g.snap = seq && leadAt && !loose && !g.overBin ? findSnap(seq.items[0], leadAt.x + dx, leadAt.y + dy, { size: seq.size, skip: new Set(g.start.map((o) => o.id)) }) : null;
+        const host = g.snap ? groupsRef.current.find((x) => x.id === g.snap!.groupId) : undefined;
+        if (seq && g.snap && host && leadAt) {
+          holdGap(host.id, g.snap.index, seq.size.w, seq.size.h);
+          g.guide = null;
+          setGesture({ ...g });
+          const slot = restPos(host, g.snap.index, seq.size);
+          const pull = g.snap.pull;
+          /* each group's place in the line, one gap after the one before it */
+          const line = new Map<string, { x: number; y: number }>();
+          let off = 0;
+          for (const { id, box: r } of seq.units) {
+            const o = at.get(id)!;
+            const tx = host.axis === "x" ? slot.left + off : slot.left;
+            const ty = host.axis === "x" ? slot.top : slot.top + off;
+            off += (host.axis === "x" ? r.r - r.l : r.b - r.t) + GAP;
+            /* from where the pointer carries it toward its place in the line, by the magnet's pull */
+            line.set(id, { x: Math.round(lerp(o.x + dx, o.x + tx - r.l, pull)), y: Math.round(lerp(o.y + dy, o.y + ty - r.t, pull)) });
+          }
+          setGroups((gs) => gs.map((x) => line.get(x.id) ? { ...x, ...line.get(x.id)! } : x));
+          return;
+        }
+        closeGap();
+        /* the selection lines up and settles on the grid as one block, the way a single group does */
+        const guide = loose || g.overBin ? null : guideFor(b.l + dx, b.t + dy, { w, h }, new Set(g.ids));
+        g.guide = guide;
+        setGesture({ ...g });
+        const cx = b.l + dx + w / 2;
+        const cy = b.t + dy + h / 2;
+        const f = framesRef.current.find((fr) => {
+          const r = frameRect(fr);
+          return cx >= r.l && cx <= r.r && cy >= r.t && cy <= r.b;
+        });
+        const mx = loose ? dx : guide?.x !== undefined ? Math.round(guide.x - b.l) : onGrid(b.l + dx, f?.x ?? 0) - b.l;
+        const my = loose ? dy : guide?.y !== undefined ? Math.round(guide.y - b.t) : onGrid(b.t + dy, f?.y ?? 0) - b.t;
+        setGroups((gs) =>
+          gs.map((x) => {
+            const o = at.get(x.id);
+            return o ? { ...x, x: o.x + mx, y: o.y + my } : x;
+          }),
+        );
+        return;
+      }
       if (g.kind === "frame") {
         const z = viewRef.current.z;
         const dx = (e.clientX - g.sx) / z;
@@ -2060,6 +2182,33 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
       if (g?.kind === "group" && g.moved && inBin(e.clientX)) {
         setGroups((gs) => gs.filter((x) => x.id !== g.id));
         setSelectedIds([]);
+      }
+      if (g?.kind === "multi") {
+        if (!g.moved) {
+          setSelectedIds(g.click);
+          return;
+        }
+        if (g.locked || !g.start || !g.from) return;
+        const moving = new Set(g.start.map((o) => o.id));
+        const snap = g.snap;
+        const seq = g.seq;
+        /* held over a run, the sequence joins it where the hole was opened for it */
+        if (snap && seq && !(e.ctrlKey || e.metaKey) && !inBin(e.clientX)) {
+          if (gapTimer.current) clearTimeout(gapTimer.current);
+          setGap(null);
+          instantRef.current.add(snap.groupId);
+          setGroups((gs) => joinRun(gs, moving, snap.groupId, snap.index, seq.items, widthsRef.current));
+          return;
+        }
+        closeGap();
+        /* the whole selection dragged onto the parts panel is deleted, as one group would be */
+        if (inBin(e.clientX)) {
+          setGroups((gs) => gs.filter((x) => !moving.has(x.id)));
+          setSelectedIds([]);
+          return;
+        }
+        const from = g.from;
+        setGroups((gs) => landMoved(gs, moving, from, framesRef.current, widthsRef.current));
       }
     };
     window.addEventListener("pointermove", move);
@@ -3868,8 +4017,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   };
 
   const showRight = rightOpen && !isMobile;
-  const overBin = (!!drag?.active && drag.overBin) || (gesture?.kind === "group" && gesture.overBin);
-  const guide = drag?.active ? drag.guide : gesture?.kind === "group" && gesture.moved ? (gesture.guide ?? null) : null;
+  const overBin = (!!drag?.active && drag.overBin) || ((gesture?.kind === "group" || gesture?.kind === "multi") && gesture.overBin);
+  const guide = drag?.active ? drag.guide : (gesture?.kind === "group" || gesture?.kind === "multi") && gesture.moved ? (gesture.guide ?? null) : null;
   const visibleWorld = (() => {
     const r = canvasRef.current?.getBoundingClientRect();
     return {
