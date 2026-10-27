@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { complete, hasKey, isSecureUrl, type AiSettings, type Provider } from "./ai";
+import { complete, hasKey, isSecureUrl, proposeBehavior, type AiSettings, type Provider } from "./ai";
+import type { Doc } from "./tokens";
 
 const settings = (over: Partial<AiSettings> = {}): AiSettings =>
   ({ provider: "openai", baseUrl: "https://api.example.test", model: "test-model", key: "test-key", ...over });
@@ -104,6 +105,28 @@ describe("complete on the openai-compatible path", () => {
   it("throws empty when the reply has no content", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ choices: [{ finish_reason: "stop", message: {} }] })));
     await expect(complete(settings(), "s", "u")).rejects.toThrow("empty");
+  });
+});
+
+describe("proposeBehavior", () => {
+  const frame = { id: "f1", name: "Home", x: 0, y: 0, w: 400, h: 800 };
+  const doc = { title: "App", brief: "", frames: [frame],
+    groups: [{ id: "g1", x: 100, y: 100, axis: "x", items: [{ id: "i1", kind: "button", label: "Run" }] }] } as unknown as Doc;
+
+  it("keeps code-fence markers inside the returned value", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      content: [{ type: "text", text: "```json\n{\"notes\":{\"i1\":\"Wrap the ```python snippet``` like this\"}}\n```" }],
+    }))));
+    await expect(proposeBehavior(settings({ provider: "claude" }), doc, {}, frame, "en", "i1"))
+      .resolves.toBe("Wrap the ```python snippet``` like this");
+  });
+
+  it("still parses a reply whose fences only fit the JSON once stripped", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      content: [{ type: "text", text: "{\"notes\":{\"i1\": \"A note\"```}}" }],
+    }))));
+    await expect(proposeBehavior(settings({ provider: "claude" }), doc, {}, frame, "en", "i1"))
+      .resolves.toBe("A note");
   });
 });
 
