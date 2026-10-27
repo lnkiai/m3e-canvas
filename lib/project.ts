@@ -74,9 +74,10 @@ const validFrame = (frame: unknown) =>
 export const isProject = (value: unknown): value is Doc =>
   isRecord(value) && Array.isArray(value.groups) && Array.isArray(value.frames) && value.groups.every(validGroup) && value.frames.every(validFrame) && (value.platform === undefined || isPlatform(value.platform)) && (value.promptOptions === undefined || (Array.isArray(value.promptOptions) && value.promptOptions.every((o) => typeof o === "string")));
 
-/** the file name a project is saved under: m3e-canvas, followed by the app's name when it has one */
+/** the file name a project is saved under: m3e-canvas, followed by the app's name when it has one.
+ *  A document the validator accepts may carry no title (legacy minimal files), so guard the trim. */
 export const projectFileName = (doc: Doc) => {
-  const name = doc.title
+  const name = (typeof doc.title === "string" ? doc.title : "")
     .trim()
     .replace(/[\\/:*?"<>|]+/g, " ")
     .replace(/\s+/g, " ")

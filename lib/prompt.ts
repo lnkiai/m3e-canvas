@@ -1808,8 +1808,10 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
     .map((k) => (k === "navRail" && wideRail ? `${legacyRail ? `${STYLE_NOTES[lang].navRail} ` : ""}${WIDE_RAIL_STYLE[lang]}` : (platform === "web" && STYLE_NOTES_WEB[lang][k]) || STYLE_NOTES[lang][k]))
     .filter((s): s is string => !!s);
 
-  const title = only ? ph.titleOnly(q(only.name || ph.screen)) : doc.title.trim() || ph.titleAll(frames.length);
-  lines.push(ph.intro(title, doc.brief.trim()));
+  // isProject deliberately accepts legacy minimal documents without title or brief
+  // (project.test.ts pins that), so the prompt must not trim what may be absent.
+  const title = only ? ph.titleOnly(q(only.name || ph.screen)) : (typeof doc.title === "string" ? doc.title.trim() : "") || ph.titleAll(frames.length);
+  lines.push(ph.intro(title, typeof doc.brief === "string" ? doc.brief.trim() : ""));
   lines.push(ph.target(viewport, platform, th.dark, th.bothModes));
   lines.push(ph.platform(platform));
   lines.push(ph.sketch);

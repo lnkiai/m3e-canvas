@@ -157,6 +157,13 @@ describe("projectFileName", () => {
   ])("sanitizes %j to %j", (title, expected) => {
     expect(projectFileName({ ...doc(), title })).toBe(expected);
   });
+
+  it("falls back to the plain name for a legacy document with no title", () => {
+    // isProject accepts minimal legacy files without a title; saving one must not crash on trim.
+    const legacy = { groups: [], frames: [{ id: "f", name: "Home", x: 0, y: 0 }] } as unknown as Doc;
+    expect(isProject(legacy)).toBe(true);
+    expect(projectFileName(legacy)).toBe("m3e-canvas.json");
+  });
 });
 
 describe("readProject", () => {
