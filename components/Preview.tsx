@@ -206,6 +206,7 @@ function Tappable({
   railAnimating,
   panY,
   easeWidth,
+  pointerEvents,
 }: {
   item: Item;
   p: Palette;
@@ -227,6 +228,8 @@ function Tappable({
   panY?: boolean;
   /** this preview part is allowed to animate between measured and fixed widths */
   easeWidth?: boolean;
+  /** keep visible parts interactive when their group's empty space lets input through */
+  pointerEvents?: "auto";
 }) {
   const lang = useLang();
   const [pressed, setPressed] = useState(false);
@@ -583,7 +586,7 @@ function Tappable({
         endRipple(e.pointerId);
       }}
       onClick={onPick ? () => onMenu?.(!menu) : onTap}
-      style={{ cursor: live || onValue ? "pointer" : "default", display: "flex", position: "relative", touchAction: scrollRow ? (panY ? "pan-x pan-y" : "pan-x") : panY ? "pan-y" : "none" }}
+      style={{ cursor: live || onValue ? "pointer" : "default", display: "flex", position: "relative", pointerEvents, touchAction: scrollRow ? (panY ? "pan-x pan-y" : "pan-x") : panY ? "pan-y" : "none" }}
     >
       <M3Node item={item} palette={p} widths={widths} radii={radii} interactive={false} pressed={pressed && !onValue && !boxless} tabScroll={scrollRow ? tabScroll : undefined} easeWidth={easeWidth} />
       {live && !boxless && !segmented && TAP_LIT.includes(item.kind) && (
@@ -768,7 +771,9 @@ function Screen({
   const [menuId, setMenuId] = useState<string | null>(null);
   /* a folding FAB folds on the way down and stays folded until the body scrolls back up */
   const [fabFolded, setFabFolded] = useState(false);
-  const fabScrollTop = useRef(0);
+  const [navHidden, setNavHidden] = useState(false);
+  const bodyScrollTop = useRef(0);
+  const pointerScroll = useRef(false);
   const [railStates, setRailStates] = useState<Record<string, boolean>>({});
   const [railMotion, setRailMotion] = useState<(ReturnType<typeof railMotionTargets> & { animate: boolean }) | null>(null);
   const lang = useLang();
@@ -799,11 +804,23 @@ function Screen({
   }
   const lift = (g: Group) => pins.get(g.id) ?? 0;
   const hasFoldingFab = shownGroups.some((g) => g.items.some((it) => it.kind === "extendedFab" && it.collapseOnScroll));
-  const onBodyScroll = (e: { currentTarget: { scrollTop: number } }) => {
-    const top = e.currentTarget.scrollTop;
-    const down = top - fabScrollTop.current;
-    fabScrollTop.current = top;
+  const showNavigation = () => {
+    pointerScroll.current = false;
+    setNavHidden(false);
+  };
+  const onBodyScroll = (e: { currentTarget: { scrollTop: number; scrollHeight: number; clientHeight: number } }) => {
+    const body = e.currentTarget;
+    // Body parts can extend past the authored screen length, so measure the real range.
+    // Ignore elastic overscroll so bouncing at an edge cannot reverse the direction.
+    const top = clamp(body.scrollTop, 0, body.scrollHeight - body.clientHeight);
+    const down = top - bodyScrollTop.current;
+    bodyScrollTop.current = top;
     if (hasFoldingFab && down !== 0) setFabFolded(down > 0);
+    // Only direct wheel/touch scrolling hides a bar. Preserve indicated focus
+    // without pinning it open after a pointer click.
+    const focusedNav = screenRef.current?.querySelector("[data-scroll-nav] :focus-visible");
+    if (!pointerScroll.current || focusedNav || top === 0) setNavHidden(false);
+    else if (down !== 0) setNavHidden(down > 0);
   };
   const hasModal = modalIds.size > 0;
   const modalActive = interactive && hasModal;
@@ -900,6 +917,9 @@ function Screen({
           data-scroll-body
           className="m3-hidden-scrollbar"
           onScroll={onBodyScroll}
+          onWheelCapture={(e) => { if (e.deltaY !== 0) pointerScroll.current = true; }}
+          onTouchMoveCapture={() => { pointerScroll.current = true; }}
+          onScrollEnd={() => { pointerScroll.current = false; }}
           style={{ position: "absolute", inset: 0, overflowX: "hidden", overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y" }}
         >
           <div style={{ position: "relative", height: length }}>{nodes.filter((_, i) => !pins.has(shownGroups[i].id))}</div>
@@ -920,6 +940,7 @@ function Screen({
       aria-modal={modalActive ? true : undefined}
       aria-label={modalActive ? t("railState", lang) : frame.name || t("screen", lang)}
       tabIndex={-1}
+      onKeyDownCapture={showNavigation}
       /* the scrim and the pointer guard follow the rail itself, so a peek shows the modal
        * state as authored; the root's inert keeps a non-interactive screen from acting on it */
       onPointerDown={(e) => { if (hasModal) e.stopPropagation(); }}
@@ -945,6 +966,9 @@ function Screen({
            stays where the author put it and the sheet grows into the room above */
         const rising = g.items.length === 1 && splitOpens(g.items[0]) && flipped.has(g.items[0].id) && splitMenuRisesAt(g.items[0], g.y, frame);
         const riseH = rising ? sizeOf({ ...g.items[0], [fabOpen]: undefined }, widths).h : 0;
+        // A hidden bar leaves its layout slot behind. Let input reach the body through
+        // that slot and the group's empty space; visible siblings opt back in below.
+        const passThrough = scrolls && navHidden && g.items.some((it) => it.kind === "bottomNav" && it.hideOnScroll);
         return (
         <div
           key={g.id}
@@ -955,7 +979,7 @@ function Screen({
           inert={hasModal && !g.items.some((it) => modalIds.has(it.id))}
           style={
             g.free
-              ? { position: "absolute", left: g.x - frame.x, top: g.y - frame.y - lift(g), zIndex: g.items.some((it) => modalIds.has(it.id)) ? 4 : g.items.some((it) => it.id === menuId) ? 2 : undefined }
+              ? { position: "absolute", left: g.x - frame.x, top: g.y - frame.y - lift(g), pointerEvents: passThrough ? "none" : undefined, zIndex: g.items.some((it) => modalIds.has(it.id)) ? 4 : g.items.some((it) => it.id === menuId) ? 2 : undefined }
               : {
                   position: "absolute",
                   left: g.x - frame.x + (fabCorner?.w ?? 0),
@@ -966,6 +990,7 @@ function Screen({
                   flexDirection: g.axis === "x" ? "row" : "column",
                   alignItems: g.axis === "x" ? "center" : "stretch",
                   gap: GAP,
+                  pointerEvents: passThrough ? "none" : undefined,
                 }
           }
         >
@@ -1022,6 +1047,7 @@ function Screen({
                   }
                 : undefined;
             const slotActions = it.actions;
+            const scrollingNav = scrolls && it.kind === "bottomNav" && !!it.hideOnScroll;
             const node = (
               <Tappable
                 key={it.id}
@@ -1067,6 +1093,7 @@ function Screen({
                 onRailToggle={it.kind === "navRail" && isWideRail(it) ? (animate) => changeRail(it.id, !it.railExpanded, animate) : undefined}
                 panY={scrolls && !pins.has(g.id)}
                 easeWidth={eases}
+                pointerEvents={passThrough && !scrollingNav ? "auto" : undefined}
               />
             );
             /* Keep the authored width as a right-aligned slot. The visual can then narrow from
@@ -1081,11 +1108,29 @@ function Screen({
                   </div>
                 )
               : node;
-            if (!g.free) return anchored;
+            // Leave the destinations in the accessibility tree, including while offscreen.
+            // Focusing one reveals it immediately, before the next paint.
+            const content = scrollingNav ? (
+              <div
+                key={it.id}
+                data-scroll-nav={it.id}
+                onFocusCapture={showNavigation}
+                style={{ flex: "0 0 auto", overflow: "hidden", pointerEvents: navHidden ? "none" : undefined }}
+              >
+                <motion.div
+                  initial={false}
+                  animate={{ y: navHidden ? "100%" : "0%" }}
+                  transition={{ duration: reducedMotion || !pointerScroll.current ? 0 : 0.2, ease: EASE }}
+                >
+                  {anchored}
+                </motion.div>
+              </div>
+            ) : anchored;
+            if (!g.free) return content;
             const o = g.pos?.[it.id] ?? { x: 0, y: 0 };
             return (
               <div key={it.id} style={{ position: "absolute", left: o.x, top: o.y }}>
-                {anchored}
+                {content}
               </div>
             );
           }))(g.free ? freeRadii(g, widths) : null)}

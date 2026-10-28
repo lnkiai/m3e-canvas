@@ -23,6 +23,7 @@ const validItem = (item: unknown) =>
   (item.railExpanded === undefined || typeof item.railExpanded === "boolean") &&
   (item.railModal === undefined || typeof item.railModal === "boolean") &&
   (item.collapseOnScroll === undefined || typeof item.collapseOnScroll === "boolean") &&
+  (item.hideOnScroll === undefined || typeof item.hideOnScroll === "boolean") &&
   (item.trackThickness === undefined || isTrackThickness(item.trackThickness)) &&
   (item.imagePos === undefined || isCardImagePos(item.imagePos)) &&
   (item.imageSize === undefined || (Number.isFinite(item.imageSize) && (item.imageSize as number) > 0)) &&

@@ -200,6 +200,16 @@ describe("readProject", () => {
     expect(isProject(withItem({ kind: "extendedFab", collapseOnScroll }))).toBe(false);
   });
 
+  it.each([undefined, false, true])("preserves optional navigation bar scroll hiding %s in project files", async (hideOnScroll) => {
+    const value = withItem({ kind: "bottomNav", hideOnScroll });
+    expect(isProject(value)).toBe(true);
+    await expect(readProject(new File([JSON.stringify(value)], "navigation.json"))).resolves.toEqual(JSON.parse(JSON.stringify(value)));
+  });
+
+  it.each([null, 0, 1, "true", "false", {}, []])("rejects non-boolean navigation bar scroll hiding %j", (hideOnScroll) => {
+    expect(isProject(withItem({ kind: "bottomNav", hideOnScroll }))).toBe(false);
+  });
+
   it.each([undefined, 2, 4, 8, 16])("preserves progress thickness %s in project files", async (trackThickness) => {
     const value = withItem({ kind: "linearProgress", wavy: true, trackThickness });
     await expect(readProject(new File([JSON.stringify(value)], "progress.json"))).resolves.toEqual(value);

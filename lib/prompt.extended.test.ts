@@ -223,6 +223,80 @@ describe("extended FAB scroll-collapse prompt", () => {
   });
 });
 
+describe("navigation bar scroll hiding in prompts", () => {
+  const behavior: Record<Lang, string> = {
+    ja: "本文を下へスクロールすると画面の下へ隠れ",
+    en: "scrolling the body down slides it below the screen",
+    zh: "正文向下滚动时滑出屏幕底部隐藏",
+    ko: "본문을 아래로 스크롤하면 화면 아래로 숨고",
+  };
+  const requirements: Record<Lang, string[]> = {
+    ja: [
+      "止めても隠れたまま",
+      "少しでも上へスクロールすると再表示する",
+      "非表示にするのはホイールまたはタッチによる直接の縦スクロール時のみ",
+      "本文の先頭、または移動先にフォーカス表示がある間は常に表示する",
+      "キー入力、ホイールやタッチによらないスクロール、移動先へのフォーカスで即座に再表示する",
+      "直接スクロールによる表示・非表示は 200ms",
+      "動きを減らす設定が有効な場合やキー入力・ホイールやタッチによらないスクロール・フォーカスによる再表示はアニメーションなし",
+    ],
+    en: [
+      "stays hidden at rest",
+      "any upward scrolling reveals it",
+      "Only direct vertical wheel or touch scrolling may hide it",
+      "Keep it visible at the top of the body and while a destination shows a focus indicator",
+      "Keyboard input, scrolling without wheel/touch input, or destination focus reveals it immediately",
+      "Use 200 ms transitions for direct scrolling",
+      "no animation when reduced motion is preferred or when restoring visibility through keyboard input, non-pointer scrolling, or destination focus",
+    ],
+    zh: [
+      "停止滚动后保持隐藏",
+      "任何向上滚动都会重新显示",
+      "仅允许直接的纵向滚轮或触摸滚动触发隐藏",
+      "在正文顶部或目的地显示焦点指示时保持显示",
+      "键盘输入、非滚轮或触摸引起的滚动、目的地获得焦点都会立即显示导航栏",
+      "直接滚动时使用 200ms 显隐过渡",
+      "启用减少动态效果或通过键盘、非指针滚动或焦点恢复时不播放动画",
+    ],
+    ko: [
+      "멈춰도 숨긴 상태를 유지하며",
+      "조금이라도 위로 스크롤하면 다시 표시한다",
+      "휠이나 터치로 직접 세로 스크롤할 때만 숨긴다",
+      "본문 맨 위에 있거나 목적지에 포커스 표시가 있는 동안에는 항상 표시한다",
+      "키 입력, 휠이나 터치 입력 없이 발생한 스크롤, 목적지 포커스 시 즉시 다시 표시한다",
+      "직접 스크롤할 때는 200ms 전환을 사용하고",
+      "동작 줄이기 설정이 켜져 있거나 키 입력, 휠이나 터치 입력 없이 발생한 스크롤, 목적지 포커스로 복원할 때는 애니메이션을 사용하지 않는다",
+    ],
+  };
+  const prompt = (lang: Lang, hideOnScroll?: boolean, length = PHONE_H * 2, kind: Item["kind"] = "bottomNav", platform: Doc["platform"] = "android") => {
+    const nav = { ...makeItem(kind), id: "nav", hideOnScroll };
+    return buildPrompt(baseDoc({ platform, frames: [{ ...phoneFrame, length }], groups: [{ id: "g", x: 0, y: length - 104, axis: "x", items: [nav] }] }), widths, undefined, lang);
+  };
+
+  it.each(["ja", "en", "zh", "ko"] as Lang[])("describes scroll hiding, visibility safeguards and motion in %s on Android and web", (lang) => {
+    for (const platform of ["android", "web"] as const) {
+      const text = prompt(lang, true, PHONE_H * 2, "bottomNav", platform);
+      expect(text).toContain(behavior[lang]);
+      for (const requirement of requirements[lang]) expect(text).toContain(requirement);
+    }
+  });
+
+  it.each(["ja", "en", "zh", "ko"] as Lang[])("only describes hiding for enabled navigation bars on scrollable screens in %s", (lang) => {
+    for (const platform of ["android", "web"] as const) {
+      const texts = [
+        prompt(lang, undefined, PHONE_H * 2, "bottomNav", platform),
+        prompt(lang, false, PHONE_H * 2, "bottomNav", platform),
+        prompt(lang, true, PHONE_H, "bottomNav", platform),
+        prompt(lang, true, PHONE_H * 2, "navRail", platform),
+      ];
+      for (const text of texts) {
+        expect(text).not.toContain(behavior[lang]);
+        for (const requirement of requirements[lang]) expect(text).not.toContain(requirement);
+      }
+    }
+  });
+});
+
 describe("buildPrompt — platform switch", () => {
   it("Android platform mentions Android / Material", () => {
     const doc = baseDoc({ platform: "android" });

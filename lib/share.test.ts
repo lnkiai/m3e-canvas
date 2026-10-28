@@ -71,6 +71,16 @@ describe("shareable", () => {
 });
 
 describe("shareLink and readShareHash", () => {
+  it("preserves navigation bar scroll hiding through compressed and plain share links", async () => {
+    const value = doc();
+    value.groups[0].items = [undefined, false, true].map((hideOnScroll, index) => ({
+      id: `nav-${index}`, kind: "bottomNav", label: "", icon: null, variant: "filled", hideOnScroll,
+    }));
+    const link = await shareLink(value, "https://example.test/canvas/");
+    expect((await readShareHash(new URL(link).hash))?.groups[0].items).toEqual(value.groups[0].items);
+    expect((await readShareHash(plainHash(value)))?.groups[0].items).toEqual(value.groups[0].items);
+  });
+
   it("preserves navigation rail states through compressed and plain share links", async () => {
     const value = doc();
     value.groups[0].items = [

@@ -100,7 +100,7 @@ Sizes are in dp; `size` is the width unless noted. Content width inside the phon
 | kind | what it is | useful fields | default size |
 |---|---|---|---|
 | `topAppBar` | top app bar | `label` title, `icon` leading, `icon2` trailing, `actions` with keys `icon` / `icon2` | 412 × 88, at the top |
-| `bottomNav` | navigation bar | `tabs` (3–5 of `{icon,label}`), `selected` index, `actions` with keys `tab:0`… | 412 × 104, at the bottom |
+| `bottomNav` | navigation bar | `tabs` (3–5 of `{icon,label}`), `selected` index, `actions` with keys `tab:0`…, `hideOnScroll` | 412 × 104, at the bottom |
 | `navRail` | navigation rail (desktop) | `tabs`, `selected`, `railExpanded` false / true for M3 Expressive collapsed / expanded, `railModal` for modal expansion, `size2` height | 96 collapsed / 220 expanded; omit both rail fields for the original 80-wide rail |
 | `tabs` | tab row | `tabs` (any count; six or more scroll horizontally), `selected` | 412 × 48 |
 | `searchBar` | search bar | `label` placeholder, `icon2` trailing | 380 × 56 |
@@ -137,6 +137,8 @@ For `navRail`, `railExpanded` is the initial state; the preview's menu button to
 Modal presentation requires the rail to be the only item in its group. The editor collapses modal rails and switches them to standard presentation when they are grouped with other items, including imported mixed groups. Ungroup the rail before enabling modal presentation again. The editor controls are desktop-only.
 
 An `extendedFab` with an `icon` and `"collapseOnScroll": true` transforms into an icon-only standard FAB when the body scrolls down and stays that way after scrolling stops; scrolling up expands it back to the extended FAB. This requires a vertically scrollable screen: set that frame's `length` greater than its height. Keep the FAB's right edge fixed while it retracts toward the right. Omit the field, or set it to `false`, when the extended FAB should remain extended.
+
+A `bottomNav` with `"hideOnScroll": true` slides below the screen when the body scrolls down, stays hidden at rest, and reappears on any upward scrolling. Set the frame's `length` greater than its height. Omit the field, or set it to `false`, to keep the bar visible. Configure this only in the navigation bar's inspector. Only direct vertical wheel or touch scrolling hides the bar. Keep it visible at the top; keyboard input, scrolling without pointer input, and focusing a destination reveal it immediately. A destination with visible focus indication keeps the bar visible during scrolling, while pointer-click focus alone does not prevent hiding. Use a 200 ms transition for pointer scrolling and no animation for reduced motion or keyboard, non-pointer, and focus restoration. Its destinations remain in the accessibility tree while visually offscreen. Navigation rails do not hide on scroll.
 
 Fields that any part may carry:
 
