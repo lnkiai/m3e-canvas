@@ -14,10 +14,10 @@
   },
   "dependencies": {
     "html-to-image": "^1.11.13",
-    "motion": "^13.4.4",
-    "next": "16.4.2",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "motion": "^14.7.1",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
