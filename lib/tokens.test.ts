@@ -59,6 +59,31 @@ describe("setGlobalShape / scaleR", () => {
   });
 });
 
+describe("FAB corners", () => {
+  // M3's FAB shape tokens: small 40dp is medium (12), FAB 56dp is large (16), medium FAB 80dp is
+  // large-increased (20), large FAB 96dp is extra-large (28).
+  // https://m3.material.io/components/floating-action-button/specs
+  it.each([
+    [40, 12],
+    [56, 16],
+    [80, 20],
+    [96, 28],
+  ])("a %idp FAB has %idp corners", (size, corner) => {
+    expect(baseRadii({ ...makeItem("fab"), size }).tl).toBe(corner);
+  });
+
+  it("gives an extended FAB the corners of the FAB its height names", () => {
+    for (const [h, corner] of [[56, 16], [80, 20], [96, 28]] as const) {
+      expect(baseRadii({ ...makeItem("extendedFab"), size2: h }).tl).toBe(corner);
+    }
+  });
+
+  it("moves smoothly between the named sizes", () => {
+    const corners = [40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96].map((size) => baseRadii({ ...makeItem("fab"), size }).tl);
+    for (let i = 1; i < corners.length; i++) expect(corners[i]).toBeGreaterThanOrEqual(corners[i - 1]);
+  });
+});
+
 describe("runCorners", () => {
   const outer = 28;
   const inner = 8;
