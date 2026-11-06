@@ -78,9 +78,15 @@ describe("FAB corners", () => {
     }
   });
 
-  it("moves smoothly between the named sizes", () => {
-    const corners = [40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96].map((size) => baseRadii({ ...makeItem("fab"), size }).tl);
-    for (let i = 1; i < corners.length; i++) expect(corners[i]).toBeGreaterThanOrEqual(corners[i - 1]);
+  it("interpolates linearly between the named sizes, at every slider step", () => {
+    // 4dp slider steps; each segment is a straight line between two tokens, rounded.
+    const expected: Record<number, number> = {
+      40: 12, 44: 13, 48: 14, 52: 15, 56: 16, 60: 17, 64: 17, 68: 18,
+      72: 19, 76: 19, 80: 20, 84: 22, 88: 24, 92: 26, 96: 28,
+    };
+    for (const [size, corner] of Object.entries(expected)) {
+      expect(baseRadii({ ...makeItem("fab"), size: Number(size) }).tl, `${size}dp`).toBe(corner);
+    }
   });
 });
 
