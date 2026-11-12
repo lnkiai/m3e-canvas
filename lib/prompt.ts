@@ -281,6 +281,15 @@ function fabMenuText(it: Item, lang: Lang): string {
   return `; tapping it raises a menu of ${n} items (${items}) above the button and turns its icon into close (the M3 Expressive FloatingActionButtonMenu)`;
 }
 
+/** the optional scroll transform for an extended FAB, including its trailing-edge anchor */
+function fabScrollText(it: Item, lang: Lang): string {
+  if (!it.collapseOnScroll || !it.icon) return "";
+  if (lang === "ja") return "。本文を下へスクロールするとアイコンのみの標準 FAB に右側へ縮まり（右端は固定）、スクロールを止めても縮んだまま。上へスクロールすると拡張 FAB に戻る";
+  if (lang === "zh") return "。正文向下滚动时向右收起为仅显示图标的标准 FAB（右边缘固定），停止滚动后仍保持收起；向上滚动时恢复为扩展 FAB";
+  if (lang === "ko") return ". 본문을 아래로 스크롤하면 오른쪽으로 아이콘만 표시하는 표준 FAB까지 접히고(오른쪽 가장자리 고정) 스크롤을 멈춰도 접힌 상태를 유지하며, 위로 스크롤하면 확장 FAB로 돌아온다";
+  return "; when the body scrolls down, it collapses toward the right into an icon-only standard FAB (right edge fixed) and stays collapsed after scrolling stops; scrolling up expands it back to the extended FAB";
+}
+
 /** what a split button's arrow opens, and which way it goes */
 function splitMenuText(it: Item, lang: Lang): string {
   if (!splitOpens(it)) return "";
@@ -311,7 +320,7 @@ function itemJa(it: Item): string {
     case "fab":
       return `${it.icon ?? "空"} アイコンの${v} FAB${it.size && it.size >= 96 ? "（大サイズ）" : it.size && it.size <= 40 ? "（小サイズ）" : ""}${fabMenuText(it, "ja")}`;
     case "extendedFab":
-      return `${q(it.label)}${it.icon ? `と ${it.icon} アイコン` : ""}の拡張 FAB（${v}${it.size2 && it.size2 !== 56 ? `、高さ ${it.size2}dp` : ""}）${fabMenuText(it, "ja")}`;
+      return `${q(it.label)}${it.icon ? `と ${it.icon} アイコン` : ""}の拡張 FAB（${v}${it.size2 && it.size2 !== 56 ? `、高さ ${it.size2}dp` : ""}）${fabMenuText(it, "ja")}${fabScrollText(it, "ja")}`;
     case "chip":
       return `${q(it.label)}のチップ${it.checked ? "（選択状態）" : ""}${it.icon && !it.checked ? `（${it.icon} アイコン付き）` : ""}${chipHeightText(it, "ja")}`;
     case "topAppBar":
@@ -408,7 +417,7 @@ function itemEn(it: Item): string {
     case "fab":
       return `a ${it.size && it.size >= 96 ? "large " : it.size && it.size <= 40 ? "small " : ""}${v} FAB with the ${it.icon ?? "empty"} icon${fabMenuText(it, "en")}`;
     case "extendedFab":
-      return `a ${v} extended FAB ${q(it.label)}${it.icon ? ` with a ${it.icon} icon` : ""}${it.size2 && it.size2 !== 56 ? ` (${it.size2}dp tall)` : ""}${fabMenuText(it, "en")}`;
+      return `a ${v} extended FAB ${q(it.label)}${it.icon ? ` with a ${it.icon} icon` : ""}${it.size2 && it.size2 !== 56 ? ` (${it.size2}dp tall)` : ""}${fabMenuText(it, "en")}${fabScrollText(it, "en")}`;
     case "chip":
       return `a chip ${q(it.label)}${it.checked ? " (selected)" : ""}${it.icon && !it.checked ? ` with a ${it.icon} icon` : ""}${chipHeightText(it, "en")}`;
     case "topAppBar":
@@ -505,7 +514,7 @@ function itemZh(it: Item): string {
     case "fab":
       return `${it.icon ?? "空"} 图标的${v} FAB${it.size && it.size >= 96 ? "（大尺寸）" : it.size && it.size <= 40 ? "（小尺寸）" : ""}${fabMenuText(it, "zh")}`;
     case "extendedFab":
-      return `${q(it.label)}${it.icon ? `和 ${it.icon} 图标` : ""}的扩展 FAB（${v}${it.size2 && it.size2 !== 56 ? `，高 ${it.size2}dp` : ""}）${fabMenuText(it, "zh")}`;
+      return `${q(it.label)}${it.icon ? `和 ${it.icon} 图标` : ""}的扩展 FAB（${v}${it.size2 && it.size2 !== 56 ? `，高 ${it.size2}dp` : ""}）${fabMenuText(it, "zh")}${fabScrollText(it, "zh")}`;
     case "chip":
       return `${q(it.label)}标签片${it.checked ? "（选中状态）" : ""}${it.icon && !it.checked ? `（带 ${it.icon} 图标）` : ""}${chipHeightText(it, "zh")}`;
     case "topAppBar":
@@ -595,7 +604,7 @@ function itemKo(it: Item): string {
     case "timePicker": return `${TIME_TEXT.ko[timeLayoutOf(it)]} 형태의 시간 선택기(현재 시각 선택됨, AM/PM 전환과 취소 / 확인)`;
     case "iconButton": return `${it.icon ?? "빈"} 아이콘의 ${v} 아이콘 버튼${iconButtonSize(it, "ko")}`;
     case "fab": return `${it.icon ?? "빈"} 아이콘의 ${v} FAB${it.size && it.size >= 96 ? "(대형)" : it.size && it.size <= 40 ? "(소형)" : ""}${fabMenuText(it, "ko")}`;
-    case "extendedFab": return `${q(it.label)}${it.icon ? ` 및 ${it.icon} 아이콘` : ""} 확장 FAB(${v}${it.size2 && it.size2 !== 56 ? `, 높이 ${it.size2}dp` : ""})${fabMenuText(it, "ko")}`;
+    case "extendedFab": return `${q(it.label)}${it.icon ? ` 및 ${it.icon} 아이콘` : ""} 확장 FAB(${v}${it.size2 && it.size2 !== 56 ? `, 높이 ${it.size2}dp` : ""})${fabMenuText(it, "ko")}${fabScrollText(it, "ko")}`;
     case "chip": return `${q(it.label)} 칩${it.checked ? "(선택됨)" : ""}${it.icon && !it.checked ? `(${it.icon} 아이콘 포함)` : ""}${chipHeightText(it, "ko")}`;
     case "topAppBar": return `제목이 ${q(it.label)}인 상단 앱 바${topBarSizeText(it, "ko")}${it.icon ? `, 왼쪽 ${it.icon}` : ""}${it.icon2 ? `, 오른쪽 ${it.icon2}` : ""}${it.icon || it.icon2 ? " 아이콘 버튼" : ""}`;
     case "bottomNav": {
@@ -676,6 +685,15 @@ function boxCorners(it: Item, lang: Lang): string {
 }
 
 const itemText = (it: Item, lang: Lang) => (lang === "ja" ? itemJa(it) : lang === "zh" ? itemZh(it) : lang === "ko" ? itemKo(it) : itemEn(it));
+
+/** A collapse-on-scroll FAB only has that behavior on a screen whose body actually scrolls. */
+function promptGroupsForScroll(groups: Group[], scrollable: boolean): Group[] {
+  if (scrollable) return groups;
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.map((it) => it.collapseOnScroll ? { ...it, collapseOnScroll: undefined } : it),
+  }));
+}
 
 /* ================= connected runs ================= */
 
@@ -1828,16 +1846,16 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
       lines.push(ph.screenHead(q(f.name || ph.screen), f.bg && f.bg !== "surface" ? f.bg : undefined, gs.length > 0, sizeLabel(f, viewport, lang)));
       if (gs.length > 0 && f.place && f.place !== "top") lines.push(ph.placement(f.place));
       if (gs.length > 0 && scrollsOf(f)) lines.push(ph.scrolls(frameLengthOf(f), frameSizeOf(f).h));
-      describeScreen(lines, gs, frameRect(f), widths, lang);
+      describeScreen(lines, promptGroupsForScroll(gs, scrollsOf(f)), frameRect(f), widths, lang);
     });
     if (loose.length && !only) {
       lines.push("");
       lines.push(ph.loose);
-      describeScreen(lines, loose, null, widths, lang);
+      describeScreen(lines, promptGroupsForScroll(loose, false), null, widths, lang);
     }
   } else {
     lines.push(ph.freeform);
-    describeScreen(lines, groups, null, widths, lang);
+    describeScreen(lines, promptGroupsForScroll(groups, false), null, widths, lang);
   }
 
   const behavior = [...groups.flatMap((g) => notes(g, allFrames, lang)), ...frames.flatMap((f) => swipeNotes(f, allFrames, lang))];

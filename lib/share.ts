@@ -46,8 +46,13 @@ async function pipe(bytes: Uint8Array, stream: { readable: ReadableStream; writa
 export async function shareLink(doc: Doc, base: string): Promise<string> {
   const json = JSON.stringify(shareable(doc));
   if (typeof CompressionStream !== "undefined") {
-    const packed = await pipe(new TextEncoder().encode(json), new CompressionStream("deflate-raw"));
-    return `${base}#${DOCZ_PARAM}=${toBase64Url(packed)}`;
+    try {
+      const packed = await pipe(new TextEncoder().encode(json), new CompressionStream("deflate-raw"));
+      return `${base}#${DOCZ_PARAM}=${toBase64Url(packed)}`;
+    } catch {
+      // An available CompressionStream may not support raw deflate. The plain
+      // encoding below carries the same filtered document without compression.
+    }
   }
   return `${base}#${DOC_PARAM}=${encodeURIComponent(json)}`;
 }

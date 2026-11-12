@@ -9,10 +9,21 @@ const hooks = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
   present: true,
   peek: false,
+  states: [] as unknown[],
+  stateCursor: 0,
 }));
 vi.mock("react", async (original) => ({
   ...await original<typeof import("react")>(),
-  useState: (initial: unknown) => [hooks.peek && initial === null ? { frameId: "next", t: "slideLeft" } : typeof initial === "function" ? initial() : initial, vi.fn()],
+  /* the slots are keyed by call order and hold the value the component last gave them, so a
+     screen can be driven through its own setter the way the real one is */
+  useState: (initial: unknown) => {
+    const i = hooks.stateCursor++;
+    if (!(i in hooks.states)) hooks.states[i] = hooks.peek && initial === null ? { frameId: "next", t: "slideLeft" } : typeof initial === "function" ? initial() : initial;
+    return [
+      hooks.states[i],
+      (v: unknown) => { hooks.states[i] = typeof v === "function" ? (v as (x: unknown) => unknown)(hooks.states[i]) : v; },
+    ];
+  },
   useRef: (current: unknown) => hooks.refs[hooks.cursor++] ?? (hooks.refs[hooks.cursor - 1] = { current }),
   useEffect: (effect: () => void | (() => void)) => { hooks.effects.push(effect); },
   useMemo: (value: () => unknown) => value(),
@@ -53,6 +64,8 @@ function elements(node: unknown): Element[] {
 // a DOM runtime. Browser tests cover Motion's presence propagation and real focus.
 function screenElement(peek = false) {
   hooks.peek = peek;
+  hooks.states = [];
+  hooks.stateCursor = 0;
   const tree = Preview({ doc, widths: {}, palette: PALETTES[0], startId: "first", onClose: vi.fn() });
   const screens = elements(tree).filter((element) => typeof element.type === "function" && "frame" in element.props);
   hooks.peek = false;
@@ -62,9 +75,13 @@ function screenElement(peek = false) {
   if (!screen) throw new Error(`no ${peek ? "peek" : "current"} screen rendered`);
   return screen;
 }
-function renderScreen(element: Element) {
+function renderScreen(element: Element, fresh = true) {
   hooks.cursor = 0;
-  hooks.effects = [];
+  hooks.stateCursor = 0;
+  if (fresh) {
+    hooks.effects = [];
+    hooks.states = [];
+  }
   return (element.type as (props: Record<string, unknown>) => Element)(element.props);
 }
 function runEffects() {
@@ -266,5 +283,87 @@ describe("preview of a screen longer than the device", () => {
     expect(elements(tree).some((e) => e.props["data-scroll-body"])).toBe(false);
     expect(tops(tree)).toMatchObject({ row: 1200, nav: PHONE_H * 2 - navH });
     expect(Object.values(panY(tree)).every((v) => v === false)).toBe(true);
+  });
+});
+
+describe("a label-bearing FAB that folds while the screen scrolls", () => {
+  const part = (kind: Kind, id: string): Item => ({ ...makeItem(kind), id });
+  const ext = (id: string, extra: Partial<Item> = {}): Item => ({ ...makeItem("extendedFab"), id, size2: 56, icon: "add", label: "Create", ...extra });
+  const navH = sizeOf(part("bottomNav", "nav"), {}).h;
+  const groups: Group[] = [
+    /* the bar is anchored to the head, so it stays put while the body scrolls */
+    { id: "bar", x: 0, y: 0, axis: "x", items: [part("topAppBar", "bar"), ext("bar-fab", { collapseOnScroll: true })] },
+    { id: "fab", x: 200, y: 850, axis: "x", items: [ext("fab", { collapseOnScroll: true })] },
+    { id: "keep", x: 200, y: 500, axis: "x", items: [ext("keep")] },
+    { id: "nav", x: 0, y: PHONE_H * 2 - navH, axis: "x", items: [part("bottomNav", "nav")] },
+  ];
+  const long = { id: "long", name: "Long", x: 0, y: 0, length: PHONE_H * 2 };
+  const treeOf = (element: Element, fresh: boolean) => renderScreen({ ...element, props: { ...element.props, frame: long, groups } }, fresh);
+  const kinds = (node: unknown) =>
+    Object.fromEntries(
+      elements(node)
+        .filter((e) => typeof e.type === "function" && "item" in e.props)
+        .map((e) => [(e.props.item as Item).id, (e.props.item as Item).kind]),
+    );
+  const scrollBody = (node: unknown, scrollTop: number) => {
+    const body = elements(node).find((e) => e.props["data-scroll-body"]);
+    const onScroll = body?.props.onScroll;
+    expect(onScroll).toBeTypeOf("function");
+    (onScroll as (e: { currentTarget: { scrollTop: number } }) => void)({ currentTarget: { scrollTop } });
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    hooks.refs = [];
+    hooks.present = true;
+  });
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it("folds when the body scrolls down, stays folded at rest, and unfolds when it scrolls up", () => {
+    const element = screenElement();
+    let tree = treeOf(element, true);
+    const extended = { bar: "topAppBar", "bar-fab": "extendedFab", fab: "extendedFab", keep: "extendedFab", nav: "bottomNav" };
+    const folded = { ...extended, "bar-fab": "fab", fab: "fab" };
+    expect(kinds(tree)).toEqual(extended);
+    /* even the first small movement down folds both a pinned and a body-riding FAB */
+    scrollBody(tree, 1);
+    tree = treeOf(element, false);
+    expect(kinds(tree)).toEqual(folded);
+    scrollBody(tree, 240);
+    vi.runAllTimers();
+    tree = treeOf(element, false);
+    expect(kinds(tree)).toEqual(folded);
+    /* any movement back up unfolds, without reaching the top */
+    scrollBody(tree, 200);
+    tree = treeOf(element, false);
+    expect(kinds(tree)).toEqual(extended);
+    scrollBody(tree, 220);
+    tree = treeOf(element, false);
+    expect(kinds(tree)).toEqual(folded);
+  });
+
+  it("keeps the button's right edge in a stable, right-aligned slot", () => {
+    const tree = treeOf(screenElement(), true);
+    const anchors: Record<string, unknown> = {};
+    for (const element of elements(tree)) {
+      const child = element.props.children;
+      if (!isValidElement<Record<string, unknown>>(child) || !("item" in child.props)) continue;
+      const item = child.props.item as Item;
+      if (item.collapseOnScroll) anchors[item.id] = element.props.style;
+    }
+    expect(anchors).toEqual({
+      "bar-fab": expect.objectContaining({ width: 128, justifyContent: "flex-end" }),
+      fab: expect.objectContaining({ width: 128, justifyContent: "flex-end" }),
+    });
+  });
+
+  it("never folds on a screen the device holds", () => {
+    const element = screenElement();
+    const tree = renderScreen({ ...element, props: { ...element.props, frame: { id: "long", name: "Long", x: 0, y: 0 }, groups } });
+    expect(elements(tree).some((e) => e.props["data-scroll-body"])).toBe(false);
+    expect(kinds(tree).fab).toBe("extendedFab");
   });
 });

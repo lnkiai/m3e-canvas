@@ -199,6 +199,14 @@ describe("readProject", () => {
     }
   });
 
+  it.each([undefined, false, true])("accepts optional extended FAB scroll-collapse boolean %s", (collapseOnScroll) => {
+    expect(isProject(withItem({ kind: "extendedFab", collapseOnScroll }))).toBe(true);
+  });
+
+  it.each([null, 0, 1, "true", "false", {}, []])("rejects non-boolean extended FAB scroll-collapse value %j", (collapseOnScroll) => {
+    expect(isProject(withItem({ kind: "extendedFab", collapseOnScroll }))).toBe(false);
+  });
+
   it.each([undefined, 2, 4, 8, 16])("preserves progress thickness %s in project files", async (trackThickness) => {
     const value = withItem({ kind: "linearProgress", wavy: true, trackThickness });
     await expect(readProject(new File([JSON.stringify(value)], "progress.json"))).resolves.toEqual(value);

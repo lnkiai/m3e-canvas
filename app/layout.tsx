@@ -30,7 +30,9 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ja">
+    // The script below writes the --skel-* variables onto this element before React hydrates;
+    // the DOM is meant to win over the server-rendered (empty) style.
+    <html lang="ja" suppressHydrationWarning>
       <head>
         {/* before the first paint: the panel widths and the theme colours the last visit left, so
             the shell drawn while the editor loads is the one that appears. The editor reads the

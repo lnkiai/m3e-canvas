@@ -1676,6 +1676,9 @@ export type Item = {
   bold?: boolean;
   /** height for free-form boxes, and for a button following the M3 size scale */
   size2?: number;
+  /** extended FAB only: in the preview, fold to an icon-only standard FAB when the body scrolls down
+     and unfold when it scrolls back up */
+  collapseOnScroll?: boolean;
   /** palette token used as background (boxes, list items) */
   fill?: ColorToken;
   /** background behind a list item's leading icon; "none" draws the icon bare */
@@ -1787,7 +1790,7 @@ export function extendedFabMetrics(h: number) {
 export function fabTypePatch(it: Item, to: FabKind): Partial<Item> {
   if (it.kind === to) return {};
   const base: Partial<Item> = { kind: to };
-  if (to === "fab") return { ...base, size: it.size2 ?? 56, size2: undefined };
+  if (to === "fab") return { ...base, size: it.size2 ?? 56, size2: undefined, collapseOnScroll: undefined };
   return { ...base, size: undefined, size2: Math.max(56, it.size ?? 56), label: it.label || KIND_SPEC.extendedFab.defLabel };
 }
 

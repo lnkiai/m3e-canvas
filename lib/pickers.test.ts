@@ -130,6 +130,14 @@ describe("the FAB's three shapes", () => {
     expect({ ...ext, ...fabTypePatch(ext, "fab") }.size).toBe(96);
   });
 
+  it("clears the extended FAB scroll setting when switching to a standard FAB", () => {
+    const extended = { ...makeItem("extendedFab"), collapseOnScroll: true };
+    const standard = { ...extended, ...fabTypePatch(extended, "fab") };
+    const restored = { ...standard, ...fabTypePatch(standard, "extendedFab") };
+    expect(standard.collapseOnScroll).toBeUndefined();
+    expect(restored.collapseOnScroll).toBeUndefined();
+  });
+
   it("opens a menu as a tap action, and keeps the entries when it is taken off again", () => {
     const fab = makeItem("fab");
     const withMenu = { ...fab, ...menuPatch(fab, true) };

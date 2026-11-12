@@ -117,6 +117,34 @@ describe("shareLink and readShareHash", () => {
     await expect(readShareHash(new URL(link).hash)).resolves.toEqual(shareable(value));
   });
 
+  it("uses a plain link when CompressionStream exists but rejects raw deflate", async () => {
+    vi.stubGlobal("CompressionStream", class {
+      constructor(format: string) {
+        expect(format).toBe("deflate-raw");
+        throw new TypeError("Unsupported compression format");
+      }
+    });
+    const value = doc();
+    const before = structuredClone(value);
+    const base = "https://example.test/subdir/?keep=1";
+    const link = await shareLink(value, base);
+    expect(link).toBe(`${base}#doc=${encodeURIComponent(JSON.stringify(shareable(value)))}`);
+    await expect(readShareHash(new URL(link).hash)).resolves.toEqual(shareable(value));
+    expect(value).toEqual(before);
+  });
+
+  it("uses a plain link if the compressor stream fails", async () => {
+    vi.stubGlobal("CompressionStream", class {
+      constructor() {
+        return new TransformStream({ start(controller) { controller.error(new Error("Compression failed")); } });
+      }
+    });
+    const value = doc();
+    const link = await shareLink(value, "https://example.test/canvas/");
+    expect(new URL(link).hash).toMatch(/^#doc=/);
+    await expect(readShareHash(new URL(link).hash)).resolves.toEqual(shareable(value));
+  });
+
   it("reads independently generated raw-deflate payloads", async () => {
     await expect(readShareHash(packedHash(JSON.stringify(doc())))).resolves.toEqual(doc());
   });

@@ -65,6 +65,7 @@ A phone screen is **412 × 892**; a desktop screen is **1280 × 800** (set `w` a
 
 - `id`: any unique string. `name`: what the screen is called in the prompt.
 - `note` (optional): what the screen is for, in a sentence. It goes into the prompt.
+- `length` (optional): the screen's vertical content length in dp. Set it above the frame height (for example, `"length": 1200` on a 892dp-tall phone screen) to make the body scroll vertically; omitting it keeps the screen at its frame height.
 - `bg` (optional): background token, one of `surface | surfaceContainerLow | surfaceContainer | surfaceContainerHigh | surfaceContainerHighest | primaryContainer | secondaryContainer | tertiaryContainer | primary | inverseSurface`.
 - `swipe` (optional): screens reached by swiping `left | right | up | down`.
 - `place` (optional): where the body rows sit between the bars when the screen is tidied: `top` (default) | `center` | `bottom` | `spread`. Goes into the prompt too.
@@ -106,7 +107,7 @@ Sizes are in dp; `size` is the width unless noted. Content width inside the phon
 | `button` | button | `label`, `icon`, `variant`, `action`, `toggle`, `size` width (omit for text-sized; 380 fills the content width, 182 is half) | text-sized × 56 |
 | `iconButton` | icon button | `icon`, `variant`, `action` | 48 × 48 |
 | `fab` | FAB | `icon`, `size` 40 / 56 / 96 | 56 × 56, bottom-right |
-| `extendedFab` | extended FAB | `label`, `icon` | text-sized × 56 |
+| `extendedFab` | extended FAB | `label`, `icon`, `collapseOnScroll` | text-sized × 56 |
 | `splitButton` | split button | `label`, `icon` | text-sized × 56 |
 | `fabMenu` | FAB menu, drawn open | `tabs` as its entries | 220 wide |
 | `toolbar` | floating toolbar | `tabs` as icon buttons, `variant` `tonal` (standard) or `filled` (vibrant) | 64 tall |
@@ -134,6 +135,8 @@ Sizes are in dp; `size` is the width unless noted. Content width inside the phon
 
 For `navRail`, `railExpanded` is the initial state; the preview's menu button toggles it. With `railModal: true`, an expanded rail covers the content with a scrim while the body keeps a 96dp navigation slot. Otherwise, reserve the rail's current width beside the content. Keep `tabs`, `selected`, and `actions` on the same item in either state.
 Modal presentation requires the rail to be the only item in its group. The editor collapses modal rails and switches them to standard presentation when they are grouped with other items, including imported mixed groups. Ungroup the rail before enabling modal presentation again. The editor controls are desktop-only.
+
+An `extendedFab` with an `icon` and `"collapseOnScroll": true` transforms into an icon-only standard FAB when the body scrolls down and stays that way after scrolling stops; scrolling up expands it back to the extended FAB. This requires a vertically scrollable screen: set that frame's `length` greater than its height. Keep the FAB's right edge fixed while it retracts toward the right. Omit the field, or set it to `false`, when the extended FAB should remain extended.
 
 Fields that any part may carry:
 

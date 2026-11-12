@@ -295,7 +295,19 @@ export function ButtonInspector({
         <div role="tabpanel" id="part-panel-design" aria-labelledby="part-tab-design">
           {fab && (
             <Section id="fab-type" icon="add_circle" title={t("partType", lang)} p={p}>
-              <FabTypeRow value={item.kind as FabKind} onChange={(k) => onChange(fabTypePatch(item, k))} p={p} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <FabTypeRow value={item.kind as FabKind} onChange={(k) => onChange(fabTypePatch(item, k))} p={p} />
+                {isExtended && item.icon && (
+                  <Toggle
+                    on={!!item.collapseOnScroll}
+                    onChange={(collapseOnScroll) => onChange({ collapseOnScroll: collapseOnScroll || undefined })}
+                    p={p}
+                    icon="unfold_more"
+                    label={t("fabScrollSwitch", lang)}
+                    grow
+                  />
+                )}
+              </div>
             </Section>
           )}
           <Section id="btn-text" icon={iconOnly ? "insert_emoticon" : "short_text"} title={t(iconOnly ? "icon" : "text", lang)} p={p} onToggle={(open) => { if (!open) setPicker("none"); }}>

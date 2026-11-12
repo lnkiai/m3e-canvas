@@ -620,6 +620,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   const lastPatchRef = useRef<{ key: string; at: number }>({ key: "", at: 0 });
 
   const snapshot = useCallback((withMeta = false) => {
+    lastPatchRef.current = { key: "", at: 0 };
     setQuickUndo(false);
     pastRef.current.push(current(withMeta));
     if (pastRef.current.length > HISTORY_MAX) pastRef.current.shift();
@@ -639,6 +640,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   );
 
   const restore = (snap: Snapshot) => {
+    lastPatchRef.current = { key: "", at: 0 };
     for (const g of snap.groups) instantRef.current.add(g.id);
     if (snap.meta) {
       applyDoc({ ...snap.meta, groups: snap.groups, frames: snap.frames }, true);
