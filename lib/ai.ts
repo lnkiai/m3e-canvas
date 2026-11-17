@@ -128,15 +128,22 @@ export async function complete(s: AiSettings, system: string, user: string, sign
   throw new Error("empty");
 }
 
-/** the first JSON object in a reply, with any code fence stripped */
+/** the first JSON object in a reply; the code fences are stripped only when
+ *  the reply does not parse without it, so backticks inside a value survive. */
 function parseJsonObject(text: string): Record<string, unknown> {
-  const cleaned = text.replace(/```(?:json)?/gi, "");
-  const a = cleaned.indexOf("{");
-  const b = cleaned.lastIndexOf("}");
-  if (a < 0 || b <= a) throw new Error("json");
-  const v = JSON.parse(cleaned.slice(a, b + 1));
-  if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("json");
-  return v as Record<string, unknown>;
+  const objectIn = (source: string): Record<string, unknown> => {
+    const a = source.indexOf("{");
+    const b = source.lastIndexOf("}");
+    if (a < 0 || b <= a) throw new Error("json");
+    const v = JSON.parse(source.slice(a, b + 1));
+    if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("json");
+    return v as Record<string, unknown>;
+  };
+  try {
+    return objectIn(text);
+  } catch {
+    return objectIn(text.replace(/```(?:json)?/gi, ""));
+  }
 }
 
 /* ---------- actions ---------- */
