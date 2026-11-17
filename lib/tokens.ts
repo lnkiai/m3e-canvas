@@ -1771,6 +1771,27 @@ export const isFab = (k: Kind): k is FabKind => (FAB_KINDS as readonly string[])
 export const PALETTE_HIDDEN: Kind[] = ["extendedFab", "fabMenu", "circularProgress"];
 /** how tall an extended FAB is drawn, and what it is made of at that height */
 export const extendedFabHeight = (it: Item) => clamp(Math.round(it.size2 ?? 56), 56, FAB_H_MAX);
+/** M3's FAB shape tokens by container size: small 40dp is medium (12), FAB 56dp is large (16),
+ *  medium FAB 80dp is large-increased (20), large FAB 96dp is extra-large (28).
+ *  https://m3.material.io/components/floating-action-button/specs */
+const FAB_CORNERS = [
+  [40, 12],
+  [56, 16],
+  [80, 20],
+  [96, 28],
+] as const;
+
+/** a FAB's corner radius at any size: exact at the named sizes, interpolated between them */
+export function fabCornerRadius(size: number): number {
+  let [prevSize, prevCorner]: readonly [number, number] = FAB_CORNERS[0];
+  if (size <= prevSize) return prevCorner;
+  for (const [d, r] of FAB_CORNERS) {
+    if (size <= d) return Math.round(lerp(prevCorner, r, (size - prevSize) / (d - prevSize)));
+    [prevSize, prevCorner] = [d, r];
+  }
+  return prevCorner;
+}
+
 export function extendedFabMetrics(h: number) {
   /* the label and the icon grow with the container, the way the three named sizes do */
   const k = (h - 56) / (FAB_H_MAX - 56);
@@ -1780,7 +1801,7 @@ export function extendedFabMetrics(h: number) {
     gap: Math.round(lerp(12, 16, k)),
     icon: Math.round(lerp(24, 32, k)),
     font: Math.round(lerp(14, 20, k)),
-    radius: Math.round(lerp(16, 28, k)),
+    radius: fabCornerRadius(h),
   };
 }
 
@@ -2565,7 +2586,7 @@ export function baseRadii(it: Item): Radii {
       return { tl: l, bl: l, tr: r, br: r };
     }
     case "fab":
-      return uniformRadii(scaleR(Math.round((it.size ?? 56) * 0.28)));
+      return uniformRadii(scaleR(fabCornerRadius(it.size ?? 56)));
     case "extendedFab":
       return uniformRadii(scaleR(extendedFabMetrics(extendedFabHeight(it)).radius));
     case "fabMenu":
