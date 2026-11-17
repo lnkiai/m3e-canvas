@@ -56,6 +56,13 @@ describe("isProject", () => {
     expect(isProject({ ...value, groups: [{ ...value.groups[0], locked }] })).toBe(true);
   });
 
+  it("preserves the reordered default marker in project files", async () => {
+    const value = withItem({ kind: "bottomNav", selected: 2, selectionImplicit: true });
+    expect(isProject(value)).toBe(true);
+    await expect(readProject(new File([JSON.stringify(value)], "nav.json"))).resolves.toEqual(value);
+    expect(isProject(withItem({ kind: "bottomNav", selected: 2, selectionImplicit: "true" }))).toBe(false);
+  });
+
   it.each([
     { id: 1 }, { x: NaN }, { x: Infinity }, { x: "0" }, { y: -Infinity }, { y: null },
     { axis: "z" }, { axis: undefined }, { items: [] }, { items: null }, { items: {} }, { items: [null] },

@@ -673,6 +673,7 @@ export function EntryList({
   const [dragging, setDragging] = useState<number | null>(null);
   const [overBin, setOverBin] = useState(false);
   const bin = useRef<HTMLButtonElement | null>(null);
+  const dragStart = useRef<{ item: Item; names: string[] } | null>(null);
   const tabs: NavTab[] = item.tabs ?? [];
   const bounds = ENTRY_BOUNDS[item.kind] ?? { min: 1, max: 12 };
   /* a name per row that survives a reorder, so the list knows which row moved where. Rows are
@@ -699,9 +700,12 @@ export function EntryList({
         axis="y"
         values={names}
         onReorder={(next: string[]) => {
-          const order = next.map((k) => names.indexOf(k));
+          // Each swap belongs to one gesture: compare with its original selection,
+          // so taking the default entry away and back does not save selected: 0.
+          const start = dragStart.current?.item.id === item.id ? dragStart.current : { item, names };
+          const order = next.map((k) => start.names.indexOf(k));
           keys.current.names = next;
-          onChange(reorderTabsPatch(item, order));
+          onChange(reorderTabsPatch(start.item, order));
         }}
         style={{ display: "flex", flexDirection: "column", gap: 6, padding: 0, margin: 0 }}
       >
@@ -713,14 +717,18 @@ export function EntryList({
             icons={icons}
             labels={labels}
             selected={selectable ? selected === i : undefined}
-            onSelect={selectable ? () => onChange({ selected: clearable && selected === i ? undefined : i }) : undefined}
+            onSelect={selectable ? () => onChange({ selected: clearable && selected === i ? undefined : i, selectionImplicit: undefined }) : undefined}
             open={pick === names[i]}
             onPick={() => setPick(pick === names[i] ? null : names[i])}
             onLabel={(label) => set(i, { label })}
-            onDragStart={() => setDragging(i)}
+            onDragStart={() => {
+              dragStart.current = { item, names: [...names] };
+              setDragging(i);
+            }}
             onDrag={(e) => setOverBin(canRemove && onBin(e))}
             onDragEnd={(e) => {
               const drop = canRemove && onBin(e);
+              dragStart.current = null;
               setDragging(null);
               setOverBin(false);
               if (drop) {
