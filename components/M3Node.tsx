@@ -735,6 +735,10 @@ function FabMenuContent({ item, p, shown = true }: { item: Item; p: Palette; sho
   const extended = item.kind === "extendedFab";
   /* the close button is the M size: a small or a large FAB eases into it rather than jumping */
   const grow = (item.size ?? FAB_MENU_CLOSE) / FAB_MENU_CLOSE;
+  /* the FAB's corners do not grow in step with its size, so the scaled button carries the corner
+     that draws as the FAB's own while shut, and eases to the M size's corner as it opens */
+  const shutCorner = scaleR(fabCornerRadius(item.size ?? FAB_MENU_CLOSE)) / grow;
+  const openCorner = scaleR(fabCornerRadius(FAB_MENU_CLOSE));
   /* opening, the entry nearest the button leads; shutting, the run plays back from the far end */
   const wait = menuEntriesWait(item);
   const after = (i: number) => wait + (tabs.length - 1 - i) * MENU_STAGGER;
@@ -822,7 +826,7 @@ function FabMenuContent({ item, p, shown = true }: { item: Item; p: Palette; sho
         /* scaled rather than resized: the button, its icon and its corners all land on the M size
            together, and the drawing the editor measures never changes width */
         initial={false}
-        animate={extended ? undefined : { scale: open ? 1 : grow }}
+        animate={extended ? undefined : { scale: open ? 1 : grow, borderRadius: open ? openCorner : shutCorner }}
         transition={
           reducedMotion
             ? { duration: 0 }
@@ -841,7 +845,7 @@ function FabMenuContent({ item, p, shown = true }: { item: Item; p: Palette; sho
           fontSize: 16,
           fontWeight: w(500, 700),
           whiteSpace: "nowrap",
-          borderRadius: scaleR(extended ? extendedFabMetrics(extendedFabHeight(item)).radius : fabCornerRadius(FAB_MENU_CLOSE)),
+          borderRadius: extended ? scaleR(extendedFabMetrics(extendedFabHeight(item)).radius) : undefined,
           display: "grid",
           placeItems: "center",
           boxShadow: "0 3px 8px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)",
