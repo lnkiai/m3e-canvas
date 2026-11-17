@@ -471,3 +471,15 @@ describe("a screen whose body scrolls", () => {
     expect(prompt(lang, 892)).not.toContain(SCROLLS[lang]);
   });
 });
+
+describe("documents the validator accepts", () => {
+  it("builds a prompt for a legacy minimal document with no title or brief", () => {
+    // isProject accepts legacy files without title/brief (project.test.ts pins that);
+    // buildPrompt must not trim what may be absent — the prompt panel renders it on import.
+    const legacy = { groups: [], frames: [{ id: "f", name: "Home", x: 0, y: 0 }] } as unknown as Doc;
+    expect(() => buildPrompt(legacy, {}, undefined, "ja")).not.toThrow();
+    const prompt = buildPrompt(legacy, {}, undefined, "ja");
+    expect(prompt.length).toBeGreaterThan(0);
+    expect(prompt).toContain(SECTIONS.ja[0]);
+  });
+});
