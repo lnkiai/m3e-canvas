@@ -474,8 +474,8 @@ describe("a screen whose body scrolls", () => {
 
 describe("documents the validator accepts", () => {
   it("builds a prompt for a legacy minimal document with no title or brief", () => {
-    // isProject accepts legacy files without title/brief (project.test.ts pins that);
-    // buildPrompt must not trim what may be absent — the prompt panel renders it on import.
+    // isProject accepts legacy files without title/brief (project.test.ts pins that). The editor
+    // fills both in on import, so this guards direct callers that pass a validated file as it is.
     const legacy = { groups: [], frames: [{ id: "f", name: "Home", x: 0, y: 0 }] } as unknown as Doc;
     expect(() => buildPrompt(legacy, {}, undefined, "ja")).not.toThrow();
     const prompt = buildPrompt(legacy, {}, undefined, "ja");

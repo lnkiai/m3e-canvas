@@ -128,8 +128,8 @@ export async function complete(s: AiSettings, system: string, user: string, sign
   throw new Error("empty");
 }
 
-/** the first JSON object in a reply; the code fences are stripped only when
- *  the reply does not parse without it, so backticks inside a value survive. */
+/** the first JSON object in a reply; code fences are stripped only when the
+ *  reply does not parse as it stands, so backticks inside a value survive. */
 function parseJsonObject(text: string): Record<string, unknown> {
   const objectIn = (source: string): Record<string, unknown> => {
     const a = source.indexOf("{");
