@@ -1,4 +1,4 @@
-import { CAROUSEL_LAYOUTS, DATE_LAYOUTS, Doc, KIND_ORDER, Kind, TIME_LAYOUTS, VARIANTS, isCardAlign, isCardImagePos, isPlace, isTextToken, isPlatform, isTrackThickness } from "./tokens";
+import { CAROUSEL_LAYOUTS, DATE_LAYOUTS, Doc, KIND_ORDER, Kind, TIME_LAYOUTS, VARIANTS, isCardAlign, isCardImagePos, isPlace, isTextHex, isTextToken, isPlatform, isTrackThickness } from "./tokens";
 
 /* A project file is the Doc as JSON, nothing more. Reading one back only checks
  * the shape the editor relies on; the same migrations that run on a saved
@@ -29,6 +29,7 @@ const validItem = (item: unknown) =>
   (item.contentAlign === undefined || isCardAlign(item.contentAlign)) &&
   (item.textAlign === undefined || isCardAlign(item.textAlign)) &&
   (item.textColor === undefined || isTextToken(item.textColor)) &&
+  (item.textHex === undefined || isTextHex(item.textHex)) &&
   typeof item.id === "string" &&
   typeof item.kind === "string" &&
   KINDS.has(item.kind as Kind) &&

@@ -35,7 +35,7 @@ import {
 } from "@/lib/tokens";
 import { IconPicker } from "./IconPicker";
 import { Icon, M3Static } from "./M3Node";
-import { Field, NamedSizes, PanelShell, Section, Segmented, Select, SelectOption, Slider, Toggle } from "./ui";
+import { Field, NamedSizes, PanelShell, Section, Segmented, Select, SelectOption, Slider, TextColorRow, Toggle } from "./ui";
 import { AiHooks } from "./Inspector";
 import { LinkStage, TapStage } from "./TapStage";
 import { AlignBox, EntryList, IconCell, NoteSection, PartHeader, PartTabs, PlaceFn, StyleRun, Tab, WidthRun, actionOptionsOf } from "./PartPanel";
@@ -345,6 +345,12 @@ export function ButtonInspector({
               {picker === "toggle" && <IconPicker value={onIcon} onChange={(icon) => setToggle({ icon })} onClose={() => setPicker("none")} palette={p} />}
             </div>
           </Section>
+          {/* 只有会写出字的按钮才给颜色行：图标按钮和普通 FAB 上没有字，按下去不会有反应 */}
+          {KIND_SPEC[item.kind].hasLabel && (
+            <Section id="btn-ink" icon="format_color_text" title={t("textColor", lang)} p={p}>
+              <TextColorRow value={item.textHex} onChange={(hex) => onChange({ textHex: hex })} p={p} />
+            </Section>
+          )}
           <Section id="btn-style" icon="palette" title={t("style", lang)} p={p}>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

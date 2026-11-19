@@ -684,7 +684,18 @@ function boxCorners(it: Item, lang: Lang): string {
   return `corner radius ${t}dp top / ${b}dp bottom`;
 }
 
-const itemText = (it: Item, lang: Lang) => (lang === "ja" ? itemJa(it) : lang === "zh" ? itemZh(it) : lang === "ko" ? itemKo(it) : itemEn(it));
+/** The colour the part's words are drawn in, in the line's own language. Every part that carries
+ *  a hex gets it, not just plain text: the panel offers the same row on all of them. */
+function inkLine(it: Item, lang: Lang): string {
+  if (!it.textHex) return "";
+  if (lang === "ja") return `（文字の色 ${it.textHex}）`;
+  if (lang === "zh") return `（文字颜色 ${it.textHex}）`;
+  if (lang === "ko") return ` (텍스트 색상 ${it.textHex})`;
+  return ` (text colour ${it.textHex})`;
+}
+
+const itemText = (it: Item, lang: Lang) =>
+  (lang === "ja" ? itemJa(it) : lang === "zh" ? itemZh(it) : lang === "ko" ? itemKo(it) : itemEn(it)) + inkLine(it, lang);
 
 /** A collapse-on-scroll FAB only has that behavior on a screen whose body actually scrolls. */
 function promptGroupsForScroll(groups: Group[], scrollable: boolean): Group[] {

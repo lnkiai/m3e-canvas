@@ -10,6 +10,7 @@ import {
   Frame,
   Item,
   KIND_SPEC,
+  Kind,
   LOADING_SIZES,
   PHONE_H,
   PHONE_W,
@@ -46,7 +47,7 @@ import {
   timeLayoutOf,
   topBarHeightOf,
 } from "@/lib/tokens";
-import { Field, ImageRow, NamedSizes, PanelShell, RUN_CELL, Section, Segmented, Slider, Toggle } from "./ui";
+import { Field, ImageRow, NamedSizes, PanelShell, RUN_CELL, Section, Segmented, Slider, TextColorRow, Toggle } from "./ui";
 import { CardStage } from "./CardStage";
 import { arcPath, wavePath } from "./Loading";
 import { Icon } from "./M3Node";
@@ -265,7 +266,11 @@ function ChoiceToggle({ item, onChange, p }: { item: Item; onChange: Change; p: 
   );
 }
 
-/** the words on a part: its label, and the second line it may carry under it */
+/** 有字的部件：自己的标签、标签下的第二行，或者一条栏里的各条文字。
+ *  图标按钮、图片、进度条这些只有图形没有字的，不给颜色行 —— 按下去不会有反应。 */
+const ENTRY_WORDS: Kind[] = ["tabs", "bottomNav", "navRail", "fabMenu"];
+const drawsWords = (kind: Kind) => KIND_SPEC[kind].hasLabel || KIND_SPEC[kind].hasSupporting || ENTRY_WORDS.includes(kind);
+
 function TextRows({ item, onChange, p, labelKey = "label", supportingKey = "supporting", paragraph = false, bold = false }: { item: Item; onChange: Change; p: Palette; labelKey?: "label" | "title" | "message"; supportingKey?: "supporting" | "action" | "body"; paragraph?: boolean; bold?: boolean }) {
   const lang = useLang();
   const spec = KIND_SPEC[item.kind];
@@ -506,6 +511,11 @@ export function PartInspector({
       {(isChoice(kind) || kind === "text") && (
         <Section id="part-text" icon="short_text" title={t("text", lang)} p={p}>
           <TextRows item={item} onChange={onChange} p={p} bold={kind === "text"} />
+        </Section>
+      )}
+      {drawsWords(kind) && (
+        <Section id="part-ink" icon="format_color_text" title={t("textColor", lang)} p={p}>
+          <TextColorRow value={item.textHex} onChange={(hex) => onChange({ textHex: hex })} p={p} />
         </Section>
       )}
 

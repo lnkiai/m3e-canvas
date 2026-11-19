@@ -195,6 +195,10 @@ export const UI = {
   textEnd: { ja: "右", en: "End", zh: "右" },
   imageSize: { ja: "画像の大きさ", en: "Image size", zh: "图片大小" },
   textColor: { ja: "文字の色", en: "Text color", zh: "文字颜色" },
+  followTheme: { ja: "テーマに従う", en: "Follow theme", zh: "跟随主题" },
+  reset: { ja: "リセット", en: "Reset", zh: "重置" },
+  freeColor: { ja: "自由な色", en: "Any colour", zh: "自由取色" },
+  textColorHex: { ja: "色のコード", en: "Colour code", zh: "颜色代码" },
   autoWidth: { ja: "自動", en: "Auto", zh: "自动" },
   icon: { ja: "アイコン", en: "Icon", zh: "图标" },
   noIcon: { ja: "アイコンなし", en: "No icon", zh: "无图标" },
@@ -566,6 +570,10 @@ export const KO: Record<UIKey, string> = {
   aiSelectScreen: "먼저 화면을 선택하세요", aiNoKey: "AI 탭에 키를 입력하면 사용할 수 있습니다", aiError: "AI 요청에 실패했습니다",
   aiErrorRefusal: "모델이 답변을 거부했습니다", aiErrorJson: "모델의 응답을 읽을 수 없습니다", aiErrorLong: "답변이 너무 길어 중간에 잘렸습니다. 화면 수를 줄여 다시 시도하세요", aiErrorModel: "모델 ID를 입력하세요",
   aiErrorInsecure: "기본 URL은 https를 사용하거나 localhost를 가리켜야 합니다", aiErrorNetwork: "연결할 수 없습니다. URL, 네트워크 및 서버의 CORS 설정을 확인하세요",
+  followTheme: "테마 따르기",
+  reset: "초기화",
+  freeColor: "자유 색상",
+  textColorHex: "색상 코드",
 };
 
 /** the locale each language writes its dates in */

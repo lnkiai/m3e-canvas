@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { COLOR_TOKENS, ColorToken, PLACES, Palette, Place, R_INNER, SETTLE_MS, clamp, draftGradient } from "@/lib/tokens";
+import { COLOR_TOKENS, ColorToken, PLACES, Palette, Place, R_INNER, SETTLE_MS, clamp, draftGradient, normalizeTextHex } from "@/lib/tokens";
 import { AnimatePresence, animate, motion, useReducedMotion } from "motion/react";
 import { COLOR_TOKEN_TEXT, t, useLang } from "@/lib/i18n";
 import { Icon } from "./M3Node";
@@ -1472,6 +1472,114 @@ export function Section({
         {right}
       </div>
       {open && <div style={{ padding: "6px 4px 14px" }}>{children}</div>}
+    </div>
+  );
+}
+
+/** the colours a part's words are offered before the picker */
+export const TEXT_HEX_PRESETS = ["#D70010", "#111111", "#6B6B6B"] as const;
+
+/** 一个部件自己那一路文字的颜色：几颗常用色 + 一颗自由取色，下面一行可编辑的 hex。
+ *  不填 hex 就是跟随主题，「跟随主题」不是另一个要点的按钮，而是把输入框清空。
+ *  文字块的属性面板和按钮那套面板是两套，这一行放在这里给两边共用。 */
+export function TextColorRow({ value = "", onChange, p }: { value?: string; onChange: (hex: string | undefined) => void; p: Palette }) {
+  const lang = useLang();
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+
+  /* 输入合法就生效：敲 d70010 回车补成 #d70010；清空则回到跟随主题 */
+  const commit = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      onChange(undefined);
+      setDraft("");
+      return;
+    }
+    const next = normalizeTextHex(trimmed);
+    if (next) onChange(next);
+    setDraft(next ?? value);
+  };
+
+  const free = value !== "" && !TEXT_HEX_PRESETS.some((h) => h.toLowerCase() === value.toLowerCase());
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "1 1 auto", minWidth: 0 }}>
+          {TEXT_HEX_PRESETS.map((hex) => {
+            const on = value.toLowerCase() === hex.toLowerCase();
+            return (
+              <button
+                key={hex}
+                onClick={() => onChange(on ? undefined : hex)}
+                title={`${t("textColor", lang)} ${hex}`}
+                aria-label={`${t("textColor", lang)} ${hex}`}
+                aria-pressed={on}
+                style={{
+                  flex: "0 0 auto", width: 30, height: 30, borderRadius: 15, padding: 0, cursor: "pointer",
+                  border: "none", background: hex, color: "#ffffff", display: "grid", placeItems: "center",
+                  boxShadow: on ? `inset 0 0 0 2px ${p.surfaceContainerHigh}, 0 0 0 2px ${p.primary}` : `inset 0 0 0 1px ${p.outlineVariant}`,
+                }}
+              >
+                {on && <Icon name="check" size={18} weight={700} />}
+              </button>
+            );
+          })}
+          {/* 自由取色：系统取色器藏在这颗圆点里，取到什么画布上就是什么 */}
+          <label
+            title={t("freeColor", lang)}
+            style={{
+              position: "relative", flex: "0 0 auto", width: 30, height: 30, borderRadius: 15, cursor: "pointer",
+              overflow: "hidden", display: "grid", placeItems: "center",
+              background: free ? value : p.surfaceContainerHighest,
+              color: free ? p.onSurface : p.onSurfaceVariant,
+              boxShadow: `inset 0 0 0 1px ${p.outlineVariant}`,
+            }}
+          >
+            <Icon name="colorize" size={16} />
+            <input
+              type="color"
+              aria-label={t("freeColor", lang)}
+              value={value || "#111111"}
+              onChange={(e) => onChange(e.target.value)}
+              style={{ position: "absolute", inset: -6, width: "calc(100% + 12px)", height: "calc(100% + 12px)", padding: 0, border: 0, background: "none", opacity: 0, cursor: "pointer" }}
+            />
+          </label>
+        </div>
+        {/* 有自定义色时才给出来的退路 */}
+        {value && (
+          <button
+            onClick={() => onChange(undefined)}
+            title={t("followTheme", lang)}
+            style={{ flex: "0 0 auto", height: 30, padding: "0 10px", border: "none", borderRadius: 15, background: p.surfaceContainerHigh, color: p.onSurfaceVariant, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}
+          >
+            {t("reset", lang)}
+          </button>
+        )}
+      </div>
+      <input
+        value={draft}
+        placeholder={t("followTheme", lang)}
+        spellCheck={false}
+        aria-label={t("textColorHex", lang)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => commit(draft)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit(draft);
+            (e.target as HTMLInputElement).blur();
+          }
+          if (e.key === "Escape") {
+            setDraft(value);
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        style={{
+          width: "100%", height: 30, padding: "0 14px", borderRadius: 15, border: "none",
+          background: p.surfaceContainerHigh, color: p.onSurface, fontSize: 12, fontWeight: 600,
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", boxSizing: "border-box", outline: "none",
+        }}
+      />
     </div>
   );
 }

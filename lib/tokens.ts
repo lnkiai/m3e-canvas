@@ -1653,6 +1653,8 @@ export type Item = {
   textAlign?: CardAlign;
   /** cards: a color role for the headline and body instead of the automatic one */
   textColor?: TextToken;
+  /** a free-form hex that overrides the theme role, e.g. "#d70010" */
+  textHex?: string;
   /** on/off state for switches, checkboxes and chips */
   checked?: boolean;
   /** a switch whose handle stays plain when on, without the check icon */
@@ -2048,6 +2050,15 @@ export const TEXT_TOKENS: { key: TextToken; label: string }[] = [
   { key: "inverseOnSurface", label: "Inverse on surface" },
 ];
 export const isTextToken = (v: unknown): v is TextToken => TEXT_TOKENS.some((t) => t.key === v);
+/** 3- or 6-digit hex, with or without the hash; stored normalised to "#rrggbb" */
+export function normalizeTextHex(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v.trim());
+  if (!m) return undefined;
+  const h = m[1].length === 3 ? m[1].split("").map((c) => c + c).join("") : m[1];
+  return "#" + h.toLowerCase();
+}
+export const isTextHex = (v: unknown): v is string => normalizeTextHex(v) !== undefined;
 /** the card's text color: the chosen role, else white over a photo, the container's
  *  "on" color over a placeholder background or a chosen fill, and onSurface otherwise */
 export function cardTextColorOf(it: Item, p: Palette): string {
