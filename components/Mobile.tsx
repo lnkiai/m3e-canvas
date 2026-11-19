@@ -8,7 +8,8 @@ import { KIND_TEXT, LANGS, Lang, t, useLang } from "@/lib/i18n";
 import { IconPicker } from "./IconPicker";
 import { Icon } from "./M3Node";
 import { VariantSwatch, variantsOf } from "./Inspector";
-import { Field, IconBtn, Segmented, Toggle } from "./ui";
+import { drawsWords } from "./PartInspector";
+import { Field, IconBtn, Segmented, TextColorRow, Toggle } from "./ui";
 
 /** Sheet that slides up from the bottom edge; the canvas above stays usable.
  *  Dragging the handle moves the sheet with the finger; a flick or a long pull closes it. */
@@ -176,6 +177,13 @@ export function MobileInspector({
               />
             )}
           </div>
+        </Row>
+      )}
+
+      {/* 手机面板里字是分段填的，颜色也一样：有字的部件才给这一行 */}
+      {drawsWords(item.kind) && (
+        <Row icon="format_color_text" label={t("textColor", lang)} p={p}>
+          <TextColorRow value={item.textHex} onChange={(hex) => onChange({ textHex: hex })} p={p} />
         </Row>
       )}
 

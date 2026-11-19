@@ -266,10 +266,13 @@ function ChoiceToggle({ item, onChange, p }: { item: Item; onChange: Change; p: 
   );
 }
 
-/** 有字的部件：自己的标签、标签下的第二行，或者一条栏里的各条文字。
+/** 有字的部件：自己的标签、标签下的第二行，或者一条栏里各条文字。
+ *  KIND_SPEC 的 hasLabel/hasSupporting 说的是「面板里给不给标签输入框」，
+ *  和「画不画字」不是一回事：页签、导航、FAB 菜单的文字在每一条上，日历和钟面
+ *  的数字、行动按钮的字不在 label 里。所以这些按画字补进来。
  *  图标按钮、图片、进度条这些只有图形没有字的，不给颜色行 —— 按下去不会有反应。 */
-const ENTRY_WORDS: Kind[] = ["tabs", "bottomNav", "navRail", "fabMenu"];
-const drawsWords = (kind: Kind) => KIND_SPEC[kind].hasLabel || KIND_SPEC[kind].hasSupporting || ENTRY_WORDS.includes(kind);
+const ENTRY_WORDS: Kind[] = ["tabs", "bottomNav", "navRail", "fabMenu", "carousel", "datePicker", "timePicker"];
+export const drawsWords = (kind: Kind) => KIND_SPEC[kind].hasLabel || KIND_SPEC[kind].hasSupporting || ENTRY_WORDS.includes(kind);
 
 function TextRows({ item, onChange, p, labelKey = "label", supportingKey = "supporting", paragraph = false, bold = false }: { item: Item; onChange: Change; p: Palette; labelKey?: "label" | "title" | "message"; supportingKey?: "supporting" | "action" | "body"; paragraph?: boolean; bold?: boolean }) {
   const lang = useLang();

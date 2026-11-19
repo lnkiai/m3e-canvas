@@ -17,7 +17,7 @@ import {
   timeLayoutOf,
 } from "@/lib/tokens";
 import { dateHeadline, monthHeadline, t, useLang } from "@/lib/i18n";
-import { Icon } from "./M3Node";
+import { Icon, inkOf } from "./M3Node";
 
 /* The three parts drawn here are wide surfaces rather than controls: a carousel's row of
  * cards, a calendar, a clock. They take their whole box. A calendar shows today and a clock the
@@ -96,7 +96,7 @@ export function CarouselBody({ item, p, scroll = 0 }: { item: Item; p: Palette; 
                   /* what the author typed, line breaks and all */
                   whiteSpace: "pre-line",
                   overflow: "hidden",
-                  color: src ? "#fff" : "inherit",
+                  color: inkOf(item, src ? "#fff" : i === 0 ? p.onPrimaryContainer : p.onSurfaceVariant),
                   opacity: lead,
                 }}
               >
@@ -111,12 +111,12 @@ export function CarouselBody({ item, p, scroll = 0 }: { item: Item; p: Palette; 
 }
 
 /** the run of text buttons a picker dialog ends with */
-function PickerActions({ p }: { p: Palette }) {
+function PickerActions({ item, p }: { item: Item; p: Palette }) {
   const lang = useLang();
   return (
     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "0 12px 12px" }}>
       {[t("cancel", lang), t("ok", lang)].map((label) => (
-        <span key={label} style={{ height: 40, padding: "0 12px", borderRadius: 20, color: p.primary, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
+        <span key={label} style={{ height: 40, padding: "0 12px", borderRadius: 20, color: inkOf(item, p.primary), fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
           {label}
         </span>
       ))}
@@ -133,7 +133,7 @@ const WEEKDAYS: Record<string, string[]> = {
 };
 
 /** this month as a grid: its days from the weekday it starts on, with today on a filled circle */
-function Month({ at, p, cell }: { at: Date; p: Palette; cell: number }) {
+function Month({ item, at, p, cell }: { item: Item; at: Date; p: Palette; cell: number }) {
   const lang = useLang();
   const day = at.getDate();
   const days = new Date(at.getFullYear(), at.getMonth() + 1, 0).getDate();
@@ -143,7 +143,7 @@ function Month({ at, p, cell }: { at: Date; p: Palette; cell: number }) {
     <div style={{ padding: "0 24px" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
         {(WEEKDAYS[lang] ?? WEEKDAYS.en).map((d, i) => (
-          <span key={i} style={{ height: cell, display: "grid", placeItems: "center", fontSize: 12, fontWeight: 600, color: p.onSurfaceVariant }}>
+          <span key={i} style={{ height: cell, display: "grid", placeItems: "center", fontSize: 12, fontWeight: 600, color: inkOf(item, p.onSurfaceVariant) }}>
             {d}
           </span>
         ))}
@@ -160,7 +160,7 @@ function Month({ at, p, cell }: { at: Date; p: Palette; cell: number }) {
                   fontSize: 13,
                   fontWeight: d === day ? 700 : 500,
                   background: d === day ? p.primary : "transparent",
-                  color: d === day ? p.onPrimary : p.onSurface,
+                  color: inkOf(item, d === day ? p.onPrimary : p.onSurface),
                 }}
               >
                 {d}
@@ -174,11 +174,11 @@ function Month({ at, p, cell }: { at: Date; p: Palette; cell: number }) {
 }
 
 /** the field a date is typed into, with the calendar button at its end */
-function DateField({ at, p }: { at: Date; p: Palette }) {
+function DateField({ item, at, p }: { item: Item; at: Date; p: Palette }) {
   const lang = useLang();
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ fontSize: 12, color: p.onSurfaceVariant, marginBottom: 6 }}>{t("dateLabel", lang)}</div>
+      <div style={{ fontSize: 12, color: inkOf(item, p.onSurfaceVariant), marginBottom: 6 }}>{t("dateLabel", lang)}</div>
       <div
         style={{
           height: 56,
@@ -192,7 +192,7 @@ function DateField({ at, p }: { at: Date; p: Palette }) {
           fontSize: 16,
         }}
       >
-        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: inkOf(item, p.onSurface) }}>
           {dateHeadline(lang, at)}
         </span>
         <Icon name="calendar_month" size={22} />
@@ -205,15 +205,15 @@ export function DatePickerBody({ item, p }: { item: Item; p: Palette }) {
   const lang = useLang();
   const layout = dateLayoutOf(item);
   const at = now();
-  if (layout === "input") return <DateField at={at} p={p} />;
+  if (layout === "input") return <DateField item={item} at={at} p={p} />;
   const { w } = sizeOf(item, {});
   const cell = Math.round((w - 48) / 7);
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {layout === "modal" && (
         <div style={{ padding: "16px 24px 0" }}>
-          <div style={{ fontSize: 12, color: p.onSurfaceVariant }}>{t("selectDate", lang)}</div>
-          <div style={{ fontSize: 28, fontWeight: 500, color: p.onSurface, marginTop: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div style={{ fontSize: 12, color: inkOf(item, p.onSurfaceVariant) }}>{t("selectDate", lang)}</div>
+          <div style={{ fontSize: 28, fontWeight: 500, color: inkOf(item, p.onSurface), marginTop: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {dateHeadline(lang, at)}
           </div>
         </div>
@@ -221,7 +221,7 @@ export function DatePickerBody({ item, p }: { item: Item; p: Palette }) {
       {/* under a headline the month row sits close; docked, it is the first thing on the surface and takes the surface's own margin */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: `${layout === "docked" ? 16 : 8}px 16px 0 24px`, color: p.onSurfaceVariant }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: p.onSurface, display: "inline-flex", alignItems: "center", gap: 4 }}>
-          {monthHeadline(lang, at)}
+          <span style={{ color: inkOf(item, p.onSurface) }}>{monthHeadline(lang, at)}</span>
           <Icon name="arrow_drop_down" size={20} />
         </span>
         <span style={{ display: "inline-flex", gap: 12 }}>
@@ -230,15 +230,15 @@ export function DatePickerBody({ item, p }: { item: Item; p: Palette }) {
         </span>
       </div>
       <div style={{ flex: 1, minHeight: 0, paddingTop: 4 }}>
-        <Month at={at} p={p} cell={cell} />
+        <Month item={item} at={at} p={p} cell={cell} />
       </div>
-      <PickerActions p={p} />
+      <PickerActions item={item} p={p} />
     </div>
   );
 }
 
 /** one of the two number plates a time is read off */
-function TimeBox({ text, on, p, wide }: { text: string; on: boolean; p: Palette; wide: number }) {
+function TimeBox({ text, ink, on, p, wide }: { text: string; ink?: string; on: boolean; p: Palette; wide: number }) {
   return (
     <span
       style={{
@@ -248,7 +248,7 @@ function TimeBox({ text, on, p, wide }: { text: string; on: boolean; p: Palette;
         display: "grid",
         placeItems: "center",
         background: on ? p.primaryContainer : p.surfaceContainerHighest,
-        color: on ? p.onPrimaryContainer : p.onSurface,
+        color: ink,
         fontSize: 40,
         fontWeight: 400,
         border: on ? `2px solid ${p.primary}` : "none",
@@ -261,7 +261,7 @@ function TimeBox({ text, on, p, wide }: { text: string; on: boolean; p: Palette;
 }
 
 /** the clock face: the hours around it and a hand reaching the one it is now */
-function Dial({ hour24, p, size }: { hour24: number; p: Palette; size: number }) {
+function Dial({ item, hour24, p, size }: { item: Item; hour24: number; p: Palette; size: number }) {
   /* the hour on a twelve-hour face: twelve stands at the top, where a zero would */
   const hour = hour24 % 12 || 12;
   const R = size / 2;
@@ -293,7 +293,7 @@ function Dial({ hour24, p, size }: { hour24: number; p: Palette; size: number })
               placeItems: "center",
               fontSize: 15,
               fontWeight: on ? 700 : 500,
-              color: on ? p.onPrimary : p.onSurface,
+              color: inkOf(item, on ? p.onPrimary : p.onSurface),
             }}
           >
             {n}
@@ -317,11 +317,11 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
   const dial = Math.min(256, w - 48);
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ padding: "16px 24px 0", fontSize: 12, color: p.onSurfaceVariant }}>{t("selectTime", lang)}</div>
+      <div style={{ padding: "16px 24px 0", fontSize: 12, color: inkOf(item, p.onSurfaceVariant) }}>{t("selectTime", lang)}</div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px 24px 0" }}>
-        <TimeBox text={hh} on p={p} wide={plate} />
-        <span style={{ fontSize: 32, color: p.onSurface }}>:</span>
-        <TimeBox text={mm} on={false} p={p} wide={plate} />
+        <TimeBox text={hh} ink={inkOf(item, p.onPrimaryContainer)} on p={p} wide={plate} />
+        <span style={{ fontSize: 32, color: inkOf(item, p.onSurface) }}>:</span>
+        <TimeBox text={mm} ink={inkOf(item, p.onSurface)} on={false} p={p} wide={plate} />
         <span style={{ display: "flex", flexDirection: "column", width: 48, height: 72, borderRadius: 8, border: `1px solid ${p.outline}`, overflow: "hidden" }}>
           {["AM", "PM"].map((s) => {
             const on = (s === "PM") === pm;
@@ -335,7 +335,7 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
                   fontSize: 12,
                   fontWeight: 600,
                   background: on ? p.tertiaryContainer : "transparent",
-                  color: on ? p.onTertiaryContainer : p.onSurfaceVariant,
+                  color: inkOf(item, on ? p.onTertiaryContainer : p.onSurfaceVariant),
                 }}
               >
                 {s}
@@ -346,10 +346,10 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
       </div>
       {layout === "dial" ? (
         <div style={{ flex: 1, minHeight: 0, display: "grid", placeItems: "center", padding: "12px 0" }}>
-          <Dial hour24={hour24} p={p} size={dial} />
+          <Dial item={item} hour24={hour24} p={p} size={dial} />
         </div>
       ) : (
-        <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "flex-start", padding: "10px 24px", gap: 8, color: p.onSurfaceVariant, fontSize: 12 }}>
+        <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "flex-start", padding: "10px 24px", gap: 8, color: inkOf(item, p.onSurfaceVariant), fontSize: 12 }}>
           <span style={{ width: plate, textAlign: "center" }}>{t("hourLabel", lang)}</span>
           <span style={{ width: 10 }} />
           <span style={{ width: plate, textAlign: "center" }}>{t("minuteLabel", lang)}</span>
@@ -358,7 +358,7 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
       <div style={{ display: "flex", alignItems: "center", padding: "0 12px 12px" }}>
         <Icon name={layout === "dial" ? "keyboard" : "schedule"} size={22} />
         <span style={{ flex: 1 }} />
-        <PickerActions p={p} />
+        <PickerActions item={item} p={p} />
       </div>
     </div>
   );
