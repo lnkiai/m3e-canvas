@@ -509,6 +509,22 @@ describe("navigation bars that hide on scroll", () => {
     expect(fabGroup(tree).props.style.transform).toBeUndefined();
   });
 
+  it("slides a top app bar up out of the screen and back", () => {
+    const top = { ...makeItem("topAppBar"), id: "top", hideOnScroll: true };
+    const withTop = [...groups, { id: "top-group", x: 0, y: 0, axis: "x" as const, items: [top] }];
+    const topPose = (tree: Element) => (elements(tree).find((e) => e.props["data-scroll-nav"] === "top")!.props.children as Element).props;
+    let tree = render(true, { groups: withTop });
+    expect(topPose(tree).animate).toEqual({ y: "0%" });
+    call(body(tree), "onWheelCapture", { deltaY: 10 });
+    call(body(tree), "onScroll", { currentTarget: { scrollTop: 120, scrollHeight: long.length, clientHeight: PHONE_H } });
+    tree = render(false, { groups: withTop });
+    expect(topPose(tree).animate).toEqual({ y: "-100%" });
+    expect(pose(tree).animate).toEqual({ y: "100%" });
+    call(body(tree), "onScroll", { currentTarget: { scrollTop: 100, scrollHeight: long.length, clientHeight: PHONE_H } });
+    tree = render(false, { groups: withTop });
+    expect(topPose(tree).animate).toEqual({ y: "0%" });
+  });
+
   it("leaves a FAB in place when the bar beneath it does not hide", () => {
     const fab = { ...makeItem("fab"), id: "above" };
     const still = groups.map((g) => (g.id === "nav-group" ? { ...g, items: g.items.map((it) => (it.id === "nav" ? { ...it, hideOnScroll: undefined } : it)) } : g));

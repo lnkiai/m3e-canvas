@@ -351,8 +351,9 @@ describe("makeItem", () => {
     expect(nav.tabs!.length).toBeGreaterThan(0);
   });
 
-  it("a new bottom nav hides on scroll, and nothing else carries the switch", () => {
+  it("a new bottom nav and top app bar hide on scroll, and nothing else carries the switch", () => {
     expect(makeItem("bottomNav").hideOnScroll).toBe(true);
+    expect(makeItem("topAppBar").hideOnScroll).toBe(true);
     expect(makeItem("navRail").hideOnScroll).toBeUndefined();
     expect(makeItem("tabs").hideOnScroll).toBeUndefined();
   });

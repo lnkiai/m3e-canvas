@@ -1677,8 +1677,9 @@ export type Item = {
   /** extended FAB only: in the preview, fold to an icon-only standard FAB when the body scrolls down
      and unfold when it scrolls back up */
   collapseOnScroll?: boolean;
-  /** navigation bar only: hide on downward pointer scrolling and return on upward
-     scrolling, at the top, or for keyboard use and destination focus */
+  /** top app bar and navigation bar: in the preview of a screen that scrolls, slide out of
+     view while the body scrolls down and come back on any upward scroll, at the top, or for
+     keyboard use */
   hideOnScroll?: boolean;
   /** palette token used as background (boxes, list items) */
   fill?: ColorToken;
@@ -2446,6 +2447,9 @@ export function makeItem(kind: Kind): Item {
   }
   if (kind === "datePicker") it.layout = "modal";
   if (kind === "timePicker") it.layout = "dial";
+  /* a new top app bar gets out of the way on a screen that scrolls, as a new navigation bar does
+     below; one saved without the field keeps showing, as it always did */
+  if (kind === "topAppBar") it.hideOnScroll = true;
   if (kind === "bottomNav") {
     it.tabs = defaultTabs();
     it.radiusTop = 0;

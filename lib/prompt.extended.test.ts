@@ -265,6 +265,31 @@ describe("navigation bar scroll hiding in prompts", () => {
   });
 });
 
+describe("top app bar scroll hiding in prompts", () => {
+  const up: Record<Lang, string> = {
+    ja: "本文を下へスクロールすると画面の上へ隠れ",
+    en: "scrolling the body down slides it up off the screen",
+    zh: "正文向下滚动时滑出屏幕顶部隐藏",
+    ko: "본문을 아래로 스크롤하면 화면 위로 숨고",
+  };
+  const fab: Record<Lang, string> = { ja: "FAB も一緒に下へ動く", en: "A FAB floating above it moves down with it", zh: "FAB 随它一起下移", ko: "FAB도 함께 아래로" };
+  const prompt = (lang: Lang, hideOnScroll: boolean | undefined, length = PHONE_H * 2) => {
+    const bar = { ...makeItem("topAppBar"), id: "bar", label: "Inbox", hideOnScroll };
+    return buildPrompt(baseDoc({ frames: [{ ...phoneFrame, length }], groups: [{ id: "g", x: 0, y: 0, axis: "x", items: [bar] }] }), widths, undefined, lang);
+  };
+
+  it.each(["ja", "en", "zh", "ko"] as Lang[])("says the bar leaves upward in %s, without the FAB note", (lang) => {
+    const text = prompt(lang, true);
+    expect(text).toContain(up[lang]);
+    expect(text).not.toContain(fab[lang]);
+  });
+
+  it.each(["ja", "en", "zh", "ko"] as Lang[])("says nothing when it is off or the screen does not scroll in %s", (lang) => {
+    expect(prompt(lang, undefined)).not.toContain(up[lang]);
+    expect(prompt(lang, true, PHONE_H)).not.toContain(up[lang]);
+  });
+});
+
 describe("buildPrompt — platform switch", () => {
   it("Android platform mentions Android / Material", () => {
     const doc = baseDoc({ platform: "android" });

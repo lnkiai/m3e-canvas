@@ -515,13 +515,13 @@ export function PartInspector({
           <EntryList item={item} onChange={onChange} p={p} icons={kind !== "tabs" && kind !== "select"} selectable clearable={kind === "select"} />
         </Section>
       )}
-      {kind === "bottomNav" && (
+      {(kind === "bottomNav" || kind === "topAppBar") && (
         <Section id="nav-scroll" icon="unfold_more" title={t("scrolling", lang)} p={p}>
           <Toggle
             on={!!item.hideOnScroll}
             onChange={(hideOnScroll) => onChange({ hideOnScroll: hideOnScroll || undefined })}
             p={p}
-            icon="vertical_align_bottom"
+            icon={kind === "topAppBar" ? "vertical_align_top" : "vertical_align_bottom"}
             label={t("navScrollSwitch", lang)}
             grow
           />

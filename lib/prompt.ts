@@ -290,14 +290,16 @@ function fabScrollText(it: Item, lang: Lang): string {
   return "; when the body scrolls down, it collapses toward the right into an icon-only standard FAB (right edge fixed) and stays collapsed after scrolling stops; scrolling up expands it back to the extended FAB";
 }
 
-/** the optional scroll hiding for a navigation bar: what an implementation has to match,
- *  not how the preview detects it */
-function navScrollText(it: Item, lang: Lang): string {
+/** the optional scroll hiding for a top app bar or a navigation bar: what an implementation has
+ *  to match, not how the preview detects it. A top bar leaves upward, a navigation bar downward
+ *  and takes a FAB floating above it along. */
+function barScrollText(it: Item, lang: Lang): string {
   if (!it.hideOnScroll) return "";
-  if (lang === "ja") return "。本文を下へスクロールすると画面の下へ隠れ、止めても隠れたまま。少しでも上へスクロールすると戻る。その上に浮かぶ FAB も一緒に下へ動く。本文の先頭にいるときと、移動先にキーボードのフォーカスがある間は表示したままにする。動きは 200ms、動きを減らす設定ではアニメーションなし";
-  if (lang === "zh") return "。正文向下滚动时滑出屏幕底部隐藏，停止滚动后保持隐藏；任何向上滚动都会让它回来。浮在它上方的 FAB 随它一起下移。位于正文顶部或某个目的地获得键盘焦点时保持显示。滑动用时 200ms，启用减少动态效果时不播放动画";
-  if (lang === "ko") return ". 본문을 아래로 스크롤하면 화면 아래로 숨고 멈춰도 숨긴 상태를 유지하며, 조금이라도 위로 스크롤하면 다시 나타난다. 그 위에 떠 있는 FAB도 함께 아래로 움직인다. 본문 맨 위에 있을 때와 목적지에 키보드 포커스가 있는 동안에는 표시한다. 전환은 200ms이며, 동작 줄이기 설정에서는 애니메이션 없이 전환한다";
-  return "; scrolling the body down slides it below the screen and it stays hidden at rest; any upward scroll brings it back. A FAB floating above it moves down with it. Keep it shown at the top of the body and while one of its destinations has keyboard focus. Slide it over 200 ms, or without animation when reduced motion is preferred";
+  const top = it.kind === "topAppBar";
+  if (lang === "ja") return `。本文を下へスクロールすると画面の${top ? "上" : "下"}へ隠れ、止めても隠れたまま。少しでも上へスクロールすると戻る。${top ? "" : "その上に浮かぶ FAB も一緒に下へ動く。"}本文の先頭にいるときと、${top ? "ボタン" : "移動先"}にキーボードのフォーカスがある間は表示したままにする。動きは 200ms、動きを減らす設定ではアニメーションなし`;
+  if (lang === "zh") return `。正文向下滚动时滑出屏幕${top ? "顶部" : "底部"}隐藏，停止滚动后保持隐藏；任何向上滚动都会让它回来。${top ? "" : "浮在它上方的 FAB 随它一起下移。"}位于正文顶部或${top ? "其中的按钮" : "某个目的地"}获得键盘焦点时保持显示。滑动用时 200ms，启用减少动态效果时不播放动画`;
+  if (lang === "ko") return `. 본문을 아래로 스크롤하면 화면 ${top ? "위" : "아래"}로 숨고 멈춰도 숨긴 상태를 유지하며, 조금이라도 위로 스크롤하면 다시 나타난다. ${top ? "" : "그 위에 떠 있는 FAB도 함께 아래로 움직인다. "}본문 맨 위에 있을 때와 ${top ? "버튼" : "목적지"}에 키보드 포커스가 있는 동안에는 표시한다. 전환은 200ms이며, 동작 줄이기 설정에서는 애니메이션 없이 전환한다`;
+  return `; scrolling the body down slides it ${top ? "up off" : "below"} the screen and it stays hidden at rest; any upward scroll brings it back. ${top ? "" : "A FAB floating above it moves down with it. "}Keep it shown at the top of the body and while one of its ${top ? "buttons" : "destinations"} has keyboard focus. Slide it over 200 ms, or without animation when reduced motion is preferred`;
 }
 
 /** what a split button's arrow opens, and which way it goes */
@@ -334,10 +336,10 @@ function itemJa(it: Item): string {
     case "chip":
       return `${q(it.label)}のチップ${it.checked ? "（選択状態）" : ""}${it.icon && !it.checked ? `（${it.icon} アイコン付き）` : ""}${chipHeightText(it, "ja")}`;
     case "topAppBar":
-      return `タイトル${q(it.label)}のトップアプリバー${topBarSizeText(it, "ja")}${it.icon ? `。左に ${it.icon}` : ""}${it.icon2 ? `、右に ${it.icon2}` : ""}${it.icon || it.icon2 ? " のアイコンボタン" : ""}`;
+      return `タイトル${q(it.label)}のトップアプリバー${topBarSizeText(it, "ja")}${it.icon ? `。左に ${it.icon}` : ""}${it.icon2 ? `、右に ${it.icon2}` : ""}${it.icon || it.icon2 ? " のアイコンボタン" : ""}${barScrollText(it, "ja")}`;
     case "bottomNav": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "ラベルなし")}(${t.icon || "アイコンなし"})`);
-      return `${tabs.length}項目のナビゲーションバー（${tabs.join("、")}。${selectedText(it, "ja")}）${navScrollText(it, "ja")}`;
+      return `${tabs.length}項目のナビゲーションバー（${tabs.join("、")}。${selectedText(it, "ja")}）${barScrollText(it, "ja")}`;
     }
     case "navRail": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "ラベルなし")}(${t.icon || "アイコンなし"})`);
@@ -431,10 +433,10 @@ function itemEn(it: Item): string {
     case "chip":
       return `a chip ${q(it.label)}${it.checked ? " (selected)" : ""}${it.icon && !it.checked ? ` with a ${it.icon} icon` : ""}${chipHeightText(it, "en")}`;
     case "topAppBar":
-      return `a top app bar titled ${q(it.label)}${topBarSizeText(it, "en")}${it.icon ? ` with a ${it.icon} icon button on the left` : ""}${it.icon2 ? `${it.icon ? " and" : " with"} ${it.icon2} on the right` : ""}`;
+      return `a top app bar titled ${q(it.label)}${topBarSizeText(it, "en")}${it.icon ? ` with a ${it.icon} icon button on the left` : ""}${it.icon2 ? `${it.icon ? " and" : " with"} ${it.icon2} on the right` : ""}${barScrollText(it, "en")}`;
     case "bottomNav": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "unlabeled")} (${t.icon || "no icon"})`);
-      return `a navigation bar with ${tabs.length} destinations: ${tabs.join(", ")}; ${selectedText(it, "en")}${navScrollText(it, "en")}`;
+      return `a navigation bar with ${tabs.length} destinations: ${tabs.join(", ")}; ${selectedText(it, "en")}${barScrollText(it, "en")}`;
     }
     case "navRail": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "unlabeled")} (${t.icon || "no icon"})`);
@@ -528,10 +530,10 @@ function itemZh(it: Item): string {
     case "chip":
       return `${q(it.label)}标签片${it.checked ? "（选中状态）" : ""}${it.icon && !it.checked ? `（带 ${it.icon} 图标）` : ""}${chipHeightText(it, "zh")}`;
     case "topAppBar":
-      return `标题为${q(it.label)}的顶部应用栏${topBarSizeText(it, "zh")}${it.icon ? `，左侧是 ${it.icon}` : ""}${it.icon2 ? `，右侧是 ${it.icon2}` : ""}${it.icon || it.icon2 ? " 图标按钮" : ""}`;
+      return `标题为${q(it.label)}的顶部应用栏${topBarSizeText(it, "zh")}${it.icon ? `，左侧是 ${it.icon}` : ""}${it.icon2 ? `，右侧是 ${it.icon2}` : ""}${it.icon || it.icon2 ? " 图标按钮" : ""}${barScrollText(it, "zh")}`;
     case "bottomNav": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "无标签")}(${t.icon || "无图标"})`);
-      return `${tabs.length}个项目的导航栏（${tabs.join("、")}，${selectedText(it, "zh")}）${navScrollText(it, "zh")}`;
+      return `${tabs.length}个项目的导航栏（${tabs.join("、")}，${selectedText(it, "zh")}）${barScrollText(it, "zh")}`;
     }
     case "navRail": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "无标签")}(${t.icon || "无图标"})`);
@@ -616,10 +618,10 @@ function itemKo(it: Item): string {
     case "fab": return `${it.icon ?? "빈"} 아이콘의 ${v} FAB${it.size && it.size >= 96 ? "(대형)" : it.size && it.size <= 40 ? "(소형)" : ""}${fabMenuText(it, "ko")}`;
     case "extendedFab": return `${q(it.label)}${it.icon ? ` 및 ${it.icon} 아이콘` : ""} 확장 FAB(${v}${it.size2 && it.size2 !== 56 ? `, 높이 ${it.size2}dp` : ""})${fabMenuText(it, "ko")}${fabScrollText(it, "ko")}`;
     case "chip": return `${q(it.label)} 칩${it.checked ? "(선택됨)" : ""}${it.icon && !it.checked ? `(${it.icon} 아이콘 포함)` : ""}${chipHeightText(it, "ko")}`;
-    case "topAppBar": return `제목이 ${q(it.label)}인 상단 앱 바${topBarSizeText(it, "ko")}${it.icon ? `, 왼쪽 ${it.icon}` : ""}${it.icon2 ? `, 오른쪽 ${it.icon2}` : ""}${it.icon || it.icon2 ? " 아이콘 버튼" : ""}`;
+    case "topAppBar": return `제목이 ${q(it.label)}인 상단 앱 바${topBarSizeText(it, "ko")}${it.icon ? `, 왼쪽 ${it.icon}` : ""}${it.icon2 ? `, 오른쪽 ${it.icon2}` : ""}${it.icon || it.icon2 ? " 아이콘 버튼" : ""}${barScrollText(it, "ko")}`;
     case "bottomNav": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "레이블 없음")}(${t.icon || "아이콘 없음"})`);
-      return `${tabs.length}개 항목의 내비게이션 바(${tabs.join(", ")}, ${selectedText(it, "ko")})${navScrollText(it, "ko")}`;
+      return `${tabs.length}개 항목의 내비게이션 바(${tabs.join(", ")}, ${selectedText(it, "ko")})${barScrollText(it, "ko")}`;
     }
     case "navRail": {
       const tabs = (it.tabs ?? []).map((t) => `${q(t.label || "레이블 없음")}(${t.icon || "아이콘 없음"})`);

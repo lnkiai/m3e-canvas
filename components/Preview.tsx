@@ -977,7 +977,7 @@ function Screen({
         const riseH = rising ? sizeOf({ ...g.items[0], [fabOpen]: undefined }, widths).h : 0;
         // A hidden bar leaves its layout slot behind. Let input reach the body through
         // that slot and the group's empty space; visible siblings opt back in below.
-        const passThrough = scrolls && navHidden && g.items.some((it) => it.kind === "bottomNav" && it.hideOnScroll);
+        const passThrough = scrolls && navHidden && g.items.some((it) => (it.kind === "bottomNav" || it.kind === "topAppBar") && it.hideOnScroll);
         /* the same motion as the bar's own slide */
         const follow = followsNav(g)
           ? { transform: navHidden ? `translateY(${navDrop}px)` : undefined, transition: `transform ${reducedMotion || !pointerScroll.current ? 0 : 200}ms cubic-bezier(${EASE.join(", ")})` }
@@ -1061,7 +1061,8 @@ function Screen({
                   }
                 : undefined;
             const slotActions = it.actions;
-            const scrollingNav = scrolls && it.kind === "bottomNav" && !!it.hideOnScroll;
+            /* a navigation bar slides out below the screen, a top app bar out above it */
+            const scrollingNav = scrolls && (it.kind === "bottomNav" || it.kind === "topAppBar") && !!it.hideOnScroll;
             const node = (
               <Tappable
                 key={it.id}
@@ -1133,7 +1134,7 @@ function Screen({
               >
                 <motion.div
                   initial={false}
-                  animate={{ y: navHidden ? "100%" : "0%" }}
+                  animate={{ y: navHidden ? (it.kind === "topAppBar" ? "-100%" : "100%") : "0%" }}
                   transition={{ duration: reducedMotion || !pointerScroll.current ? 0 : 0.2, ease: EASE }}
                 >
                   {anchored}

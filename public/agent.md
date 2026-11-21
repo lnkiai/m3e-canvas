@@ -99,7 +99,7 @@ Sizes are in dp; `size` is the width unless noted. Content width inside the phon
 
 | kind | what it is | useful fields | default size |
 |---|---|---|---|
-| `topAppBar` | top app bar | `label` title, `icon` leading, `icon2` trailing, `actions` with keys `icon` / `icon2` | 412 × 88, at the top |
+| `topAppBar` | top app bar | `label` title, `icon` leading, `icon2` trailing, `actions` with keys `icon` / `icon2`, `hideOnScroll` | 412 × 88, at the top |
 | `bottomNav` | navigation bar | `tabs` (3–5 of `{icon,label}`), `selected` index, `actions` with keys `tab:0`…, `hideOnScroll` | 412 × 104, at the bottom |
 | `navRail` | navigation rail (desktop) | `tabs`, `selected`, `railExpanded` false / true for M3 Expressive collapsed / expanded, `railModal` for modal expansion, `size2` height | 96 collapsed / 220 expanded; omit both rail fields for the original 80-wide rail |
 | `tabs` | tab row | `tabs` (any count; six or more scroll horizontally), `selected` | 412 × 48 |
@@ -138,7 +138,7 @@ Modal presentation requires the rail to be the only item in its group. The edito
 
 An `extendedFab` with an `icon` and `"collapseOnScroll": true` transforms into an icon-only standard FAB when the body scrolls down and stays that way after scrolling stops; scrolling up expands it back to the extended FAB. This requires a vertically scrollable screen: set that frame's `length` greater than its height. Keep the FAB's right edge fixed while it retracts toward the right. Omit the field, or set it to `false`, when the extended FAB should remain extended.
 
-A `bottomNav` with `"hideOnScroll": true` slides below the screen when the body scrolls down, stays hidden at rest, and comes back on any upward scroll; a FAB floating above it moves down with it. It stays shown at the top of the body and while one of its destinations has keyboard focus, and slides over 200 ms (no animation when reduced motion is preferred). Set the frame's `length` greater than its height. Omit the field, or set it to `false`, to keep the bar visible. Navigation rails do not hide on scroll.
+A `bottomNav` with `"hideOnScroll": true` slides below the screen when the body scrolls down, stays hidden at rest, and comes back on any upward scroll; a FAB floating above it moves down with it. It stays shown at the top of the body and while one of its destinations has keyboard focus, and slides over 200 ms (no animation when reduced motion is preferred). Set the frame's `length` greater than its height. Omit the field, or set it to `false`, to keep the bar visible. A `topAppBar` takes the same field and slides up off the screen instead. Navigation rails do not hide on scroll.
 
 Fields that any part may carry:
 
