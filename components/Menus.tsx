@@ -27,27 +27,41 @@ export function Popover({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  /* where the menu stands on the window. It is placed against the window rather than its button's
+     box, so a panel that clips what overflows it (the left rail while its panel is closed is only
+     as wide as its buttons) cannot cut the menu off. */
+  const [anchor, setAnchor] = useState<React.CSSProperties>({});
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onResize = () => setOpen(false);
     window.addEventListener("pointerdown", onDown);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("pointerdown", onDown);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
     };
   }, [open]);
-  const anchor: React.CSSProperties =
-    side === "down"
-      ? { top: size + 8, right: 0, transformOrigin: "top right" }
-      : { left: size + 8, bottom: 0, transformOrigin: "bottom left" };
+  const toggle = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (!open && r) {
+      setAnchor(
+        side === "down"
+          ? { top: r.bottom + 8, right: window.innerWidth - r.right, transformOrigin: "top right" }
+          : { left: r.right + 8, bottom: window.innerHeight - r.bottom, transformOrigin: "bottom left" },
+      );
+    }
+    setOpen((o) => !o);
+  };
   const hidden = side === "down" ? { opacity: 0, y: -6, scale: 0.96 } : { opacity: 0, x: -6, scale: 0.96 };
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <IconBtn icon={icon} p={p} on={open} onClick={() => setOpen((o) => !o)} title={title} size={size} />
+      <IconBtn icon={icon} p={p} on={open} onClick={toggle} title={title} size={size} />
       <AnimatePresence>
         {open && (
           <motion.div
@@ -57,7 +71,7 @@ export function Popover({
             exit={hidden}
             transition={{ duration: 0.16, ease: EASE }}
             style={{
-              position: "absolute",
+              position: "fixed",
               padding: 6,
               borderRadius: 18,
               background: p.surfaceContainerLow,
