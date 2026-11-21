@@ -19,6 +19,8 @@ import {
   timeLayoutOf,
   timeLive,
 } from "@/lib/tokens";
+import { useLayoutEffect, useRef } from "react";
+import { animate, motion, useMotionValue, useReducedMotion } from "motion/react";
 import { dateHeadline, monthHeadline, t, useLang } from "@/lib/i18n";
 import { Icon } from "./M3Node";
 
@@ -269,7 +271,22 @@ function clockOf(item: Item, clock24: boolean) {
 }
 
 /** the hour or minute field of the input and dial pickers; the one being set has a primary outline */
-function TimeField({ text, on, caret, p, w, h, name }: { text: string; on: boolean; caret?: boolean; p: Palette; w: number; h: number; name: "hour" | "minute" }) {
+function TimeField({ text, on, caret, typed, p, w, h, name }: { text: string; on: boolean; caret?: boolean; typed?: boolean; p: Palette; w: number; h: number; name: "hour" | "minute" }) {
+  /* in the preview an input picker's fields are real text fields, so a phone brings up its number
+     pad; the preview turns what is typed into the time (see components/PreviewSurface.tsx) */
+  if (typed)
+    return (
+      <span style={{ width: w, height: h, flex: "0 0 auto", borderRadius: scaleR(16), background: lowestOf(p), boxShadow: on ? `inset 0 0 0 2px ${p.primary}` : undefined, display: "flex" }}>
+        <input
+          data-tp={name}
+          value={text}
+          onChange={() => {}}
+          inputMode="numeric"
+          aria-label={name}
+          style={{ width: "100%", height: "100%", border: "none", outline: "none", background: "transparent", textAlign: "center", padding: 0, color: on ? p.primary : p.onSurface, caretColor: p.primary, fontFamily: "inherit", ...TIME_DIGITS }}
+        />
+      </span>
+    );
   return (
     <span
       data-tp={name}
@@ -293,17 +310,36 @@ function TimeField({ text, on, caret, p, w, h, name }: { text: string; on: boole
   );
 }
 
-/** a scroll picker's wheel: the value in the middle, the ones before and after cut off by its edges */
-function TimeWheel({ value, prev, next, p, w, h, name }: { value: string; prev: string; next: string; p: Palette; w: number; h: number; name: "hour" | "minute" }) {
+/** a scroll picker's wheel: the value in the middle, the ones before and after cut off by its edges.
+ *  When the value changes the numbers roll to it, the shorter way round, as a phone's wheel does. */
+function TimeWheel({ index, count, label, p, w, h, name }: { index: number; count: number; label: (n: number) => string; p: Palette; w: number; h: number; name: "hour" | "minute" }) {
   const off = Math.round(h * 0.42);
-  const row = (text: string, dy: number, color: string, step: number) => (
-    <span data-tp-step={step || undefined} style={{ position: "absolute", left: 0, right: 0, top: h / 2 + dy, transform: "translateY(-50%)", textAlign: "center", color, ...TIME_DIGITS }}>{text}</span>
-  );
+  const y = useMotionValue(0);
+  const reduced = useReducedMotion();
+  const last = useRef(index);
+  useLayoutEffect(() => {
+    const was = last.current;
+    last.current = index;
+    if (was === index || reduced) return;
+    /* how far it moved, the short way round the dial of values */
+    const by = ((((index - was) % count) + count + count / 2) % count) - count / 2;
+    /* start from where the old value stood and roll the new one into the middle */
+    animate(y, 0, { from: y.get() + by * off, duration: 0.24, ease: [0.2, 0, 0, 1] });
+  }, [index, count, off, reduced, y]);
+  const rows = [-2, -1, 0, 1, 2];
   return (
     <span data-tp-wheel={name} style={{ position: "relative", touchAction: "none", width: w, height: h, flex: "0 0 auto", borderRadius: scaleR(16), background: lowestOf(p), overflow: "hidden" }}>
-      {row(prev, -off, p.outline, -1)}
-      {row(value, 0, p.onSurface, 0)}
-      {row(next, off, p.outline, 1)}
+      <motion.span style={{ position: "absolute", inset: 0, y }}>
+        {rows.map((k) => (
+          <span
+            key={k}
+            data-tp-step={k || undefined}
+            style={{ position: "absolute", left: 0, right: 0, top: h / 2 + k * off, transform: "translateY(-50%)", textAlign: "center", color: k ? p.outline : p.onSurface, ...TIME_DIGITS }}
+          >
+            {label((((index + k) % count) + count) % count)}
+          </span>
+        ))}
+      </motion.span>
     </span>
   );
 }
@@ -435,19 +471,21 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
   const clock24 = !!item.clock24;
   const { w } = sizeOf(item, {});
   const { h24, hour, minute, pm, field } = clockOf(item, clock24);
+  /* the preview sets a time on the picker; that is where its typed fields take the keyboard */
+  const typed = layout === "input" && !!item[timeLive];
   const hourText = (n: number) => (clock24 ? two((n + 24) % 24) : two(((n + 11) % 12) + 1));
   const fields = (fw: number, fh: number) =>
     layout === "scroll" ? (
       <>
-        <TimeWheel name="hour" value={hourText(hour)} prev={hourText(hour - 1)} next={hourText(hour + 1)} p={p} w={fw} h={fh} />
+        <TimeWheel name="hour" index={clock24 ? h24 : hour - 1} count={clock24 ? 24 : 12} label={(n) => (clock24 ? two(n) : two(n + 1))} p={p} w={fw} h={fh} />
         <TimeSeparator p={p} h={fh} />
-        <TimeWheel name="minute" value={two(minute)} prev={two((minute + 59) % 60)} next={two((minute + 1) % 60)} p={p} w={fw} h={fh} />
+        <TimeWheel name="minute" index={minute} count={60} label={two} p={p} w={fw} h={fh} />
       </>
     ) : (
       <>
-        <TimeField name="hour" text={hourText(hour)} on={field === "hour"} caret={layout === "input" && field === "hour"} p={p} w={fw} h={fh} />
+        <TimeField name="hour" text={hourText(hour)} on={field === "hour"} caret={layout === "input" && field === "hour"} typed={typed} p={p} w={fw} h={fh} />
         <TimeSeparator p={p} h={fh} />
-        <TimeField name="minute" text={two(minute)} on={field === "minute"} caret={layout === "input" && field === "minute"} p={p} w={fw} h={fh} />
+        <TimeField name="minute" text={two(minute)} on={field === "minute"} caret={layout === "input" && field === "minute"} typed={typed} p={p} w={fw} h={fh} />
       </>
     );
 

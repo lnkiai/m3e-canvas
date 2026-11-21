@@ -17,14 +17,14 @@ export const closable = (it: Item) =>
 /** a part this wrapper has something to do for */
 export const surfaceOf = (it: Item) => closable(it) || it.kind === "timePicker";
 
-/** the time picker as the visitor has set it: its layout switched and the live time attached */
+/** the time picker as the visitor has set it, or as it opens before they touch it: its layout
+ *  switched and the live time attached, which also makes its typed fields real text fields */
 export function liveLook(it: Item, s: TimeState | undefined): Item {
-  if (it.kind !== "timePicker" || !s) return it;
-  return { ...it, layout: s.layout, [timeLive]: { h24: s.h24, minute: s.minute, field: s.field } };
+  if (it.kind !== "timePicker") return it;
+  const live = s ?? startTime(it, new Date());
+  return { ...it, layout: live.layout, [timeLive]: { h24: live.h24, minute: live.minute, field: live.field } };
 }
 
-/** how far a wheel is dragged for one step, in screen pixels */
-const NOTCH = 36;
 
 export function Surface({
   item,
@@ -79,6 +79,25 @@ export function Surface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTime]);
 
+  /* a typed field moved on to by typing (the hour done, on to the minutes) takes the caret */
+  const field = state?.field;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !field || !(document.activeElement instanceof HTMLInputElement) || !el.contains(document.activeElement)) return;
+    const input = el.querySelector(`input[data-tp="${field}"]`) as HTMLInputElement | null;
+    if (input && input !== document.activeElement) input.focus({ preventScroll: true });
+  }, [field]);
+
+  /* a phone's number pad sends text rather than key presses: each digit is typed the same way */
+  const onBeforeInput = (e: React.FormEvent) => {
+    const data = (e.nativeEvent as InputEvent).data;
+    if (!isTime || !(e.target instanceof HTMLInputElement)) return;
+    e.preventDefault();
+    let s = current.current;
+    for (const ch of data ?? "") if (/[0-9]/.test(ch)) s = typeDigit(s, Number(ch), clock24);
+    set(s);
+  };
+
   /* typing sets the field being set while the picker has focus */
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (!isTime) return;
@@ -86,6 +105,10 @@ export function Surface({
     if (/^[0-9]$/.test(e.key) && s.layout === "input") {
       e.preventDefault();
       set(typeDigit(s, Number(e.key), clock24));
+    } else if (e.key === "Backspace" && s.layout === "input") {
+      /* clearing a field starts it over: the next digit is its first */
+      e.preventDefault();
+      set({ ...s, fresh: true });
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault();
       set(stepTime(s, s.field, e.key === "ArrowUp" ? 1 : -1));
@@ -102,14 +125,18 @@ export function Surface({
   /* the dial follows a pointer dragged round it, and a wheel steps as it is dragged */
   const onPointerDown = (e: React.PointerEvent) => {
     dragged.current = false;
+    /* a dialog or a picker is a surface, not a button: pressing anywhere on it must not shrink it
+       the way a pressed button does, nor start a swipe between screens */
+    e.stopPropagation();
     if (!isTime) return;
     const target = e.target as Element;
     const face = target.closest("[data-tp-face]") as HTMLElement | null;
     const wheel = target.closest("[data-tp-wheel]") as HTMLElement | null;
     if (!face && !wheel) return;
-    e.stopPropagation();
     const startY = e.clientY;
     let moved = 0;
+    /* one step for every row the finger travels, so the numbers keep pace with it */
+    const notch = wheel ? wheel.getBoundingClientRect().height * 0.42 : 1;
     const atPointer = (x: number, y: number) => {
       const r = face!.getBoundingClientRect();
       const k = r.width / 256;
@@ -123,11 +150,11 @@ export function Surface({
         set(atPointer(ev.clientX, ev.clientY));
         return;
       }
-      const steps = Math.trunc((startY - ev.clientY) / NOTCH) - moved;
+      const steps = Math.trunc((startY - ev.clientY) / notch) - moved;
       if (steps) {
         dragged.current = true;
         moved += steps;
-        set(stepTime(current.current, wheel!.dataset.tpWheel as "hour" | "minute", -steps));
+        set(stepTime(current.current, wheel!.dataset.tpWheel as "hour" | "minute", steps));
       }
     };
     const up = () => {
@@ -157,7 +184,8 @@ export function Surface({
       if (closable(item)) e.stopPropagation();
       return;
     }
-    ref.current?.focus({ preventScroll: true });
+    /* the wrapper takes the keyboard, unless a typed field already has it */
+    if (!(target instanceof HTMLInputElement)) ref.current?.focus({ preventScroll: true });
     if (dragged.current) {
       dragged.current = false;
       e.stopPropagation();
@@ -181,6 +209,13 @@ export function Surface({
       ref={ref}
       tabIndex={isTime ? -1 : undefined}
       onKeyDown={onKeyDown}
+      onBeforeInputCapture={onBeforeInput}
+      onFocusCapture={(e) => {
+        /* a typed field chosen by tapping or tabbing into it is the one being set */
+        const name = (e.target as HTMLElement).dataset?.tp;
+        if (isTime && e.target instanceof HTMLInputElement && (name === "hour" || name === "minute") && current.current.field !== name)
+          set({ ...current.current, field: name, fresh: true });
+      }}
       onPointerDownCapture={onPointerDown}
       onClickCapture={onClickCapture}
       style={{
