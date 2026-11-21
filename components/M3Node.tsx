@@ -271,7 +271,7 @@ export function ButtonContent({ item }: { item: Item }) {
       }}
     >
       {hasIcon && <Icon name={item.icon!} size={m.icon} fill={item.variant === "filled"} />}
-      {hasLabel && <span>{item.label}</span>}
+      {hasLabel && <span style={{ color: item.textHex }}>{item.label}</span>}
     </span>
   );
 }
@@ -298,7 +298,7 @@ function ExtendedFabContent({ item }: { item: Item }) {
       }}
     >
       {hasIcon && <Icon name={item.icon!} size={m.icon} />}
-      {hasLabel && <span>{item.label}</span>}
+      {hasLabel && <span style={{ color: item.textHex }}>{item.label}</span>}
     </span>
   );
 }
@@ -325,7 +325,7 @@ function ChipContent({ item, p }: { item: Item; p: Palette }) {
       }}
     >
       {lead && <Icon name={lead} size={m.icon} />}
-      <span>{item.label}</span>
+      <span style={{ color: item.textHex }}>{item.label}</span>
     </span>
   );
 }
@@ -334,7 +334,7 @@ function SwitchContent({ item, p }: { item: Item; p: Palette }) {
   const hasLabel = item.label.trim().length > 0;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 14, height: H - 8, whiteSpace: "nowrap", width: item.size ? "100%" : undefined, justifyContent: item.size ? "space-between" : undefined }}>
-      {hasLabel && <span style={{ fontSize: 16, color: p.onSurface, overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</span>}
+      {hasLabel && <span style={{ fontSize: 16, color: inkOf(item, p.onSurface), overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</span>}
       <SwitchControl on={!!item.checked} p={p} />
     </span>
   );
@@ -400,7 +400,7 @@ function CheckboxContent({ item, p }: { item: Item; p: Palette }) {
           {on && <Icon name="check" size={16} weight={700} />}
         </span>
       </span>
-      {hasLabel && <span style={{ fontSize: 16, color: p.onSurface, paddingRight: 8 }}>{item.label}</span>}
+      {hasLabel && <span style={{ fontSize: 16, color: inkOf(item, p.onSurface), paddingRight: 8 }}>{item.label}</span>}
     </span>
   );
 }
@@ -416,7 +416,7 @@ function TextContent({ item, p }: { item: Item; p: Palette }) {
         lineHeight: 1.3,
         fontWeight: item.bold ? w(700, 800) : w(400, fs >= 22 ? 600 : 500),
         letterSpacing: fs >= 28 ? -0.25 : 0,
-        color: p.onSurface,
+        color: item.textHex || p.onSurface,
         whiteSpace: "nowrap",
         padding: "0 2px",
       }}
@@ -468,7 +468,7 @@ function SplitButtonContent({ item, p, open }: { item: Item; p: Palette; open?: 
         }}
       >
         {item.icon && <Icon name={item.icon} size={m.icon} fill={item.variant === "filled"} />}
-        {hasLabel && <span>{item.label}</span>}
+        {hasLabel && <span style={{ color: item.textHex }}>{item.label}</span>}
         <RippleShape part={SPLIT_MAIN_SLOT} />
       </span>
       <span
@@ -575,7 +575,7 @@ function SplitMenuContent({ item, p, shown = true }: { item: Item; p: Palette; s
           }}
         >
           {tab.icon && <Icon name={tab.icon} size={24} />}
-          <span style={ellipsis}>{tab.label}</span>
+          <span style={{ ...ellipsis, color: inkOf(item, p.onSurface) }}>{tab.label}</span>
         </motion.div>
       ))}
     </motion.div>
@@ -621,7 +621,7 @@ function RadioContent({ item, p }: { item: Item; p: Palette }) {
           {on && <span style={{ width: 10, height: 10, borderRadius: 5, background: p.primary }} />}
         </span>
       </span>
-      {hasLabel && <span style={{ fontSize: 16, color: p.onSurface, paddingRight: 8 }}>{item.label}</span>}
+      {hasLabel && <span style={{ fontSize: 16, color: inkOf(item, p.onSurface), paddingRight: 8 }}>{item.label}</span>}
     </span>
   );
 }
@@ -818,7 +818,7 @@ function FabMenuContent({ item, p, shown = true }: { item: Item; p: Palette; sho
             style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 12, minWidth: 0 }}
           >
             {tab.icon && <Icon name={tab.icon} size={22} />}
-            <span style={ellipsis}>{tab.label}</span>
+            <span style={{ ...ellipsis, color: inkOf(item, itemStyle.color) }}>{tab.label}</span>
           </motion.span>
         </motion.span>
       ))}
@@ -874,7 +874,7 @@ function FabMenuContent({ item, p, shown = true }: { item: Item; p: Palette; sho
             </motion.span>
           )}
         </span>
-        {extended && item.label.trim() && <span style={{ gridArea: "1 / 2" }}>{item.label}</span>}
+        {extended && item.label.trim() && <span style={{ gridArea: "1 / 2", color: item.textHex }}>{item.label}</span>}
       </motion.span>
     </div>
   );
@@ -944,7 +944,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
             <div style={{ width: 48, height: 48, display: "grid", placeItems: "center", flex: "0 0 auto" }}>
               {item.icon && <Icon name={item.icon} size={24} color={p.onSurface} />}
             </div>
-            <div className="m3-size-ease" style={{ flex: 1, minWidth: 0, fontSize: tall ? 0 : font, opacity: tall ? 0 : 1, fontWeight: w(400, 600), color: p.onSurface, transition: "opacity 200ms", ...ellipsis }}>
+            <div className="m3-size-ease" style={{ flex: 1, minWidth: 0, fontSize: tall ? 0 : font, opacity: tall ? 0 : 1, fontWeight: w(400, 600), color: inkOf(item, p.onSurface), transition: "opacity 200ms", ...ellipsis }}>
               {item.label}
             </div>
             <div style={{ width: 48, height: 48, display: "grid", placeItems: "center", flex: "0 0 auto" }}>
@@ -952,7 +952,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
             </div>
           </div>
           {tall && (
-            <div className="m3-size-ease" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "flex-end", padding: "0 16px 24px", fontSize: font, lineHeight: 1.2, fontWeight: w(400, 600), color: p.onSurface, ...ellipsis }}>
+            <div className="m3-size-ease" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "flex-end", padding: "0 16px 24px", fontSize: font, lineHeight: 1.2, fontWeight: w(400, 600), color: inkOf(item, p.onSurface), ...ellipsis }}>
               {item.label}
             </div>
           )}
@@ -964,7 +964,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
       return (
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 16px", height: "100%" }}>
           {item.icon && <Icon name={item.icon} size={24} color={p.onSurface} />}
-          <div style={{ flex: 1, minWidth: 0, fontSize: 16, color: p.onSurfaceVariant, ...ellipsis }}>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 16, color: inkOf(item, p.onSurfaceVariant), ...ellipsis }}>
             {item.label}
           </div>
           {item.icon2 && <Icon name={item.icon2} size={24} color={p.onSurfaceVariant} />}
@@ -1008,10 +1008,10 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
         /* the column may shrink under a large picture: what does not fit is clipped, never pushed out of the card */
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", gap: CARD_TEXT_GAP, justifyContent, alignItems, textAlign }}>
           {hasLabel && (
-            <div style={{ fontSize: 16, fontWeight: w(600, 700), color: ink, maxWidth: "100%", ...ellipsis }}>{item.label}</div>
+            <div style={{ fontSize: 16, fontWeight: w(600, 700), color: inkOf(item, ink), maxWidth: "100%", ...ellipsis }}>{item.label}</div>
           )}
           {hasSupporting && (
-            <div style={{ fontSize: 13, lineHeight: 1.5, color: body.color, opacity: body.opacity, overflow: "hidden" }}>
+            <div style={{ fontSize: 13, lineHeight: 1.5, color: inkOf(item, body.color), opacity: body.opacity, overflow: "hidden" }}>
               {item.supporting}
             </div>
           )}
@@ -1074,9 +1074,9 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {hasLabel && <div style={{ fontSize: 16, color: p.onSurface, ...ellipsis }}>{item.label}</div>}
+            {hasLabel && <div style={{ fontSize: 16, color: inkOf(item, p.onSurface), ...ellipsis }}>{item.label}</div>}
             {hasSupporting && (
-              <div style={{ fontSize: 13, color: p.onSurfaceVariant, ...ellipsis }}>{item.supporting}</div>
+              <div style={{ fontSize: 13, color: inkOf(item, p.onSurfaceVariant), ...ellipsis }}>{item.supporting}</div>
             )}
           </div>
           {item.switch ? <SwitchControl on={!!item.checked} p={p} /> : item.icon2 && <Icon name={item.icon2} size={22} color={p.onSurfaceVariant} />}
@@ -1106,7 +1106,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
               style={{
                 fontSize: 24,
                 fontWeight: w(400, 600),
-                color: p.onSurface,
+                color: inkOf(item, p.onSurface),
                 textAlign: item.icon ? "center" : "left",
                 ...ellipsis,
               }}
@@ -1115,7 +1115,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
             </div>
           )}
           {hasSupporting && (
-            <div style={{ fontSize: 14, lineHeight: 1.5, color: p.onSurfaceVariant, flex: 1, overflow: "hidden" }}>
+            <div style={{ fontSize: 14, lineHeight: 1.5, color: inkOf(item, p.onSurfaceVariant), flex: 1, overflow: "hidden" }}>
               {item.supporting}
             </div>
           )}
@@ -1143,7 +1143,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
     case "snackbar":
       return (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 8px 0 16px", height: "100%" }}>
-          <div style={{ flex: 1, minWidth: 0, fontSize: 14, color: p.inverseOnSurface, ...ellipsis }}>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 14, color: inkOf(item, p.inverseOnSurface), ...ellipsis }}>
             {item.label}
           </div>
           {hasSupporting && (
@@ -1183,7 +1183,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
                 top: filled ? 8 : -8,
                 fontSize: 12,
                 lineHeight: "16px",
-                color: p.primary,
+                color: inkOf(item, p.primary),
                 background: filled ? "transparent" : p.surface,
                 padding: filled ? 0 : "0 4px",
                 marginLeft: filled ? 0 : -4,
@@ -1212,7 +1212,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
                 top: "100%",
                 marginTop: 4,
                 fontSize: 12,
-                color: p.onSurfaceVariant,
+                color: inkOf(item, p.onSurfaceVariant),
                 whiteSpace: "nowrap",
               }}
             >
@@ -1232,7 +1232,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
         <div style={{ position: "relative", height: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 12px 0 16px", height: "100%" }}>
             {item.icon && <Icon name={item.icon} size={24} color={p.onSurfaceVariant} />}
-            <span style={{ flex: 1, minWidth: 0, fontSize: 16, color: value ? p.onSurface : p.onSurfaceVariant, paddingTop: value && filled ? 16 : 0, ...ellipsis }}>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 16, color: inkOf(item, value ? p.onSurface : p.onSurfaceVariant), paddingTop: value && filled ? 16 : 0, ...ellipsis }}>
               {value ?? item.label}
             </span>
             <Icon name="arrow_drop_down" size={24} color={p.onSurfaceVariant} />
@@ -1245,7 +1245,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
                 top: filled ? 8 : -8,
                 fontSize: 12,
                 lineHeight: "16px",
-                color: p.onSurfaceVariant,
+                color: inkOf(item, p.onSurfaceVariant),
                 background: filled ? "transparent" : p.surface,
                 padding: filled ? 0 : "0 4px",
                 marginLeft: filled ? 0 : -4,
@@ -1428,7 +1428,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
               <div className="m3-rail-geometry" style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, transform: `translate(${expanded ? 16 : 24}px, ${expanded ? 16 : 4}px)`, color: on ? p.onSecondaryContainer : p.onSurfaceVariant }}>
                 {tab.icon && <Icon name={tab.icon} size={24} fill={on} />}
               </div>
-              {tab.label.trim() && <span className="m3-rail-geometry" style={{ position: "absolute", left: expanded ? 48 : 0, top: expanded ? 18 : 36, width: expanded ? rail.width - 88 : 72, textAlign: expanded ? "left" : "center", fontSize: expanded ? 14 : 12, lineHeight: "20px", fontWeight: on ? w(600, 700) : w(400, 500), color: on ? railSelectedLabelColor(p, expanded) : p.onSurfaceVariant, ...ellipsis }}>{tab.label}</span>}
+              {tab.label.trim() && <span className="m3-rail-geometry" style={{ position: "absolute", left: expanded ? 48 : 0, top: expanded ? 18 : 36, width: expanded ? rail.width - 88 : 72, textAlign: expanded ? "left" : "center", fontSize: expanded ? 14 : 12, lineHeight: "20px", fontWeight: on ? w(600, 700) : w(400, 500), color: inkOf(item, on ? railSelectedLabelColor(p, expanded) : p.onSurfaceVariant), ...ellipsis }}>{tab.label}</span>}
             </div>;
           })}
         </div>
@@ -1481,7 +1481,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
                     style={{
                       fontSize: 11,
                       fontWeight: on ? w(600, 700) : w(400, 500),
-                      color: on ? p.onSurface : p.onSurfaceVariant,
+                      color: inkOf(item, on ? p.onSurface : p.onSurfaceVariant),
                       maxWidth: "100%",
                       ...ellipsis,
                     }}
@@ -1544,7 +1544,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
                     style={{
                       fontSize: 11,
                       fontWeight: on ? w(600, 700) : w(400, 500),
-                      color: on ? p.onSurface : p.onSurfaceVariant,
+                      color: inkOf(item, on ? p.onSurface : p.onSurfaceVariant),
                       maxWidth: "100%",
                       ...ellipsis,
                     }}
@@ -1641,7 +1641,7 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
                   style={{
                     fontSize: 14,
                     fontWeight: w(500, 700),
-                    color: on ? p.primary : p.onSurfaceVariant,
+                    color: inkOf(item, on ? p.primary : p.onSurfaceVariant),
                     padding: "0 4px 14px",
                     maxWidth: "100%",
                     ...ellipsis,
@@ -1685,6 +1685,13 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
     }
   }
   return null;
+}
+
+/** The colour a part's words are drawn in: the hex the author picked, else the colour the theme
+ *  gives that text. With neither, the words keep inheriting, so a part nobody has coloured looks
+ *  exactly as it did. Icons are left on the theme's colour either way. */
+export function inkOf(item: Item, base?: string): string | undefined {
+  return item.textHex || base;
 }
 
 /** The colour whatever is written on a part is drawn in, and so the colour a ripple over it
