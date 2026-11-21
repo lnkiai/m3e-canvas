@@ -351,6 +351,12 @@ describe("makeItem", () => {
     expect(nav.tabs!.length).toBeGreaterThan(0);
   });
 
+  it("a new bottom nav hides on scroll, and nothing else carries the switch", () => {
+    expect(makeItem("bottomNav").hideOnScroll).toBe(true);
+    expect(makeItem("navRail").hideOnScroll).toBeUndefined();
+    expect(makeItem("tabs").hideOnScroll).toBeUndefined();
+  });
+
   it("a box has size2 / radiusTop / radiusBottom defaults", () => {
     const box = makeItem("box");
     expect(box.size2).toBe(220);

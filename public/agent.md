@@ -138,7 +138,7 @@ Modal presentation requires the rail to be the only item in its group. The edito
 
 An `extendedFab` with an `icon` and `"collapseOnScroll": true` transforms into an icon-only standard FAB when the body scrolls down and stays that way after scrolling stops; scrolling up expands it back to the extended FAB. This requires a vertically scrollable screen: set that frame's `length` greater than its height. Keep the FAB's right edge fixed while it retracts toward the right. Omit the field, or set it to `false`, when the extended FAB should remain extended.
 
-A `bottomNav` with `"hideOnScroll": true` slides below the screen when the body scrolls down, stays hidden at rest, and comes back on any upward scroll. It stays shown at the top of the body and while one of its destinations has keyboard focus, and slides over 200 ms (no animation when reduced motion is preferred). Set the frame's `length` greater than its height. Omit the field, or set it to `false`, to keep the bar visible. Navigation rails do not hide on scroll.
+A `bottomNav` with `"hideOnScroll": true` slides below the screen when the body scrolls down, stays hidden at rest, and comes back on any upward scroll; a FAB floating above it moves down with it. It stays shown at the top of the body and while one of its destinations has keyboard focus, and slides over 200 ms (no animation when reduced motion is preferred). Set the frame's `length` greater than its height. Omit the field, or set it to `false`, to keep the bar visible. Navigation rails do not hide on scroll.
 
 Fields that any part may carry:
 

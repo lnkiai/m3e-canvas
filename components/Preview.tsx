@@ -50,6 +50,7 @@ import {
   frameLengthOf,
   frameRadius,
   frameSizeOf,
+  groupBounds,
   groupsInFrame,
   isPhoneFrame,
   normalizeTheme,
@@ -803,6 +804,14 @@ function Screen({
     }
   }
   const lift = (g: Group) => pins.get(g.id) ?? 0;
+  /* a navigation bar that hides on scroll takes what floats over it at the foot along: a FAB
+   * above it moves down by the bar's height and comes back up with it, so it keeps its place
+   * above the bar's top edge */
+  const footLift = length - viewH;
+  const hidingNav = scrolls ? shownGroups.find((g) => pins.get(g.id) === footLift && g.items.some((it) => it.kind === "bottomNav" && it.hideOnScroll)) : undefined;
+  const navTop = hidingNav ? groupBounds(hidingNav, widths).t : 0;
+  const navDrop = hidingNav ? sizeOf(hidingNav.items.find((it) => it.kind === "bottomNav")!, widths).h : 0;
+  const followsNav = (g: Group) => !!hidingNav && g.id !== hidingNav.id && pins.get(g.id) === footLift && groupBounds(g, widths).b <= navTop + 1;
   const hasFoldingFab = shownGroups.some((g) => g.items.some((it) => it.kind === "extendedFab" && it.collapseOnScroll));
   const showNavigation = () => {
     pointerScroll.current = false;
@@ -969,6 +978,10 @@ function Screen({
         // A hidden bar leaves its layout slot behind. Let input reach the body through
         // that slot and the group's empty space; visible siblings opt back in below.
         const passThrough = scrolls && navHidden && g.items.some((it) => it.kind === "bottomNav" && it.hideOnScroll);
+        /* the same motion as the bar's own slide */
+        const follow = followsNav(g)
+          ? { transform: navHidden ? `translateY(${navDrop}px)` : undefined, transition: `transform ${reducedMotion || !pointerScroll.current ? 0 : 200}ms cubic-bezier(${EASE.join(", ")})` }
+          : null;
         return (
         <div
           key={g.id}
@@ -979,7 +992,7 @@ function Screen({
           inert={hasModal && !g.items.some((it) => modalIds.has(it.id))}
           style={
             g.free
-              ? { position: "absolute", left: g.x - frame.x, top: g.y - frame.y - lift(g), pointerEvents: passThrough ? "none" : undefined, zIndex: g.items.some((it) => modalIds.has(it.id)) ? 4 : g.items.some((it) => it.id === menuId) ? 2 : undefined }
+              ? { position: "absolute", left: g.x - frame.x, top: g.y - frame.y - lift(g), ...follow, pointerEvents: passThrough ? "none" : undefined, zIndex: g.items.some((it) => modalIds.has(it.id)) ? 4 : g.items.some((it) => it.id === menuId) ? 2 : undefined }
               : {
                   position: "absolute",
                   left: g.x - frame.x + (fabCorner?.w ?? 0),
@@ -990,6 +1003,7 @@ function Screen({
                   flexDirection: g.axis === "x" ? "row" : "column",
                   alignItems: g.axis === "x" ? "center" : "stretch",
                   gap: GAP,
+                  ...follow,
                   pointerEvents: passThrough ? "none" : undefined,
                 }
           }

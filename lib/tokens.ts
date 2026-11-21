@@ -2450,6 +2450,9 @@ export function makeItem(kind: Kind): Item {
     it.tabs = defaultTabs();
     it.radiusTop = 0;
     it.radiusBottom = 0;
+    /* a new bar gets out of the way on a screen that scrolls; one saved without the field keeps
+       showing, as it always did */
+    it.hideOnScroll = true;
   }
   if (kind === "navRail") {
     it.tabs = defaultTabs();

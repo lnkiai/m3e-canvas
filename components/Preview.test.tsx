@@ -491,4 +491,32 @@ describe("navigation bars that hide on scroll", () => {
     expect(elements(tree).some((e) => e.props["data-scroll-nav"] || e.props["data-scroll-body"])).toBe(false);
   });
 
+  it("takes a FAB floating above the bar down with it and back up", () => {
+    const navH = sizeOf(nav, {}).h;
+    const fab = { ...makeItem("fab"), id: "above" };
+    const above: Group = { id: "above", x: 300, y: long.length - navH - 16 - sizeOf(fab, {}).h, axis: "x", items: [fab] };
+    type Motion = { transform?: string; transition?: string };
+    const fabGroup = (tree: Element) => ({ props: { style: elements(tree).find((e) => e.props["data-preview-group"] === "above")!.props.style as Motion } });
+    let tree = render(true, { groups: [...groups, above] });
+    expect(fabGroup(tree).props.style.transform).toBeUndefined();
+    call(body(tree), "onWheelCapture", { deltaY: 10 });
+    call(body(tree), "onScroll", { currentTarget: { scrollTop: 120, scrollHeight: long.length, clientHeight: PHONE_H } });
+    tree = render(false, { groups: [...groups, above] });
+    expect(fabGroup(tree).props.style.transform).toBe(`translateY(${navH}px)`);
+    expect(fabGroup(tree).props.style.transition).toMatch(/^transform 200ms /);
+    call(body(tree), "onScroll", { currentTarget: { scrollTop: 100, scrollHeight: long.length, clientHeight: PHONE_H } });
+    tree = render(false, { groups: [...groups, above] });
+    expect(fabGroup(tree).props.style.transform).toBeUndefined();
+  });
+
+  it("leaves a FAB in place when the bar beneath it does not hide", () => {
+    const fab = { ...makeItem("fab"), id: "above" };
+    const still = groups.map((g) => (g.id === "nav-group" ? { ...g, items: g.items.map((it) => (it.id === "nav" ? { ...it, hideOnScroll: undefined } : it)) } : g));
+    const above: Group = { id: "above", x: 300, y: long.length - sizeOf(nav, {}).h - 16 - sizeOf(fab, {}).h, axis: "x", items: [fab] };
+    const tree = render(true, { groups: [...still, above] });
+    const style = elements(tree).find((e) => e.props["data-preview-group"] === "above")!.props.style as { transform?: string; transition?: string };
+    expect(style.transform).toBeUndefined();
+    expect(style.transition).toBeUndefined();
+  });
+
 });
