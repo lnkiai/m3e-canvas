@@ -290,13 +290,14 @@ function fabScrollText(it: Item, lang: Lang): string {
   return "; when the body scrolls down, it collapses toward the right into an icon-only standard FAB (right edge fixed) and stays collapsed after scrolling stops; scrolling up expands it back to the extended FAB";
 }
 
-/** Optional navigation bar scrolling, including the preview's visibility and motion rules. */
+/** the optional scroll hiding for a navigation bar: what an implementation has to match,
+ *  not how the preview detects it */
 function navScrollText(it: Item, lang: Lang): string {
   if (!it.hideOnScroll) return "";
-  if (lang === "ja") return "。本文を下へスクロールすると画面の下へ隠れ、止めても隠れたまま。少しでも上へスクロールすると再表示する。非表示にするのはホイールまたはタッチによる直接の縦スクロール時のみ。本文の先頭、または移動先にフォーカス表示がある間は常に表示する。キー入力、ホイールやタッチによらないスクロール、移動先へのフォーカスで即座に再表示する。直接スクロールによる表示・非表示は 200ms、動きを減らす設定が有効な場合やキー入力・ホイールやタッチによらないスクロール・フォーカスによる再表示はアニメーションなし";
-  if (lang === "zh") return "。正文向下滚动时滑出屏幕底部隐藏，停止滚动后保持隐藏；任何向上滚动都会重新显示。仅允许直接的纵向滚轮或触摸滚动触发隐藏。在正文顶部或目的地显示焦点指示时保持显示。键盘输入、非滚轮或触摸引起的滚动、目的地获得焦点都会立即显示导航栏。直接滚动时使用 200ms 显隐过渡；启用减少动态效果或通过键盘、非指针滚动或焦点恢复时不播放动画";
-  if (lang === "ko") return ". 본문을 아래로 스크롤하면 화면 아래로 숨고 멈춰도 숨긴 상태를 유지하며, 조금이라도 위로 스크롤하면 다시 표시한다. 휠이나 터치로 직접 세로 스크롤할 때만 숨긴다. 본문 맨 위에 있거나 목적지에 포커스 표시가 있는 동안에는 항상 표시한다. 키 입력, 휠이나 터치 입력 없이 발생한 스크롤, 목적지 포커스 시 즉시 다시 표시한다. 직접 스크롤할 때는 200ms 전환을 사용하고, 동작 줄이기 설정이 켜져 있거나 키 입력, 휠이나 터치 입력 없이 발생한 스크롤, 목적지 포커스로 복원할 때는 애니메이션을 사용하지 않는다";
-  return "; scrolling the body down slides it below the screen and it stays hidden at rest; any upward scrolling reveals it. Only direct vertical wheel or touch scrolling may hide it. Keep it visible at the top of the body and while a destination shows a focus indicator. Keyboard input, scrolling without wheel/touch input, or destination focus reveals it immediately. Use 200 ms transitions for direct scrolling, and no animation when reduced motion is preferred or when restoring visibility through keyboard input, non-pointer scrolling, or destination focus";
+  if (lang === "ja") return "。本文を下へスクロールすると画面の下へ隠れ、止めても隠れたまま。少しでも上へスクロールすると戻る。本文の先頭にいるときと、移動先にキーボードのフォーカスがある間は表示したままにする。動きは 200ms、動きを減らす設定ではアニメーションなし";
+  if (lang === "zh") return "。正文向下滚动时滑出屏幕底部隐藏，停止滚动后保持隐藏；任何向上滚动都会让它回来。位于正文顶部或某个目的地获得键盘焦点时保持显示。滑动用时 200ms，启用减少动态效果时不播放动画";
+  if (lang === "ko") return ". 본문을 아래로 스크롤하면 화면 아래로 숨고 멈춰도 숨긴 상태를 유지하며, 조금이라도 위로 스크롤하면 다시 나타난다. 본문 맨 위에 있을 때와 목적지에 키보드 포커스가 있는 동안에는 표시한다. 전환은 200ms이며, 동작 줄이기 설정에서는 애니메이션 없이 전환한다";
+  return "; scrolling the body down slides it below the screen and it stays hidden at rest; any upward scroll brings it back. Keep it shown at the top of the body and while one of its destinations has keyboard focus. Slide it over 200 ms, or without animation when reduced motion is preferred";
 }
 
 /** what a split button's arrow opens, and which way it goes */
