@@ -14,10 +14,10 @@
   },
   "dependencies": {
     "html-to-image": "^1.11.13",
-    "motion": "^13.4.4",
+    "motion": "^14.14.0",
     "next": "16.4.6",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -26,7 +26,7 @@
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
     "typescript": "^7",
-    "vitest": "^5.0.2"
+    "vitest": "^5.1.1"
   },
   "description": "Sketch Material 3 Expressive screens in the browser and turn them into vibe-coding prompts.",
   "license": "MIT",
