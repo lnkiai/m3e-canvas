@@ -3,8 +3,9 @@ import { Item, TimeLayout, TimeLive, timeInlineOf, timeLayoutOf } from "./tokens
 /* What a visitor does to a time picker in the preview, as plain steps on its state, so the
  * preview only has to say which control was used. */
 
-/** `fresh`: the next digit typed starts the field over rather than joining the one before it */
-export type TimeState = TimeLive & { layout: TimeLayout; fresh?: boolean };
+/** `fresh`: the next digit typed starts the field over. `lead`: the first digit typed into it,
+ *  waiting for the second */
+export type TimeState = TimeLive & { layout: TimeLayout; fresh?: boolean; lead?: number };
 
 /** a picker as it first opens: the time it is now, on the hour field, in the layout its author chose */
 export const startTime = (it: Item, at: Date): TimeState => ({ h24: at.getHours(), minute: at.getMinutes(), field: "hour", layout: timeLayoutOf(it), fresh: true });
@@ -38,21 +39,29 @@ export function dialAt(field: "hour" | "minute", clock24: boolean, dx: number, d
   return slot === 0 ? 12 : slot;
 }
 
-/** a digit typed into the field being set. The first digit after a field is chosen starts it
- *  over; a second one joins it when the pair is a time the field can hold. An hour that cannot
- *  take another digit is done, and typing moves on to the minutes. */
+/** a digit typed into the field being set, the way a phone's time field takes them: the first
+ *  digit after the field is chosen is held as its tens when another could follow (so 0 then 7 is
+ *  07), and the second finishes it; a first digit that cannot take another (a 3 for the hour on a
+ *  12-hour clock) finishes it at once. A finished hour moves on to the minutes, and the next digit
+ *  typed into a finished field starts it over. */
 export function typeDigit(s: TimeState, d: number, clock24: boolean): TimeState {
   const minute = s.field === "minute";
   const max = minute ? 59 : clock24 ? 23 : 12;
-  const current = minute ? s.minute : clock24 ? s.h24 : s.h24 % 12 || 12;
-  const pair = current * 10 + d;
-  const value = !s.fresh && current < 10 && pair <= max ? pair : d;
-  /* a 12-hour clock has no hour 0: a leading zero is only the start of 01 to 09 */
-  if (!minute && !clock24 && value === 0) return { ...s, fresh: false, h24: s.h24 };
-  const done = value * 10 > max || value >= 10;
-  if (minute) return { ...s, minute: value, fresh: done };
-  const h24 = clock24 ? value : (value % 12) + (s.h24 >= 12 ? 12 : 0);
-  return done ? { ...s, h24, field: "minute", fresh: true } : { ...s, h24, fresh: false };
+  const write = (value: number): TimeState =>
+    minute ? { ...s, minute: value } : { ...s, h24: clock24 ? value : (value % 12) + (s.h24 >= 12 ? 12 : 0) };
+  const finish = (value: number): TimeState => ({ ...write(value), lead: undefined, fresh: true, ...(minute ? {} : { field: "minute" as const }) });
+  if (s.lead !== undefined) {
+    const pair = s.lead * 10 + d;
+    /* a pair the field cannot hold (13 o'clock on a 12-hour clock, or 00 there) is dropped, and
+       the new digit is a first digit of its own */
+    if (pair <= max && (minute || clock24 || pair >= 1)) return finish(pair);
+    return typeDigit({ ...s, lead: undefined, fresh: true }, d, clock24);
+  }
+  if (d * 10 > max) return finish(d);
+  /* the tens of a time still to come: shown as the field's value, except a 12-hour hour's 0,
+     which is no hour at all */
+  const held = !minute && !clock24 && d === 0 ? s : write(d);
+  return { ...held, lead: d, fresh: false };
 }
 
 /** the mode switch: typing the numbers in, or back to the wheels or the dial the picker came with

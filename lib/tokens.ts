@@ -1899,7 +1899,7 @@ export const menuUp = Symbol("menuUp");
 /** runtime-only: the time a visitor has set on a time picker in the preview, and which field they
  *  are setting. Never part of a saved sketch. */
 export const timeLive = Symbol("timeLive");
-export type TimeLive = { h24: number; minute: number; field: "hour" | "minute" };
+export type TimeLive = { h24: number; minute: number; field: "hour" | "minute"; back?: "scroll" | "dial" };
 /** the menu is drawn open: in the editor while it is being set up, in the preview once tapped */
 export const menuOpen = (it: Item) => opensMenu(it) && it[fabOpen] === true;
 /** how tall the sheet of entries stands */

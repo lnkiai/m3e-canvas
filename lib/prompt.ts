@@ -269,7 +269,7 @@ function timePickerText(it: Item, lang: Lang): string {
   const side = timeHorizontalOf(it);
   if (lang === "ja") return `${inline ? "ページ内に置いた" : "ダイアログの"}${TIME_TEXT.ja[l]}時刻ピッカー（${h24 ? "24 時間表示" : "12 時間表示と AM/PM"}${side ? "、時計盤を数字の横に置く横向きの配置" : ""}、現在時刻を選択中${inline ? "" : "、キャンセル／OK"}）`;
   if (lang === "zh") return `${inline ? "嵌入页面的" : "对话框形式的"}${TIME_TEXT.zh[l]}时间选择器（${h24 ? "24 小时制" : "12 小时制，含 AM/PM"}${side ? "，表盘位于数字右侧的横向布局" : ""}，已选中当前时间${inline ? "" : "，含取消／确定"}）`;
-  if (lang === "ko") return `${inline ? "페이지에 배치한 " : "대화상자형 "}${TIME_TEXT.ko[l]} 시간 선택기(${h24 ? "24시간제" : "12시간제와 AM/PM"}${side ? ", 시계판을 숫자 옆에 둔 가로 배치" : ""}, 현재 시각 선택됨${inline ? "" : ", 취소 / 확인"})`;
+  if (lang === "ko") return `${inline ? "페이지에 배치한 " : "대화상자 "}${TIME_TEXT.ko[l]} 시간 선택기(${h24 ? "24시간제" : "12시간제와 AM/PM"}${side ? ", 시계판을 숫자 옆에 둔 가로 배치" : ""}, 현재 시각 선택됨${inline ? "" : ", 취소 / 확인"})`;
   return `${inline ? "an inline" : "a modal"} ${TIME_TEXT.en[l]} time picker on a ${h24 ? "24-hour clock" : "12-hour clock with AM/PM"}${side ? ", laid out horizontally with the dial beside the fields" : ""}, set to the current time${inline ? "" : ", with Cancel / OK"}`;
 }
 

@@ -324,7 +324,8 @@ function TimeWheel({ index, count, label, p, w, h, name }: { index: number; coun
     /* how far it moved, the short way round the dial of values */
     const by = ((((index - was) % count) + count + count / 2) % count) - count / 2;
     /* start from where the old value stood and roll the new one into the middle */
-    animate(y, 0, { from: y.get() + by * off, duration: 0.24, ease: [0.2, 0, 0, 1] });
+    const roll = animate(y, 0, { from: y.get() + by * off, duration: 0.24, ease: [0.2, 0, 0, 1] });
+    return () => roll.stop();
   }, [index, count, off, reduced, y]);
   const rows = [-2, -1, 0, 1, 2];
   return (
@@ -549,7 +550,7 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
       ) : (
         <>
           <span style={{ height: 8, flex: "0 0 auto" }} />
-          <TimeActions icon={layout === "input" ? "schedule" : "keyboard"} p={p} />
+          <TimeActions icon={layout === "input" ? (item[timeLive]?.back === "scroll" ? "swipe_vertical" : "schedule") : "keyboard"} p={p} />
         </>
       )}
     </div>

@@ -58,6 +58,20 @@ describe("a time picker set in the preview", () => {
     expect(typeDigit(at(19, 0), 9, false).h24).toBe(21);
   });
 
+  it("takes a leading zero as the start of a two-digit time", () => {
+    const type = (s: TimeState, digits: string, clock24 = false) => [...digits].reduce((x, ch) => typeDigit(x, Number(ch), clock24), s);
+    expect(type(at(1, 0), "02")).toMatchObject({ h24: 2, field: "minute" });
+    expect(type(at(1, 0), "01")).toMatchObject({ h24: 1, field: "minute" });
+    expect(type(at(3, 0), "0130")).toMatchObject({ h24: 1, minute: 30 });
+    expect(type(at(13, 0), "0130")).toMatchObject({ h24: 13, minute: 30 });
+    expect(type(at(5, 0), "0130", true)).toMatchObject({ h24: 1, minute: 30 });
+    expect(type(at(7, 0, "minute"), "05")).toMatchObject({ minute: 5, fresh: true });
+    /* a finished field starts over with the next digit */
+    expect(type(at(7, 0, "minute"), "053")).toMatchObject({ minute: 3 });
+    /* 00 is no hour on a 12-hour clock: the second 0 starts again */
+    expect(type(at(7, 0), "00")).toMatchObject({ h24: 7, field: "hour" });
+  });
+
   it("switches between typing and the picker's own wheels or dial", () => {
     const dial = makeItem("timePicker");
     const scroll = { ...dial, layout: "scroll" as const };

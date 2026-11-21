@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Item, dateLayoutOf, timeInlineOf, timeLive } from "@/lib/tokens";
+import { Item, dateLayoutOf, timeInlineOf, timeLayoutOf, timeLive } from "@/lib/tokens";
 import { TimeState, dialAt, pickDial, setPeriod, startTime, stepTime, toggleMode, typeDigit } from "@/lib/timeLive";
 
 /* The preview's dialogs and pickers: Cancel and OK close a dialog, a date picker and a time
@@ -18,11 +18,19 @@ export const closable = (it: Item) =>
 export const surfaceOf = (it: Item) => closable(it) || it.kind === "timePicker";
 
 /** the time picker as the visitor has set it, or as it opens before they touch it: its layout
- *  switched and the live time attached, which also makes its typed fields real text fields */
+ *  switched and the live time attached, which also makes its typed fields real text fields. A
+ *  dialog switched to typing stays a dialog, whatever an `inline` left over from another layout
+ *  says, and remembers which wheels or dial its mode switch goes back to. */
 export function liveLook(it: Item, s: TimeState | undefined): Item {
   if (it.kind !== "timePicker") return it;
   const live = s ?? startTime(it, new Date());
-  return { ...it, layout: live.layout, [timeLive]: { h24: live.h24, minute: live.minute, field: live.field } };
+  const own = timeLayoutOf(it);
+  return {
+    ...it,
+    layout: live.layout,
+    inline: timeInlineOf(it) || undefined,
+    [timeLive]: { h24: live.h24, minute: live.minute, field: live.field, back: own === "input" ? (timeInlineOf(it) ? "scroll" : "dial") : own },
+  };
 }
 
 
@@ -98,24 +106,27 @@ export function Surface({
     set(s);
   };
 
-  /* typing sets the field being set while the picker has focus */
+  /* typing sets the field being set while the picker has focus. Every key handled here stops
+     here too: Backspace and the left arrow also mean "back a screen" to the preview. */
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (!isTime) return;
     const s = current.current;
+    const handled = /^[0-9]$/.test(e.key) || ["Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab", "Enter"].includes(e.key);
+    if (handled) e.stopPropagation();
     if (/^[0-9]$/.test(e.key) && s.layout === "input") {
       e.preventDefault();
       set(typeDigit(s, Number(e.key), clock24));
     } else if (e.key === "Backspace" && s.layout === "input") {
       /* clearing a field starts it over: the next digit is its first */
       e.preventDefault();
-      set({ ...s, fresh: true });
+      set({ ...s, fresh: true, lead: undefined });
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault();
       set(stepTime(s, s.field, e.key === "ArrowUp" ? 1 : -1));
     } else if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Tab") {
       if (s.layout === "scroll") return;
       e.preventDefault();
-      set({ ...s, field: s.field === "hour" ? "minute" : "hour", fresh: true });
+      set({ ...s, field: s.field === "hour" ? "minute" : "hour", fresh: true, lead: undefined });
     } else if (e.key === "Enter" && closable(item)) {
       e.preventDefault();
       onOk();
@@ -162,7 +173,7 @@ export function Surface({
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
       /* letting go of an hour on the dial moves on to the minutes, as M3's dial does */
-      if (face && current.current.field === "hour") set({ ...current.current, field: "minute", fresh: true });
+      if (face && current.current.field === "hour") set({ ...current.current, field: "minute", fresh: true, lead: undefined });
       if (face) dragged.current = true;
     };
     window.addEventListener("pointermove", move);
@@ -195,7 +206,7 @@ export function Surface({
     const control = target.closest("[data-tp],[data-tp-step],[data-tp-dial]") as HTMLElement | null;
     const tp = control?.dataset.tp;
     if (tp === "am" || tp === "pm") set(setPeriod(s, tp === "pm"));
-    else if (tp === "hour" || tp === "minute") set({ ...s, field: tp, fresh: true });
+    else if (tp === "hour" || tp === "minute") set({ ...s, field: tp, fresh: true, lead: undefined });
     else if (tp === "toggle") set(toggleMode(item, s));
     else if (control?.dataset.tpStep) {
       const wheel = control.closest("[data-tp-wheel]") as HTMLElement | null;
@@ -214,7 +225,7 @@ export function Surface({
         /* a typed field chosen by tapping or tabbing into it is the one being set */
         const name = (e.target as HTMLElement).dataset?.tp;
         if (isTime && e.target instanceof HTMLInputElement && (name === "hour" || name === "minute") && current.current.field !== name)
-          set({ ...current.current, field: name, fresh: true });
+          set({ ...current.current, field: name, fresh: true, lead: undefined });
       }}
       onPointerDownCapture={onPointerDown}
       onClickCapture={onClickCapture}
