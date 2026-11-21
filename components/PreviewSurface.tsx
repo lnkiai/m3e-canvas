@@ -218,8 +218,16 @@ export function Surface({
       }
       return;
     }
-    /* the wrapper takes the keyboard, unless a typed field already has it */
-    if (!(target instanceof HTMLInputElement)) ref.current?.focus({ preventScroll: true });
+    /* the picker takes the keyboard, unless a typed field already has it; an input picker hands it
+       to the field being set once this tap has been drawn, so Tab runs on from there */
+    if (!(target instanceof HTMLInputElement)) {
+      ref.current?.focus({ preventScroll: true });
+      requestAnimationFrame(() => {
+        const s = current.current;
+        if (s.layout !== "input" || !ref.current?.contains(document.activeElement)) return;
+        (ref.current.querySelector(`input[data-tp="${s.field}"]`) as HTMLInputElement | null)?.focus({ preventScroll: true });
+      });
+    }
     if (dragged.current) {
       dragged.current = false;
       e.stopPropagation();

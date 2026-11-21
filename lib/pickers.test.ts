@@ -164,12 +164,14 @@ describe("time picker", () => {
   it("gives each picker's own size in the prompt", () => {
     const tp = makeItem("timePicker");
     const en = (patch: Partial<Item>) => buildPrompt(docWith({ ...tp, ...patch }), {}, undefined, "en");
-    expect(en({ layout: "dial" })).toContain("304x472dp");
-    expect(en({ layout: "dial", horizontal: true })).toContain("572x376dp");
-    expect(en({ layout: "input", clock24: true })).toContain("240x200dp");
+    /* the style note names every arrangement's size, so each check reads the picker's own sentence */
+    expect(en({ layout: "dial" })).toContain("12-hour clock with AM/PM, 304x472dp, set to");
+    expect(en({ layout: "dial", horizontal: true })).toContain("dial beside the fields, 572x376dp, set to");
+    expect(en({ layout: "input", clock24: true })).toContain("24-hour clock, 240x200dp, set to");
     expect(en({ layout: "scroll", inline: true, size: 360 })).toContain("140dp tall with the fields filling its 360dp width");
-    expect(buildPrompt(docWith({ ...tp, layout: "dial" }), {}, undefined, "ja")).toContain("304×472dp");
-    expect(buildPrompt(docWith({ ...tp, layout: "scroll", inline: true, size: 360 }), {}, undefined, "ko")).toContain("높이 140dp");
+    expect(buildPrompt(docWith({ ...tp, layout: "dial" }), {}, undefined, "ja")).toContain("AM/PM、304×472dp、現在時刻");
+    expect(buildPrompt(docWith({ ...tp, layout: "scroll", inline: true, size: 360 }), {}, undefined, "ko")).toContain("높이 140dp, 필드가 너비 360dp를 채움");
+    expect(buildPrompt(docWith({ ...tp, layout: "input" }), {}, undefined, "zh")).toContain("AM/PM，304×200dp，已选中");
   });
 
   it("tells the prompt the clock shows the current time, without a reading", () => {
