@@ -42,6 +42,7 @@ vi.mock("@/lib/tokens", () => import("../lib/tokens"));
 vi.mock("@/lib/rail", () => import("../lib/rail"));
 vi.mock("@/lib/railView", () => import("../lib/railView"));
 vi.mock("@/lib/tidy", () => import("../lib/tidy"));
+vi.mock("@/lib/timeLive", () => import("../lib/timeLive"));
 vi.mock("@/lib/i18n", async () => ({ ...await import("../lib/i18n"), useLang: () => "en" }));
 vi.mock("./M3Node", () => ({ M3Node: "node", Icon: "icon" }));
 vi.mock("./ui", () => ({ IconBtn: "button" }));

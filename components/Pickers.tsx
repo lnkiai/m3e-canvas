@@ -17,6 +17,7 @@ import {
   timeHorizontalOf,
   timeInlineOf,
   timeLayoutOf,
+  timeLive,
 } from "@/lib/tokens";
 import { dateHeadline, monthHeadline, t, useLang } from "@/lib/i18n";
 import { Icon } from "./M3Node";
@@ -117,8 +118,8 @@ function PickerActions({ p }: { p: Palette }) {
   const lang = useLang();
   return (
     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "0 12px 12px" }}>
-      {[t("cancel", lang), t("ok", lang)].map((label) => (
-        <span key={label} style={{ height: 40, padding: "0 12px", borderRadius: 20, color: p.primary, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
+      {[t("cancel", lang), t("ok", lang)].map((label, i) => (
+        <span key={label} data-act={i ? "ok" : "cancel"} style={{ height: 40, padding: "0 12px", borderRadius: 20, color: p.primary, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
           {label}
         </span>
       ))}
@@ -257,17 +258,21 @@ function lowestOf(p: Palette): string {
 const TIME_DIGITS = { fontSize: 57, lineHeight: 1, fontWeight: 500, fontVariantNumeric: "tabular-nums", letterSpacing: -0.5 } as const;
 const two = (n: number) => String(n).padStart(2, "0");
 
-/** what a picker opened now shows: the hour as its clock reads it, the minute, and the half of the day */
-function clockNow(clock24: boolean) {
+/** what a picker shows: the time a preview visitor has set on it, or else the time it is now,
+ *  as its clock reads it, and the field being set */
+function clockOf(item: Item, clock24: boolean) {
+  const live = item[timeLive];
   const at = now();
-  const h24 = at.getHours();
-  return { h24, hour: clock24 ? h24 : h24 % 12 || 12, minute: at.getMinutes(), pm: h24 >= 12 };
+  const h24 = live?.h24 ?? at.getHours();
+  const minute = live?.minute ?? at.getMinutes();
+  return { h24, hour: clock24 ? h24 : h24 % 12 || 12, minute, pm: h24 >= 12, field: live?.field ?? "hour" };
 }
 
 /** the hour or minute field of the input and dial pickers; the one being set has a primary outline */
-function TimeField({ text, on, caret, p, w, h }: { text: string; on: boolean; caret?: boolean; p: Palette; w: number; h: number }) {
+function TimeField({ text, on, caret, p, w, h, name }: { text: string; on: boolean; caret?: boolean; p: Palette; w: number; h: number; name: "hour" | "minute" }) {
   return (
     <span
+      data-tp={name}
       style={{
         width: w,
         height: h,
@@ -289,16 +294,16 @@ function TimeField({ text, on, caret, p, w, h }: { text: string; on: boolean; ca
 }
 
 /** a scroll picker's wheel: the value in the middle, the ones before and after cut off by its edges */
-function TimeWheel({ value, prev, next, p, w, h }: { value: string; prev: string; next: string; p: Palette; w: number; h: number }) {
+function TimeWheel({ value, prev, next, p, w, h, name }: { value: string; prev: string; next: string; p: Palette; w: number; h: number; name: "hour" | "minute" }) {
   const off = Math.round(h * 0.42);
-  const row = (text: string, dy: number, color: string) => (
-    <span style={{ position: "absolute", left: 0, right: 0, top: h / 2 + dy, transform: "translateY(-50%)", textAlign: "center", color, ...TIME_DIGITS }}>{text}</span>
+  const row = (text: string, dy: number, color: string, step: number) => (
+    <span data-tp-step={step || undefined} style={{ position: "absolute", left: 0, right: 0, top: h / 2 + dy, transform: "translateY(-50%)", textAlign: "center", color, ...TIME_DIGITS }}>{text}</span>
   );
   return (
-    <span style={{ position: "relative", width: w, height: h, flex: "0 0 auto", borderRadius: scaleR(16), background: lowestOf(p), overflow: "hidden" }}>
-      {row(prev, -off, p.outline)}
-      {row(value, 0, p.onSurface)}
-      {row(next, off, p.outline)}
+    <span data-tp-wheel={name} style={{ position: "relative", touchAction: "none", width: w, height: h, flex: "0 0 auto", borderRadius: scaleR(16), background: lowestOf(p), overflow: "hidden" }}>
+      {row(prev, -off, p.outline, -1)}
+      {row(value, 0, p.onSurface, 0)}
+      {row(next, off, p.outline, 1)}
     </span>
   );
 }
@@ -324,6 +329,7 @@ function Period({ pm, p, size, row, wide }: { pm: boolean; p: Palette; size: num
         return (
           <span
             key={label}
+            data-tp={label === "PM" ? "pm" : "am"}
             style={{
               width: wide ?? size,
               height: size,
@@ -345,7 +351,7 @@ function Period({ pm, p, size, row, wide }: { pm: boolean; p: Palette; size: num
 }
 
 /** the clock face: the hours round the edge, and on a 24-hour clock 12 to 23 on a ring inside */
-function TimeDial({ h24, clock24, p }: { h24: number; clock24: boolean; p: Palette }) {
+function TimeDial({ h24, minute, field, clock24, p }: { h24: number; minute: number; field: "hour" | "minute"; clock24: boolean; p: Palette }) {
   const size = 256;
   const R = size / 2;
   const outer = 102;
@@ -354,28 +360,36 @@ function TimeDial({ h24, clock24, p }: { h24: number; clock24: boolean; p: Palet
     const a = ((n % 12) / 12) * Math.PI * 2 - Math.PI / 2;
     return { x: R + Math.cos(a) * ring, y: R + Math.sin(a) * ring };
   };
-  /* on a 24-hour face midnight and 1 to 11 run round the edge, 12 to 23 round the inside */
-  const pick = clock24 ? h24 : h24 % 12 || 12;
-  const hand = at(pick, clock24 && h24 >= 12 ? inner : outer);
-  const labels: { n: number; text: string; ring: number }[] = clock24
-    ? [
-        ...Array.from({ length: 12 }, (_, i) => ({ n: i, text: i === 0 ? "00" : String(i), ring: outer })),
-        ...Array.from({ length: 12 }, (_, i) => ({ n: i + 12, text: String(i + 12), ring: inner })),
-      ]
-    : Array.from({ length: 12 }, (_, i) => ({ n: i + 1, text: String(i + 1), ring: outer }));
+  /* minutes run round the edge in fives; on a 24-hour face midnight and 1 to 11 run round the
+     edge and 12 to 23 round the inside */
+  const minutes = field === "minute";
+  const pick = minutes ? minute : clock24 ? h24 : h24 % 12 || 12;
+  const hand = minutes ? at(minute / 5, outer) : at(pick, clock24 && h24 >= 12 ? inner : outer);
+  const labels: { n: number; text: string; ring: number; slot: number }[] = minutes
+    ? Array.from({ length: 12 }, (_, i) => ({ n: i * 5, text: two(i * 5), ring: outer, slot: i }))
+    : clock24
+      ? [
+          ...Array.from({ length: 12 }, (_, i) => ({ n: i, text: i === 0 ? "00" : String(i), ring: outer, slot: i })),
+          ...Array.from({ length: 12 }, (_, i) => ({ n: i + 12, text: String(i + 12), ring: inner, slot: i })),
+        ]
+      : Array.from({ length: 12 }, (_, i) => ({ n: i + 1, text: String(i + 1), ring: outer, slot: i + 1 }));
+  const onLabel = labels.some((l) => l.n === pick);
   return (
-    <div style={{ width: size, height: size, borderRadius: R, background: lowestOf(p), position: "relative", flex: "0 0 auto" }}>
-      <svg width={size} height={size} style={{ position: "absolute", inset: 0 }} aria-hidden>
+    <div data-tp-face={field} data-clock24={clock24 || undefined} style={{ width: size, height: size, borderRadius: R, background: lowestOf(p), position: "relative", flex: "0 0 auto", touchAction: "none" }}>
+      <svg width={size} height={size} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden>
         <line x1={R} y1={R} x2={hand.x} y2={hand.y} stroke={p.primary} strokeWidth={2} />
         <circle cx={R} cy={R} r={4} fill={p.primary} />
         <circle cx={hand.x} cy={hand.y} r={24} fill={p.primary} />
+        {/* a minute between the fives has no number under the selector, so it carries a dot */}
+        {!onLabel && <circle cx={hand.x} cy={hand.y} r={2} fill={p.onPrimary} />}
       </svg>
-      {labels.map(({ n, text, ring }) => {
-        const c = at(n, ring);
+      {labels.map(({ n, text, ring, slot }) => {
+        const c = at(slot, ring);
         const on = n === pick;
         return (
           <span
             key={n}
+            data-tp-dial={n}
             style={{
               position: "absolute",
               left: c.x - 20,
@@ -401,12 +415,12 @@ function TimeActions({ icon, p }: { icon: string; p: Palette }) {
   const lang = useLang();
   return (
     <div style={{ height: 48, display: "flex", alignItems: "center", flex: "0 0 auto" }}>
-      <span style={{ width: 48, height: 48, display: "grid", placeItems: "center", color: p.onSurfaceVariant }}>
+      <span data-tp="toggle" style={{ width: 48, height: 48, display: "grid", placeItems: "center", color: p.onSurfaceVariant }}>
         <Icon name={icon} size={24} fill={icon === "schedule"} />
       </span>
       <span style={{ flex: 1 }} />
-      {[t("cancel", lang), t("ok", lang)].map((label) => (
-        <span key={label} style={{ height: 40, padding: "0 12px", color: p.primary, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
+      {[t("cancel", lang), t("ok", lang)].map((label, i) => (
+        <span key={label} data-act={i ? "ok" : "cancel"} style={{ height: 40, padding: "0 12px", color: p.primary, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
           {label}
         </span>
       ))}
@@ -420,20 +434,20 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
   const layout = timeLayoutOf(item);
   const clock24 = !!item.clock24;
   const { w } = sizeOf(item, {});
-  const { h24, hour, minute, pm } = clockNow(clock24);
+  const { h24, hour, minute, pm, field } = clockOf(item, clock24);
   const hourText = (n: number) => (clock24 ? two((n + 24) % 24) : two(((n + 11) % 12) + 1));
   const fields = (fw: number, fh: number) =>
     layout === "scroll" ? (
       <>
-        <TimeWheel value={hourText(hour)} prev={hourText(hour - 1)} next={hourText(hour + 1)} p={p} w={fw} h={fh} />
+        <TimeWheel name="hour" value={hourText(hour)} prev={hourText(hour - 1)} next={hourText(hour + 1)} p={p} w={fw} h={fh} />
         <TimeSeparator p={p} h={fh} />
-        <TimeWheel value={two(minute)} prev={two((minute + 59) % 60)} next={two((minute + 1) % 60)} p={p} w={fw} h={fh} />
+        <TimeWheel name="minute" value={two(minute)} prev={two((minute + 59) % 60)} next={two((minute + 1) % 60)} p={p} w={fw} h={fh} />
       </>
     ) : (
       <>
-        <TimeField text={hourText(hour)} on caret={layout === "input"} p={p} w={fw} h={fh} />
+        <TimeField name="hour" text={hourText(hour)} on={field === "hour"} caret={layout === "input" && field === "hour"} p={p} w={fw} h={fh} />
         <TimeSeparator p={p} h={fh} />
-        <TimeField text={two(minute)} on={false} p={p} w={fw} h={fh} />
+        <TimeField name="minute" text={two(minute)} on={field === "minute"} caret={layout === "input" && field === "minute"} p={p} w={fw} h={fh} />
       </>
     );
 
@@ -446,7 +460,7 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
         <span style={{ width: 8, flex: "0 0 auto" }} />
         <span style={{ width: 40, height: 136, display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 8, flex: "0 0 auto" }}>
           {!clock24 && <Period pm={pm} p={p} size={40} />}
-          <span style={{ width: 40, height: 40, display: "grid", placeItems: "center", color: p.onSurfaceVariant }}>
+          <span data-tp="toggle" style={{ width: 40, height: 40, display: "grid", placeItems: "center", color: p.onSurfaceVariant }}>
             <Icon name={layout === "scroll" ? "keyboard" : "swipe_vertical"} size={24} />
           </span>
         </span>
@@ -464,7 +478,7 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
             {!clock24 && <Period pm={pm} p={p} size={40} row wide={100} />}
           </div>
           <span style={{ width: 52, flex: "0 0 auto" }} />
-          <TimeDial h24={h24} clock24={clock24} p={p} />
+          <TimeDial h24={h24} minute={minute} field={field} clock24={clock24} p={p} />
         </div>
         <span style={{ height: 24, flex: "0 0 auto" }} />
         <TimeActions icon="keyboard" p={p} />
@@ -489,7 +503,7 @@ export function TimePickerBody({ item, p }: { item: Item; p: Palette }) {
         <>
           <span style={{ height: 12, flex: "0 0 auto" }} />
           <div style={{ display: "flex", justifyContent: "center", flex: "0 0 auto" }}>
-            <TimeDial h24={h24} clock24={clock24} p={p} />
+            <TimeDial h24={h24} minute={minute} field={field} clock24={clock24} p={p} />
           </div>
           <span style={{ height: 12, flex: "0 0 auto" }} />
           <TimeActions icon="keyboard" p={p} />

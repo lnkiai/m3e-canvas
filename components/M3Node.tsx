@@ -1121,9 +1121,10 @@ function Body({ item, p, tabScroll, menuShown }: { item: Item; p: Palette; tabSc
             </div>
           )}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            {[t("cancel", lang), t("ok", lang)].map((t) => (
+            {[t("cancel", lang), t("ok", lang)].map((t, i) => (
               <span
                 key={t}
+                data-act={i ? "ok" : "cancel"}
                 style={{
                   padding: "0 12px",
                   height: 40,

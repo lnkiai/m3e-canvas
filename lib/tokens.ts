@@ -1715,6 +1715,8 @@ export type Item = {
   [fabOpen]?: boolean;
   /** runtime-only: the menu rises out of the part's top rather than dropping below it. */
   [menuUp]?: boolean;
+  /** runtime-only: the time a preview visitor has set on a time picker. Never written to JSON. */
+  [timeLive]?: TimeLive;
 };
 
 export type ToggleLook = { icon?: string | null; variant?: Variant; label?: string };
@@ -1894,6 +1896,10 @@ export const opensMenu = (it: Item) => hasMenu(it) || splitOpens(it);
 export const fabOpen = Symbol("fabOpen");
 /** runtime-only: the menu is drawn rising out of the part's top. Never part of a saved sketch. */
 export const menuUp = Symbol("menuUp");
+/** runtime-only: the time a visitor has set on a time picker in the preview, and which field they
+ *  are setting. Never part of a saved sketch. */
+export const timeLive = Symbol("timeLive");
+export type TimeLive = { h24: number; minute: number; field: "hour" | "minute" };
 /** the menu is drawn open: in the editor while it is being set up, in the preview once tapped */
 export const menuOpen = (it: Item) => opensMenu(it) && it[fabOpen] === true;
 /** how tall the sheet of entries stands */

@@ -77,6 +77,8 @@ import { t, useLang } from "@/lib/i18n";
 import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
 import { pinOf } from "@/lib/tidy";
 import { railMotionTargets } from "@/lib/railView";
+import type { TimeState } from "@/lib/timeLive";
+import { Surface, liveLook, surfaceOf } from "./PreviewSurface";
 
 const EASE = [0.2, 0, 0, 1] as const;
 const SLIDE_MS = 0.42;
@@ -773,6 +775,11 @@ function Screen({
   /* a folding FAB folds on the way down and stays folded until the body scrolls back up */
   const [fabFolded, setFabFolded] = useState(false);
   const [navHidden, setNavHidden] = useState(false);
+  /* the time each time picker has been set to, and the dialogs and pickers closed on this visit
+     (a screen opened again starts with them shown) */
+  const [times, setTimes] = useState<Record<string, TimeState>>({});
+  const [closing, setClosing] = useState<Set<string>>(() => new Set());
+  const [closed, setClosed] = useState<Set<string>>(() => new Set());
   const bodyScrollTop = useRef(0);
   const pointerScroll = useRef(false);
   const [railStates, setRailStates] = useState<Record<string, boolean>>({});
@@ -804,6 +811,18 @@ function Screen({
     }
   }
   const lift = (g: Group) => pins.get(g.id) ?? 0;
+  /* a closed part fades out first and is then gone until the screen is opened again */
+  const closePart = (id: string) => {
+    setClosing((s) => new Set(s).add(id));
+    setTimeout(() => {
+      setClosed((s) => new Set(s).add(id));
+      setClosing((s) => {
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      });
+    }, reducedMotion ? 0 : 150);
+  };
   /* a navigation bar that hides on scroll takes what floats over it at the foot along: a FAB
    * above it moves down by the bar's height and comes back up with it, so it keeps its place
    * above the bar's top edge */
@@ -1031,12 +1050,14 @@ function Screen({
                   ? uniformRadii(conn.outer)
                   : baseRadii(it);
             const act = it.action;
+            if (closed.has(it.id)) return null;
             let shown = flipped.has(it.id) ? flippedLook(it) : it;
             /* the menu drops below the button, or rises above it where the screen runs out */
             if (splitOpens(shown) && flipped.has(it.id)) shown = { ...shown, [menuUp]: splitMenuRisesAt(it, g.y, frame) };
             if (it.kind === "navRail" && pins.has(g.id) && (shown.size2 ?? 0) > viewH) shown = { ...shown, size2: viewH };
             if (it.kind === "slider" && values[it.id] !== undefined) shown = { ...shown, value: values[it.id] };
             if (it.kind === "select" && values[it.id] !== undefined) shown = { ...shown, selected: values[it.id] };
+            shown = liveLook(shown, times[it.id]);
             const navKind = it.kind === "bottomNav" || it.kind === "navRail" || it.kind === "tabs";
             /* bars with the same destinations are one bar to the visitor: the choice follows them across screens */
             const navKey = navKind ? `nav:${it.kind}:${(it.tabs ?? []).map((t) => t.label).join("|")}` : "";
@@ -1111,6 +1132,24 @@ function Screen({
                 pointerEvents={passThrough && !scrollingNav ? "auto" : undefined}
               />
             );
+            /* a dialog or a picker answers its own controls: Cancel and OK close it, and a time picker is set */
+            const surfaced = surfaceOf(it) ? (
+              <Surface
+                key={it.id}
+                item={it}
+                state={times[it.id]}
+                onState={(next) => setTimes((m) => ({ ...m, [it.id]: next }))}
+                onClose={() => closePart(it.id)}
+                onOk={() => {
+                  closePart(it.id);
+                  if (act) onAction(act);
+                }}
+                closing={closing.has(it.id)}
+                reducedMotion={!!reducedMotion}
+              >
+                {node}
+              </Surface>
+            ) : node;
             /* Keep the authored width as a right-aligned slot. The visual can then narrow from
              * its left edge while its right edge stays exactly where the author placed it. */
             const anchored = eases
@@ -1119,10 +1158,10 @@ function Screen({
                     key={it.id}
                     style={{ width: sizeOf(it, widths).w, display: "flex", justifyContent: "flex-end", flex: "0 0 auto" }}
                   >
-                    {node}
+                    {surfaced}
                   </div>
                 )
-              : node;
+              : surfaced;
             // Leave the destinations in the accessibility tree, including while offscreen.
             // Focusing one reveals it immediately, before the next paint.
             const content = scrollingNav ? (
