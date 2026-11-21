@@ -161,6 +161,17 @@ describe("time picker", () => {
     expect(buildPrompt(docWith({ ...tp, layout: "scroll", clock24: true }), {}, undefined, "ko")).toContain("스크롤형 시간 선택기(24시간제");
   });
 
+  it("gives each picker's own size in the prompt", () => {
+    const tp = makeItem("timePicker");
+    const en = (patch: Partial<Item>) => buildPrompt(docWith({ ...tp, ...patch }), {}, undefined, "en");
+    expect(en({ layout: "dial" })).toContain("304x472dp");
+    expect(en({ layout: "dial", horizontal: true })).toContain("572x376dp");
+    expect(en({ layout: "input", clock24: true })).toContain("240x200dp");
+    expect(en({ layout: "scroll", inline: true, size: 360 })).toContain("140dp tall with the fields filling its 360dp width");
+    expect(buildPrompt(docWith({ ...tp, layout: "dial" }), {}, undefined, "ja")).toContain("304×472dp");
+    expect(buildPrompt(docWith({ ...tp, layout: "scroll", inline: true, size: 360 }), {}, undefined, "ko")).toContain("높이 140dp");
+  });
+
   it("tells the prompt the clock shows the current time, without a reading", () => {
     const out = buildPrompt(docWith(makeItem("timePicker")), {}, undefined, "en");
     expect(out).toContain("set to the current time");

@@ -43,6 +43,7 @@ import {
   progressTypePatch,
   setIconSlot,
   sizeOf,
+  TIME_HORIZONTAL_W,
   timeInlineOf,
   timeLayoutOf,
   topBarHeightOf,
@@ -627,8 +628,10 @@ export function PartInspector({
             />
             <Toggle on={!!item.clock24} onChange={(clock24) => onChange({ clock24: clock24 || undefined })} p={p} icon="schedule" label={t("time24h", lang)} grow />
             {/* M3 Expressive: the scroll and input pickers can sit in the page, the dial can lie on its side */}
+            {/* the horizontal dial is 572dp wide: it is offered off the screens and on a screen wide
+                enough to hold it, and still shown where it is on, so it can be turned off */}
             {timeLayoutOf(item) === "dial" ? (
-              <Toggle on={!!item.horizontal} onChange={(horizontal) => onChange({ horizontal: horizontal || undefined })} p={p} icon="splitscreen_right" label={t("timeHorizontal", lang)} grow />
+              (!frame || frameW >= TIME_HORIZONTAL_W || item.horizontal) && <Toggle on={!!item.horizontal} onChange={(horizontal) => onChange({ horizontal: horizontal || undefined })} p={p} icon="splitscreen_right" label={t("timeHorizontal", lang)} grow />
             ) : (
               <Toggle on={!!item.inline} onChange={(inline) => onChange({ inline: inline || undefined })} p={p} icon="view_agenda" label={t("timeInline", lang)} grow />
             )}

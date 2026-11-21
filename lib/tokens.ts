@@ -650,6 +650,8 @@ export const timeInlineOf = (it: Item): boolean => timeLayoutOf(it) !== "dial" &
 export const timeHorizontalOf = (it: Item): boolean => timeLayoutOf(it) === "dial" && it.horizontal === true;
 /** the narrowest an inline picker gets: two 100dp fields, the separator, and the column beside them */
 export const TIME_INLINE_MIN = 264;
+/** how wide the horizontal dial picker is: wider than a phone, so it is a choice for wider screens */
+export const TIME_HORIZONTAL_W = 572;
 /** the share a progress indicator counts up to when it is first asked for one, and where a
  *  slider's handle first sits */
 export const PROGRESS_DEFAULT_VALUE = 60;
@@ -2570,7 +2572,7 @@ export function sizeOf(it: Item, widths: Record<string, number>) {
     }
     case "timePicker": {
       /* M3 Expressive's measurements: a dialog is the size it is, an inline picker fills its width */
-      if (timeLayoutOf(it) === "dial") return timeHorizontalOf(it) ? { w: 572, h: 376 } : { w: 304, h: 472 };
+      if (timeLayoutOf(it) === "dial") return timeHorizontalOf(it) ? { w: TIME_HORIZONTAL_W, h: 376 } : { w: 304, h: 472 };
       if (timeInlineOf(it)) return { w: Math.max(TIME_INLINE_MIN, n), h: 140 };
       return { w: it.clock24 ? 240 : 304, h: 200 };
     }

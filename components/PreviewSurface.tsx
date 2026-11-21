@@ -109,9 +109,28 @@ export function Surface({
   /* typing sets the field being set while the picker has focus. Every key handled here stops
      here too: Backspace and the left arrow also mean "back a screen" to the preview. */
   const onKeyDown = (e: React.KeyboardEvent) => {
+    /* Escape is a dialog's or a picker's Cancel, before it is the preview's own close */
+    if (e.key === "Escape" && closable(item)) {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+      return;
+    }
     if (!isTime) return;
     const s = current.current;
-    const handled = /^[0-9]$/.test(e.key) || ["Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab", "Enter"].includes(e.key);
+    /* Tab goes from the hour to the minute, and from the minute on out of the picker (Shift+Tab
+       the other way), so the keyboard is never held inside it */
+    if (e.key === "Tab") {
+      const into = e.shiftKey ? "hour" : "minute";
+      if (s.layout === "scroll" || s.field === into) return;
+      e.stopPropagation();
+      /* typed fields are real inputs: the browser moves between them and the focus sets the field */
+      if (s.layout === "input") return;
+      e.preventDefault();
+      set({ ...s, field: into, fresh: true, lead: undefined });
+      return;
+    }
+    const handled = /^[0-9]$/.test(e.key) || ["Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter"].includes(e.key);
     if (handled) e.stopPropagation();
     if (/^[0-9]$/.test(e.key) && s.layout === "input") {
       e.preventDefault();
@@ -123,10 +142,10 @@ export function Surface({
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault();
       set(stepTime(s, s.field, e.key === "ArrowUp" ? 1 : -1));
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Tab") {
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       if (s.layout === "scroll") return;
       e.preventDefault();
-      set({ ...s, field: s.field === "hour" ? "minute" : "hour", fresh: true, lead: undefined });
+      set({ ...s, field: e.key === "ArrowLeft" ? "hour" : "minute", fresh: true, lead: undefined });
     } else if (e.key === "Enter" && closable(item)) {
       e.preventDefault();
       onOk();
@@ -191,8 +210,12 @@ export function Surface({
       return;
     }
     if (!isTime) {
-      /* nothing else in a dialog or a picker over the page does anything */
-      if (closable(item)) e.stopPropagation();
+      /* nothing else in a dialog or a picker over the page does anything; it takes the keyboard,
+         so Escape closes it */
+      if (closable(item)) {
+        e.stopPropagation();
+        ref.current?.focus({ preventScroll: true });
+      }
       return;
     }
     /* the wrapper takes the keyboard, unless a typed field already has it */
@@ -218,7 +241,7 @@ export function Surface({
   return (
     <div
       ref={ref}
-      tabIndex={isTime ? -1 : undefined}
+      tabIndex={isTime || closable(item) ? -1 : undefined}
       onKeyDown={onKeyDown}
       onBeforeInputCapture={onBeforeInput}
       onFocusCapture={(e) => {
