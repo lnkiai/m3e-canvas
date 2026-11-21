@@ -1935,6 +1935,10 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
       return;
     }
     if (e.button !== 0) return;
+    /* the box is the editor's own selection: without this the browser also selects the words and
+       icon names it sweeps over, and a press on that selection then drags it out as a picture */
+    e.preventDefault();
+    window.getSelection()?.removeAllRanges();
     const pt = toWorld(e.clientX, e.clientY);
     const g: Gesture = {
       kind: "marquee",
