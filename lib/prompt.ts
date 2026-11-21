@@ -11,6 +11,8 @@ import {
   carouselCountOf,
   carouselLayoutOf,
   dateLayoutOf,
+  timeHorizontalOf,
+  timeInlineOf,
   timeLayoutOf,
   LINK_TARGET,
   MENU_TARGET,
@@ -253,11 +255,23 @@ const DATE_TEXT: Record<Lang, Record<DateLayout, string>> = {
   ko: { modal: "모달 대화상자", docked: "입력란에 붙는 도킹", input: "입력란만" },
 };
 const TIME_TEXT: Record<Lang, Record<TimeLayout, string>> = {
-  ja: { dial: "時計盤", input: "入力欄" },
-  en: { dial: "dial", input: "text input" },
-  zh: { dial: "表盘", input: "输入框" },
-  ko: { dial: "시계판", input: "입력란" },
+  ja: { scroll: "スクロール式", input: "入力式", dial: "時計盤式" },
+  en: { scroll: "scroll", input: "input", dial: "dial" },
+  zh: { scroll: "滚动式", input: "输入式", dial: "表盘式" },
+  ko: { scroll: "스크롤형", input: "입력형", dial: "시계판형" },
 };
+
+/** a time picker as M3 Expressive names it: which of the three, where it sits, which clock, how it is laid out */
+function timePickerText(it: Item, lang: Lang): string {
+  const l = timeLayoutOf(it);
+  const inline = timeInlineOf(it);
+  const h24 = !!it.clock24;
+  const side = timeHorizontalOf(it);
+  if (lang === "ja") return `${inline ? "ページ内に置いた" : "ダイアログの"}${TIME_TEXT.ja[l]}時刻ピッカー（${h24 ? "24 時間表示" : "12 時間表示と AM/PM"}${side ? "、時計盤を数字の横に置く横向きの配置" : ""}、現在時刻を選択中${inline ? "" : "、キャンセル／OK"}）`;
+  if (lang === "zh") return `${inline ? "嵌入页面的" : "对话框形式的"}${TIME_TEXT.zh[l]}时间选择器（${h24 ? "24 小时制" : "12 小时制，含 AM/PM"}${side ? "，表盘位于数字右侧的横向布局" : ""}，已选中当前时间${inline ? "" : "，含取消／确定"}）`;
+  if (lang === "ko") return `${inline ? "페이지에 배치한 " : "대화상자형 "}${TIME_TEXT.ko[l]} 시간 선택기(${h24 ? "24시간제" : "12시간제와 AM/PM"}${side ? ", 시계판을 숫자 옆에 둔 가로 배치" : ""}, 현재 시각 선택됨${inline ? "" : ", 취소 / 확인"})`;
+  return `${inline ? "an inline" : "a modal"} ${TIME_TEXT.en[l]} time picker on a ${h24 ? "24-hour clock" : "12-hour clock with AM/PM"}${side ? ", laid out horizontally with the dial beside the fields" : ""}, set to the current time${inline ? "" : ", with Cancel / OK"}`;
+}
 
 /** a chip drawn at anything but the 32dp M3 asks for says so */
 function chipHeightText(it: Item, lang: Lang): string {
@@ -326,7 +340,7 @@ function itemJa(it: Item): string {
     case "datePicker":
       return `${DATE_TEXT.ja[dateLayoutOf(it)]}の日付ピッカー（今日の日付を選択中${dateLayoutOf(it) === "input" ? "" : "、月のグリッドとキャンセル／OK"}）`;
     case "timePicker":
-      return `${TIME_TEXT.ja[timeLayoutOf(it)]}の時刻ピッカー（現在時刻を選択中、AM/PM 切り替えとキャンセル／OK）`;
+      return timePickerText(it, "ja");
     case "iconButton":
       return `${it.icon ?? "空"} アイコンの${v}アイコンボタン${iconButtonSize(it, "ja")}`;
     case "fab":
@@ -423,7 +437,7 @@ function itemEn(it: Item): string {
     case "datePicker":
       return `a date picker as a ${DATE_TEXT.en[dateLayoutOf(it)]} (today's date selected${dateLayoutOf(it) === "input" ? "" : ", with the month grid and Cancel / OK"})`;
     case "timePicker":
-      return `a time picker on a ${TIME_TEXT.en[timeLayoutOf(it)]} set to the current time, with the AM/PM toggle and Cancel / OK`;
+      return timePickerText(it, "en");
     case "iconButton":
       return `a ${v} icon button with the ${it.icon ?? "empty"} icon${iconButtonSize(it, "en")}`;
     case "fab":
@@ -520,7 +534,7 @@ function itemZh(it: Item): string {
     case "datePicker":
       return `${DATE_TEXT.zh[dateLayoutOf(it)]}形式的日期选择器（已选中今天的日期${dateLayoutOf(it) === "input" ? "" : "，含月份网格与取消／确定"}）`;
     case "timePicker":
-      return `${TIME_TEXT.zh[timeLayoutOf(it)]}形式的时间选择器（已选中当前时间，含 AM/PM 切换与取消／确定）`;
+      return timePickerText(it, "zh");
     case "iconButton":
       return `${it.icon ?? "空"} 图标的${v}图标按钮${iconButtonSize(it, "zh")}`;
     case "fab":
@@ -613,7 +627,7 @@ function itemKo(it: Item): string {
     case "button": return `${hasText(it.label) ? q(it.label) : "레이블 없는"} ${v} 버튼${it.icon ? `(${it.icon} 아이콘 포함)` : ""}${buttonSize(it, "ko")}`;
     case "carousel": return `${CAROUSEL_TEXT.ko[carouselLayoutOf(it)]} 레이아웃 캐러셀(카드 ${carouselCountOf(it)}장, 높이 ${it.size2 ?? 180}dp, 카드마다 모서리 16dp, 가로 스크롤${carouselCardsText(it, "ko")})`;
     case "datePicker": return `${DATE_TEXT.ko[dateLayoutOf(it)]} 형태의 날짜 선택기(오늘 날짜 선택됨${dateLayoutOf(it) === "input" ? "" : ", 월 그리드와 취소 / 확인"})`;
-    case "timePicker": return `${TIME_TEXT.ko[timeLayoutOf(it)]} 형태의 시간 선택기(현재 시각 선택됨, AM/PM 전환과 취소 / 확인)`;
+    case "timePicker": return timePickerText(it, "ko");
     case "iconButton": return `${it.icon ?? "빈"} 아이콘의 ${v} 아이콘 버튼${iconButtonSize(it, "ko")}`;
     case "fab": return `${it.icon ?? "빈"} 아이콘의 ${v} FAB${it.size && it.size >= 96 ? "(대형)" : it.size && it.size <= 40 ? "(소형)" : ""}${fabMenuText(it, "ko")}`;
     case "extendedFab": return `${q(it.label)}${it.icon ? ` 및 ${it.icon} 아이콘` : ""} 확장 FAB(${v}${it.size2 && it.size2 !== 56 ? `, 높이 ${it.size2}dp` : ""})${fabMenuText(it, "ko")}${fabScrollText(it, "ko")}`;
@@ -1188,7 +1202,7 @@ const STYLE_NOTES: Record<Lang, Partial<Record<Kind, string>>> = {
     datePicker:
       "日付ピッカー: M3 の DatePicker。モーダルは見出し・月の切り替え・曜日の行・日付のグリッド・キャンセル／OK を持つ角丸 28dp のダイアログ、ドッキングは入力欄の下に付く同じカレンダー、入力欄のみは末尾にカレンダーのアイコンが付いたアウトラインのテキストフィールド。選択日は primary の円で示す。",
     timePicker:
-      "時刻ピッカー: M3 の TimePicker。時と分を 2 つの大きな数字プレート（選択中は primaryContainer、他は surfaceContainerHighest）と AM/PM の縦の切り替えで示す。時計盤は surfaceContainerHighest の円に primary の針、入力欄は数字を直接打ち込む。下部にキャンセル／OK と、時計盤／キーボードを切り替えるアイコン。",
+      "時刻ピッカー: M3 Expressive の TimePicker。時と分は surfaceContainerLowest の 100×120dp のフィールド（角丸 16dp、数字 57sp）で、設定中の方は 2dp の primary の枠と primary の数字。AM/PM は横に縦並びの 56dp ボタン 2 つで、選択中は primaryContainer の角丸四角、もう一方は surfaceContainerLowest の円。スクロール式は各フィールドがホイールで、前後の値を outline 色で上下の端に切れた形で見せる。時計盤は surfaceContainerLowest の 256dp の円に primary の 2dp の針、8dp の中心、48dp の選択ハンドル。24 時間表示は AM/PM がなく、時計盤の内側の輪に 12〜23 を置く。ダイアログは幅 304dp、surfaceContainerHigh、角丸 28dp、余白 12dp で、下にモード切り替えのアイコンとキャンセル／OK のテキストボタン。横向きの配置は時計盤を数字の横に置く。ページ内に置く場合は容器なし。",
     fab: "FAB: 通常は 56dp・角丸 16dp、大サイズは 96dp・角丸 28dp、小サイズは 40dp・角丸 12dp。トーナルは primaryContainer、塗りつぶしは primary。画面端から 16dp 離して浮かせ、影は Level 3。",
     extendedFab: "拡張 FAB: 高さ 56dp（M3 の 3 サイズは 56 / 80 / 96dp、角丸と文字もそれに合わせる）、角丸 16dp、左にアイコン・右にラベル。",
     chip:
@@ -1242,7 +1256,7 @@ const STYLE_NOTES: Record<Lang, Partial<Record<Kind, string>>> = {
     datePicker:
       "Date picker: the M3 DatePicker. The modal is a 28dp-cornered dialog with a headline, the month switcher, the weekday row, the day grid and Cancel / OK; docked is the same calendar hanging under a text field; input only is an outlined text field with a calendar icon at its end. The selected day is a primary circle.",
     timePicker:
-      "Time picker: the M3 TimePicker. The hour and minute are two large number plates (the selected one primaryContainer, the other surfaceContainerHighest) beside a vertical AM/PM toggle. The dial is a surfaceContainerHighest circle with a primary hand; the input layout types the numbers directly. Cancel / OK sit at the bottom with an icon that switches between dial and keyboard.",
+      "Time picker: the M3 Expressive TimePicker. The hour and minute are two 100x120dp fields on surfaceContainerLowest with 16dp corners and 57sp digits; the one being set has a 2dp primary outline and primary digits. AM/PM are two 56dp buttons stacked beside them: the chosen one a rounded square in primaryContainer, the other a circle on surfaceContainerLowest. The scroll picker turns each field into a wheel that shows the previous and next values in outline, cut off by its edges. The dial is a 256dp surfaceContainerLowest circle with a 2dp primary hand, an 8dp centre and a 48dp selector; a 24-hour dial puts 12 to 23 on an inner ring and drops AM/PM. A dialog is 304dp wide on surfaceContainerHigh with 28dp corners and 12dp padding, and ends with the mode switch icon and Cancel / OK text buttons; the horizontal layout puts the dial beside the fields. An inline picker has no container.",
     fab: "FAB: 56dp with 16dp corners; large is 96dp with 28dp corners; small is 40dp with 12dp corners. Tonal uses primaryContainer, filled uses primary. Float it 16dp from the screen edge with a level 3 shadow.",
     extendedFab: "Extended FAB: 56dp tall (M3's three sizes are 56 / 80 / 96dp, with the corners and the label growing to match), 16dp corners, icon on the left and label on the right.",
     chip:
@@ -1295,7 +1309,7 @@ const STYLE_NOTES: Record<Lang, Partial<Record<Kind, string>>> = {
     datePicker:
       "日期选择器：M3 的 DatePicker。模态形式是圆角 28dp 的对话框，含标题、月份切换、星期行、日期网格与取消／确定；停靠形式是挂在输入框下方的同一日历；仅输入框形式是末尾带日历图标的描边文本框。选中日期用 primary 圆形标出。",
     timePicker:
-      "时间选择器：M3 的 TimePicker。小时与分钟是两块大数字面板（选中的用 primaryContainer，另一块用 surfaceContainerHighest），旁边是竖向的 AM/PM 切换。表盘是 surfaceContainerHighest 的圆形加 primary 指针；输入框形式直接输入数字。底部有取消／确定以及切换表盘／键盘的图标。",
+      "时间选择器：M3 Expressive 的 TimePicker。小时与分钟是 surfaceContainerLowest 上的两个 100×120dp 字段（圆角 16dp，数字 57sp），正在设置的一个带 2dp 的 primary 描边，数字为 primary。AM/PM 是竖排在旁边的两个 56dp 按钮：选中的为 primaryContainer 的圆角方形，另一个为 surfaceContainerLowest 的圆形。滚动式把每个字段做成滚轮，前后的值用 outline 色显示并被上下边缘截断。表盘是 256dp 的 surfaceContainerLowest 圆，带 2dp 的 primary 指针、8dp 的中心点和 48dp 的选择手柄；24 小时制没有 AM/PM，把 12 到 23 放在内圈。对话框宽 304dp，使用 surfaceContainerHigh，圆角 28dp，内边距 12dp，底部是模式切换图标和取消／确定文本按钮；横向布局把表盘放在数字旁边。嵌入页面时没有容器。",
     fab: "FAB：常规 56dp、圆角 16dp；大尺寸 96dp、圆角 28dp；小尺寸 40dp、圆角 12dp。色调用 primaryContainer，填充用 primary。距屏幕边缘 16dp 悬浮，阴影为 Level 3。",
     extendedFab: "扩展 FAB：高 56dp（M3 的三种尺寸为 56 / 80 / 96dp，圆角与文字随之变化），圆角 16dp，左侧图标、右侧标签。",
     chip:
@@ -1347,7 +1361,7 @@ const STYLE_NOTES: Record<Lang, Partial<Record<Kind, string>>> = {
     datePicker:
       "날짜 선택기: M3 DatePicker. 모달은 제목, 월 전환, 요일 행, 날짜 그리드, 취소 / 확인을 갖춘 모서리 28dp 대화상자이고, 도킹은 입력란 아래에 붙는 같은 달력, 입력란만은 끝에 달력 아이콘이 있는 윤곽선 텍스트 필드다. 선택한 날은 primary 원으로 표시한다.",
     timePicker:
-      "시간 선택기: M3 TimePicker. 시와 분은 큰 숫자 판 두 개(선택된 쪽은 primaryContainer, 다른 쪽은 surfaceContainerHighest)와 세로 AM/PM 전환으로 보여 준다. 시계판은 surfaceContainerHighest 원에 primary 바늘, 입력란은 숫자를 직접 입력한다. 아래에 취소 / 확인과 시계판 / 키보드를 전환하는 아이콘을 둔다.",
+      "시간 선택기: M3 Expressive TimePicker. 시와 분은 surfaceContainerLowest 위의 100×120dp 필드 두 개(모서리 16dp, 숫자 57sp)이며, 설정 중인 쪽은 2dp primary 테두리와 primary 숫자를 쓴다. AM/PM은 옆에 세로로 쌓인 56dp 버튼 두 개로, 선택된 쪽은 primaryContainer의 둥근 사각형, 다른 쪽은 surfaceContainerLowest의 원이다. 스크롤형은 각 필드를 휠로 만들어 앞뒤 값을 outline 색으로 위아래 가장자리에 잘린 채 보여 준다. 시계판은 256dp surfaceContainerLowest 원에 2dp primary 바늘, 8dp 중심점, 48dp 선택 핸들을 둔다. 24시간제는 AM/PM이 없고 12~23을 안쪽 원에 둔다. 대화상자는 너비 304dp, surfaceContainerHigh, 모서리 28dp, 여백 12dp이며 아래에 모드 전환 아이콘과 취소 / 확인 텍스트 버튼이 있다. 가로 배치는 시계판을 숫자 옆에 둔다. 페이지에 배치하면 컨테이너가 없다.",
     fab: "FAB: 기본 56dp/모서리 16dp, 대형 96dp/28dp, 소형 40dp/12dp. 토널은 primaryContainer, 채움은 primary를 사용하고 화면 가장자리에서 16dp 띄워 Level 3 그림자를 적용한다.",
     extendedFab: "확장 FAB: 높이 56dp(M3의 세 크기는 56 / 80 / 96dp이며 모서리와 글자도 이에 맞춘다), 모서리 16dp, 왼쪽에 아이콘, 오른쪽에 레이블을 둔다.",
     chip:

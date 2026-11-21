@@ -44,6 +44,7 @@ import {
   cardScrimOf,
   cardTextColorOf,
   dateLayoutOf,
+  timeInlineOf,
   onToken,
   scaleR,
   menuRises,
@@ -1743,7 +1744,8 @@ export function boxStyle(item: Item, p: Palette): React.CSSProperties {
         ? { background: "transparent", border: "none", color: p.onSurface }
         : { background: p.surfaceContainerHigh, border: "none", color: p.onSurface };
     case "timePicker":
-      return { background: p.surfaceContainerHigh, border: "none", color: p.onSurface };
+      /* an inline picker is part of the page; the others are dialogs over it */
+      return timeInlineOf(item) ? { background: "transparent", border: "none", color: p.onSurface } : { background: p.surfaceContainerHigh, border: "none", color: p.onSurface };
     case "snackbar":
       return { background: p.inverseSurface, border: "none", color: p.inverseOnSurface };
     case "image":
@@ -1776,7 +1778,7 @@ function shadowOf(item: Item): string {
     case "dialog":
       return "0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10)";
     case "timePicker":
-      return "0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10)";
+      return timeInlineOf(item) ? "none" : "0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10)";
     case "datePicker":
       return dateLayoutOf(item) === "input" ? "none" : "0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10)";
     case "snackbar":

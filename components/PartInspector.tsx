@@ -43,6 +43,7 @@ import {
   progressTypePatch,
   setIconSlot,
   sizeOf,
+  timeInlineOf,
   timeLayoutOf,
   topBarHeightOf,
 } from "@/lib/tokens";
@@ -623,6 +624,13 @@ export function PartInspector({
             p={p}
             label={t("layout", lang)}
           />
+          <Toggle on={!!item.clock24} onChange={(clock24) => onChange({ clock24: clock24 || undefined })} p={p} icon="schedule" label={t("time24h", lang)} grow />
+          {/* M3 Expressive: the scroll and input pickers can sit in the page, the dial can lie on its side */}
+          {timeLayoutOf(item) === "dial" ? (
+            <Toggle on={!!item.horizontal} onChange={(horizontal) => onChange({ horizontal: horizontal || undefined })} p={p} icon="splitscreen_right" label={t("timeHorizontal", lang)} grow />
+          ) : (
+            <Toggle on={!!item.inline} onChange={(inline) => onChange({ inline: inline || undefined })} p={p} icon="view_agenda" label={t("timeInline", lang)} grow />
+          )}
         </Section>
       )}
 
@@ -731,7 +739,7 @@ export function PartInspector({
           /* a carousel runs the width of the screen it is on: its height is the one measure its author sets */
           heightRow(CAROUSEL_HEIGHTS),
         )}
-      {(kind === "datePicker" || kind === "timePicker") && sizeSection(widthRows())}
+      {(kind === "datePicker" || (kind === "timePicker" && timeInlineOf(item))) && sizeSection(widthRows())}
       {kind === "slider" &&
         sizeSection(
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

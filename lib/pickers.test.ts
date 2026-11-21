@@ -45,6 +45,9 @@ import {
   makeItem,
   progressTypePatch,
   sizeOf,
+  baseRadii,
+  timeHorizontalOf,
+  timeInlineOf,
   timeLayoutOf,
 } from "./tokens";
 
@@ -109,6 +112,53 @@ describe("time picker", () => {
     const it = makeItem("timePicker");
     expect(timeLayoutOf(it)).toBe("dial");
     expect(sizeOf({ ...it, layout: "input" }, {}).h).toBeLessThan(sizeOf(it, {}).h);
+  });
+
+  it("knows the three M3 Expressive pickers and falls back to the dial", () => {
+    const tp = makeItem("timePicker");
+    expect(timeLayoutOf({ ...tp, layout: "scroll" })).toBe("scroll");
+    expect(timeLayoutOf({ ...tp, layout: "input" })).toBe("input");
+    expect(timeLayoutOf({ ...tp, layout: "modal" })).toBe("dial");
+  });
+
+  it("puts only scroll and input pickers in the page, and lays only the dial on its side", () => {
+    const tp = makeItem("timePicker");
+    expect(timeInlineOf({ ...tp, layout: "scroll", inline: true })).toBe(true);
+    expect(timeInlineOf({ ...tp, layout: "input", inline: true })).toBe(true);
+    expect(timeInlineOf({ ...tp, layout: "dial", inline: true })).toBe(false);
+    expect(timeHorizontalOf({ ...tp, layout: "dial", horizontal: true })).toBe(true);
+    expect(timeHorizontalOf({ ...tp, layout: "input", horizontal: true })).toBe(false);
+  });
+
+  it("takes M3 Expressive's measurements", () => {
+    const tp = makeItem("timePicker");
+    const size = (patch: Partial<Item>) => sizeOf({ ...tp, ...patch }, {});
+    expect(size({ layout: "dial" })).toEqual({ w: 304, h: 472 });
+    expect(size({ layout: "dial", clock24: true })).toEqual({ w: 304, h: 472 });
+    expect(size({ layout: "dial", horizontal: true })).toEqual({ w: 572, h: 376 });
+    expect(size({ layout: "input" })).toEqual({ w: 304, h: 200 });
+    expect(size({ layout: "scroll", clock24: true })).toEqual({ w: 240, h: 200 });
+    /* inline, the fields fill the width it is given, but never narrower than two 100dp fields */
+    expect(size({ layout: "scroll", inline: true, size: 360 })).toEqual({ w: 360, h: 140 });
+    expect(size({ layout: "input", inline: true, size: 200 })).toEqual({ w: 264, h: 140 });
+  });
+
+  it("drops the dialog's corners when it sits in the page", () => {
+    const tp = makeItem("timePicker");
+    expect(baseRadii({ ...tp, layout: "scroll", inline: true }).tl).toBe(0);
+    expect(baseRadii({ ...tp, layout: "dial" }).tl).toBe(28);
+  });
+
+  it("names the picker, where it sits, its clock and its layout in the prompt", () => {
+    const tp = makeItem("timePicker");
+    const en = (patch: Partial<Item>) => buildPrompt(docWith({ ...tp, ...patch }), {}, undefined, "en");
+    expect(en({ layout: "scroll", inline: true })).toContain("an inline scroll time picker on a 12-hour clock with AM/PM");
+    expect(en({ layout: "input", clock24: true })).toContain("a modal input time picker on a 24-hour clock");
+    expect(en({ layout: "dial", horizontal: true })).toContain("laid out horizontally with the dial beside the fields");
+    expect(en({ layout: "scroll", inline: true })).not.toContain("Cancel / OK, set");
+    expect(buildPrompt(docWith({ ...tp, layout: "scroll", clock24: true }), {}, undefined, "ja")).toContain("スクロール式時刻ピッカー（24 時間表示");
+    expect(buildPrompt(docWith({ ...tp, layout: "scroll", clock24: true }), {}, undefined, "zh")).toContain("滚动式时间选择器（24 小时制");
+    expect(buildPrompt(docWith({ ...tp, layout: "scroll", clock24: true }), {}, undefined, "ko")).toContain("스크롤형 시간 선택기(24시간제");
   });
 
   it("tells the prompt the clock shows the current time, without a reading", () => {

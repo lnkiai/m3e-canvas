@@ -631,18 +631,25 @@ export const DATE_LAYOUTS: { key: DateLayout; icon: string; text: "dateModal" | 
   { key: "docked", icon: "event", text: "dateDocked" },
   { key: "input", icon: "keyboard", text: "dateInput" },
 ];
-/** a time picker is read off a dial or typed in */
-export type TimeLayout = "dial" | "input";
-export const TIME_LAYOUTS: { key: TimeLayout; icon: string; text: "timeDial" | "dateInput" }[] = [
-  { key: "dial", icon: "schedule", text: "timeDial" },
+/** M3 Expressive's three time pickers: two scrolling wheels, two typed fields, or a dial */
+export type TimeLayout = "scroll" | "input" | "dial";
+export const TIME_LAYOUTS: { key: TimeLayout; icon: string; text: "timeScroll" | "timeDial" | "dateInput" }[] = [
+  { key: "scroll", icon: "swipe_vertical", text: "timeScroll" },
   { key: "input", icon: "keyboard", text: "dateInput" },
+  { key: "dial", icon: "schedule", text: "timeDial" },
 ];
 export type PartLayout = CarouselLayout | DateLayout | TimeLayout;
 export const carouselLayoutOf = (it: Item): CarouselLayout =>
   CAROUSEL_LAYOUTS.some((l) => l.key === it.layout) ? (it.layout as CarouselLayout) : "multiBrowse";
 export const dateLayoutOf = (it: Item): DateLayout =>
   DATE_LAYOUTS.some((l) => l.key === it.layout) ? (it.layout as DateLayout) : "modal";
-export const timeLayoutOf = (it: Item): TimeLayout => (it.layout === "input" ? "input" : "dial");
+export const timeLayoutOf = (it: Item): TimeLayout => (it.layout === "input" || it.layout === "scroll" ? it.layout : "dial");
+/** the scroll and input pickers can sit in the page; the dial is always a dialog */
+export const timeInlineOf = (it: Item): boolean => timeLayoutOf(it) !== "dial" && it.inline === true;
+/** only the dial has a landscape arrangement, with the dial beside the fields */
+export const timeHorizontalOf = (it: Item): boolean => timeLayoutOf(it) === "dial" && it.horizontal === true;
+/** the narrowest an inline picker gets: two 100dp fields, the separator, and the column beside them */
+export const TIME_INLINE_MIN = 264;
 /** the share a progress indicator counts up to when it is first asked for one, and where a
  *  slider's handle first sits */
 export const PROGRESS_DEFAULT_VALUE = 60;
@@ -1477,14 +1484,15 @@ export const KIND_SPEC: Record<Kind, KindSpec> = {
     noun: "時刻ピッカー",
     category: "inputs",
     paletteIcon: "schedule",
-    w: 328,
-    h: 420,
+    w: 304,
+    h: 472,
     radius: 28,
     hasVariant: false,
     hasLabel: false,
     hasSupporting: false,
     hasIcon: false,
-    size: { min: 280, max: PHONE_W, step: 4, icon: "width", presets: [328, CONTENT_W] },
+    /* only an inline picker takes a width; a dialog has the size M3 gives it */
+    size: { min: TIME_INLINE_MIN, max: PHONE_W, step: 4, icon: "width", presets: [TIME_INLINE_MIN, 328, CONTENT_W] },
     defLabel: "",
     defIcon: null,
     defSize: 328,
@@ -1681,6 +1689,12 @@ export type Item = {
      view while the body scrolls down and come back on any upward scroll, at the top, or for
      keyboard use */
   hideOnScroll?: boolean;
+  /** time picker only: a 24-hour clock, with no AM/PM and an inner ring on the dial for 12 to 23 */
+  clock24?: boolean;
+  /** time picker only: placed in the page rather than over it (scroll and input pickers) */
+  inline?: boolean;
+  /** time picker only: the dial beside the fields rather than under them */
+  horizontal?: boolean;
   /** palette token used as background (boxes, list items) */
   fill?: ColorToken;
   /** background behind a list item's leading icon; "none" draws the icon bare */
@@ -2549,9 +2563,10 @@ export function sizeOf(it: Item, widths: Record<string, number>) {
       return { w: n, h: l === "input" ? 96 : l === "docked" ? 120 + cell * 7 : 164 + cell * 7 };
     }
     case "timePicker": {
-      const dial = Math.min(256, n - 48);
-      /* the heading, the two plates, the dial and the two text buttons */
-      return { w: n, h: timeLayoutOf(it) === "input" ? 204 : 196 + dial };
+      /* M3 Expressive's measurements: a dialog is the size it is, an inline picker fills its width */
+      if (timeLayoutOf(it) === "dial") return timeHorizontalOf(it) ? { w: 572, h: 376 } : { w: 304, h: 472 };
+      if (timeInlineOf(it)) return { w: Math.max(TIME_INLINE_MIN, n), h: 140 };
+      return { w: it.clock24 ? 240 : 304, h: 200 };
     }
     case "card":
       return { w: n, h: it.size2 ?? Math.round(n * 0.5875) };
@@ -2573,6 +2588,9 @@ export function baseRadii(it: Item): Radii {
     /* a button stays fully round whatever height it is given */
     case "button":
       return uniformRadii(scaleR(buttonHeightOf(it) / 2));
+    /* an inline time picker is no box of its own: its fields carry their own corners */
+    case "timePicker":
+      return uniformRadii(timeInlineOf(it) ? 0 : scaleR(s.radius));
     /* a sheet rounds only the edge it rises with; its bottom stays flush with the screen */
     case "bottomSheet": {
       const t = it.radiusTop ?? s.radius;

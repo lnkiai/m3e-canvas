@@ -217,6 +217,20 @@ describe("readProject", () => {
     expect(isProject(withItem({ kind: "bottomNav", hideOnScroll }))).toBe(false);
   });
 
+  it.each([
+    { layout: "scroll", inline: true },
+    { layout: "input", clock24: true },
+    { layout: "dial", horizontal: true, clock24: false },
+  ])("preserves the time picker's options %j in project files", async (options) => {
+    const value = withItem({ kind: "timePicker", ...options });
+    expect(isProject(value)).toBe(true);
+    await expect(readProject(new File([JSON.stringify(value)], "time.json"))).resolves.toEqual(value);
+  });
+
+  it.each(["clock24", "inline", "horizontal"])("rejects a non-boolean time picker %s", (field) => {
+    expect(isProject(withItem({ kind: "timePicker", [field]: "yes" }))).toBe(false);
+  });
+
   it.each([undefined, 2, 4, 8, 16])("preserves progress thickness %s in project files", async (trackThickness) => {
     const value = withItem({ kind: "linearProgress", wavy: true, trackThickness });
     await expect(readProject(new File([JSON.stringify(value)], "progress.json"))).resolves.toEqual(value);
