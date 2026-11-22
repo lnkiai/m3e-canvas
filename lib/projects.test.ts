@@ -23,6 +23,7 @@ import {
   type Backend,
   type KeyValue,
 } from "./projects";
+import { PERSIST_ASKED_KEY, keepStored } from "./projects";
 import type { Doc } from "./tokens";
 
 const doc = (title: string, screens = 1): Doc => ({
@@ -324,6 +325,30 @@ describe("saving from the editor", () => {
     expect(await b.meta(meta.id)).toMatchObject({ edited: true, title: "Recipes" });
   });
 
+  it("says so each time a write lands, and a listener that throws does not fail the write", async () => {
+    const b = memoryBackend();
+    const meta = await createProject(b, null, 1);
+    let landed = 0;
+    let failed = 0;
+    const saver = createSaver(b, meta, {
+      now: clock(),
+      onError: () => failed++,
+      onWritten: () => {
+        landed++;
+        throw new Error("the listener's own trouble");
+      },
+    });
+    saver.push(doc("", 1));
+    await saver.idle();
+    expect(landed).toBe(1);
+    saver.push(doc("Recipes", 2));
+    await saver.idle();
+    expect(landed).toBe(2);
+    expect(failed).toBe(0);
+    expect(saver.pending()).toBe(false);
+    expect((await b.doc(meta.id))?.title).toBe("Recipes");
+  });
+
   it("never overlaps writes and always ends on the newest state", async () => {
     const inner = memoryBackend();
     let open = 0;
@@ -530,5 +555,49 @@ describe("saving from the editor", () => {
     saver.push(doc("b"));
     await writesSettled();
     expect((await inner.doc(meta.id))?.title).toBe("b");
+  });
+});
+
+describe("asking the browser to hold on to its storage", () => {
+  const store = () => {
+    const map = new Map<string, string>();
+    return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => void map.set(k, v), removeItem: (k: string) => void map.delete(k) };
+  };
+  const browser = (kept: boolean, grants: boolean) => {
+    let asked = 0;
+    return { manager: { persisted: async () => kept, persist: async () => (asked++, grants) }, asked: () => asked };
+  };
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it("does not ask a browser that already keeps it", async () => {
+    const b = browser(true, true);
+    expect(await keepStored(store(), 1000, b.manager)).toBe(true);
+    expect(b.asked()).toBe(0);
+  });
+
+  it("asks once, and says whether the storage is kept now", async () => {
+    const yes = browser(false, true);
+    expect(await keepStored(store(), 1000, yes.manager)).toBe(true);
+    expect(yes.asked()).toBe(1);
+    const no = browser(false, false);
+    expect(await keepStored(store(), 1000, no.manager)).toBe(false);
+  });
+
+  it("leaves a browser that said no alone for a month, then asks again", async () => {
+    const storage = store();
+    const b = browser(false, false);
+    await keepStored(storage, 1000, b.manager);
+    expect(storage.getItem(PERSIST_ASKED_KEY)).toBe("1000");
+    expect(await keepStored(storage, 1000 + 29 * DAY, b.manager)).toBe(false);
+    expect(b.asked()).toBe(1);
+    await keepStored(storage, 1000 + 31 * DAY, b.manager);
+    expect(b.asked()).toBe(2);
+  });
+
+  it("is no trouble where the browser has nothing to ask, or the asking fails", async () => {
+    expect(await keepStored(store(), 1000, undefined)).toBe(false);
+    expect(await keepStored(store(), 1000, {} as never)).toBe(false);
+    const broken = { persisted: async () => false, persist: async () => Promise.reject(new Error("denied")) };
+    expect(await keepStored(store(), 1000, broken)).toBe(false);
   });
 });

@@ -129,7 +129,7 @@ import { barSlotOf, bodyRect, carryFrame, holdsEdgeBar, maxFrameLength, minFrame
 import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
 import { joinRun, landMoved, liftSelection, sequenceOf, sequenceSize } from "@/lib/move";
 import { readProject, saveProject } from "@/lib/project";
-import { Backend, Project, createSaver, lockName } from "@/lib/projects";
+import { Backend, Project, createSaver, keepStored, lockName, smallStorage } from "@/lib/projects";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
 import { draftDesign } from "@/lib/ai";
@@ -518,12 +518,14 @@ export default function Editor({
   /** tell the author that changes are not reaching storage, and note when they do again */
   const saveFailedRef = useRef<() => void>(() => {});
   const saveOkRef = useRef<() => void>(() => {});
+  const writtenRef = useRef<() => void>(() => {});
   const [saver] = useState(() =>
     createSaver(backend, project.meta, {
       /* a project that already has a document is not written back as it was opened */
       stored: project.doc !== null,
       onError: () => saveFailedRef.current(),
       onSaved: () => saveOkRef.current(),
+      onWritten: () => writtenRef.current(),
     }),
   );
   /* While the editor is on screen its saver writes. Once the editor is left it stops, and hands
@@ -3380,6 +3382,14 @@ export default function Editor({
   };
   saveOkRef.current = () => {
     saveFailedAt.current = 0;
+  };
+  /* the author's work has reached storage: the moment to ask the browser to hold on to it,
+     once a visit. A project nobody has changed yet is not work to ask about. */
+  const keepAsked = useRef(false);
+  writtenRef.current = () => {
+    if (keepAsked.current || backend.kind !== "idb" || !saver.meta().edited) return;
+    keepAsked.current = true;
+    void keepStored(smallStorage());
   };
   useEffect(() => {
     if (notice === "unkept") showToast(t("saveFailed", getLang()), 8000, "error");

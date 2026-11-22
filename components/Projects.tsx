@@ -7,7 +7,8 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { LANGS, LangContext, setGlobalLang, t, type Lang } from "@/lib/i18n";
 import { preferredLang, rememberLang } from "@/lib/lang";
-import { readProject, saveProject } from "@/lib/project";
+import { collectBackup, readDesigns, restoreBackup, saveBackup } from "@/lib/backup";
+import { saveProject } from "@/lib/project";
 import {
   LAST_KEY,
   adoptLegacy,
@@ -1121,12 +1122,15 @@ export function Projects({ mcp = false }: { mcp?: boolean }) {
   const addFiles = async (files: File[]) => {
     if (!backend || !lang || files.length === 0) return;
     let added = 0;
+    let present = 0;
     for (const file of files) {
-      const doc = await readProject(file);
-      if (!doc) continue;
+      /* a project file holds one design, a backup of the list holds them all */
+      const found = await readDesigns(file);
+      if (!found) continue;
       try {
-        await createProject(backend, doc);
-        added++;
+        const done = await restoreBackup(backend, found.entries);
+        added += done.added;
+        present += done.present;
       } catch {
         /* it did not fit: what was added so far is kept, and the author is told */
         await refresh(backend);
@@ -1135,7 +1139,19 @@ export function Projects({ mcp = false }: { mcp?: boolean }) {
       }
     }
     await refresh(backend);
-    say(added ? t("projectAdded", lang) : t("invalidProject", lang));
+    say(added > 1 ? t("projectsAdded", lang).replace("{n}", String(added)) : added === 1 ? t("projectAdded", lang) : present ? t("backupAlreadyHere", lang) : t("invalidProject", lang));
+  };
+  /** every project into one file: the browser's storage is not a safe place to keep the only copy */
+  const exportAll = async () => {
+    if (!backend || !lang) return;
+    try {
+      const backup = await collectBackup(backend);
+      if (backup.projects.length === 0) throw new Error("nothing to export");
+      saveBackup(backup);
+      say(t("exportedAll", lang).replace("{n}", String(backup.projects.length)));
+    } catch {
+      say(t("exportFailed", lang));
+    }
   };
   /** a design that came in a pasted link joins the list, as one from a file does */
   const addDoc = async (doc: Doc) => {
@@ -1443,16 +1459,32 @@ export function Projects({ mcp = false }: { mcp?: boolean }) {
                 />
               </Blank>
             ) : (
-              /* what remains only moves into the gap a removed project leaves, keeping its size */
-              <div className="m3e-proj-grid">
-                <AnimatePresence mode="popLayout" initial={false}>
-                  {shown.map((meta) => (
-                    <motion.div key={meta.id} layout={reduced ? false : "position"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16, ease: EASE }}>
-                      <Card meta={meta} backend={backend} p={p} lang={lang} now={now} last={meta.id === lastId && metas.length > 1} onAction={onCardAction} />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
+              <>
+                {/* what remains only moves into the gap a removed project leaves, keeping its size */}
+                <div className="m3e-proj-grid">
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    {shown.map((meta) => (
+                      <motion.div key={meta.id} layout={reduced ? false : "position"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16, ease: EASE }}>
+                        <Card meta={meta} backend={backend} p={p} lang={lang} now={now} last={meta.id === lastId && metas.length > 1} onAction={onCardAction} />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+                {/* where the work is kept, and the way to take a copy of all of it; said only
+                    where there is work and a store that keeps it */}
+                {backend.kind !== "memory" && metas.some((m) => m.edited) && (
+                  <div className="m3e-proj-foot" style={{ color: p.onSurfaceVariant }}>
+                    <span aria-hidden style={{ display: "grid", flex: "0 0 auto" }}>
+                      <Icon name="hard_drive" size={18} />
+                    </span>
+                    <span>{t("storedHere", lang)}</span>
+                    <button type="button" className="m3-press m3e-proj-foot-btn" onClick={() => void exportAll()} style={{ color: p.primary }}>
+                      <Icon name="download" size={18} />
+                      {t("exportAll", lang)}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </motion.div>
         </main>

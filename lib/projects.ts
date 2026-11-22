@@ -527,7 +527,16 @@ const RETRY_MS = 4000;
 export function createSaver(
   b: Backend,
   initial: ProjectMeta,
-  options: { now?: () => number; onError?: (error: unknown) => void; onSaved?: () => void; stored?: boolean; retryMs?: number | null } = {},
+  options: {
+    now?: () => number;
+    onError?: (error: unknown) => void;
+    /** writes are landing again after having failed */
+    onSaved?: () => void;
+    /** a write has landed, every time one does */
+    onWritten?: () => void;
+    stored?: boolean;
+    retryMs?: number | null;
+  } = {},
 ): Saver {
   const now = options.now ?? Date.now;
   const retryMs = options.retryMs === undefined ? RETRY_MS : options.retryMs;
@@ -568,6 +577,10 @@ export function createSaver(
         waiting = null;
         try {
           await b.write(meta, parts);
+          /* a listener's own trouble is not a failed write */
+          try {
+            options.onWritten?.();
+          } catch {}
           if (failing) {
             failing = false;
             options.onSaved?.();
@@ -622,6 +635,31 @@ export function createSaver(
       if (!running) hand();
     },
   };
+}
+
+export const PERSIST_ASKED_KEY = "m3e:persist:asked";
+/** how long a browser that said no is left alone before it is asked again */
+const PERSIST_ASK_EVERY = 30 * 24 * 60 * 60 * 1000;
+
+/** Asks the browser to hold on to this site's storage. Left to itself a browser may clear it
+ *  when the disk runs short, and the projects with it; storage marked persistent is cleared
+ *  only by the person. Chrome decides on its own and says nothing, Firefox asks the person, so
+ *  a refusal is not asked about again for a month. Settles true when the storage is kept. */
+export async function keepStored(
+  storage: KeyValue,
+  now = Date.now(),
+  manager: Pick<StorageManager, "persist" | "persisted"> | undefined = typeof navigator !== "undefined" ? navigator.storage : undefined,
+): Promise<boolean> {
+  try {
+    if (!manager || typeof manager.persist !== "function" || typeof manager.persisted !== "function") return false;
+    if (await manager.persisted()) return true;
+    const asked = Number(storage.getItem(PERSIST_ASKED_KEY));
+    if (Number.isFinite(asked) && asked > 0 && now - asked < PERSIST_ASK_EVERY) return false;
+    storage.setItem(PERSIST_ASKED_KEY, String(now));
+    return await manager.persist();
+  } catch {
+    return false;
+  }
 }
 
 /** Whether another tab has this project open for editing; false where the browser has no

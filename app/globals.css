@@ -569,6 +569,43 @@ input.m3-number {
   grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: 16px;
 }
+/* the line under the list: where the work is kept, and the way to take a copy of it */
+.m3e-proj-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 28px;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.m3e-proj-foot > span:nth-child(2) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.m3e-proj-foot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  /* pulled left so its label, not its padding, lines up when it wraps under the sentence */
+  margin-left: -4px;
+  padding: 0 14px 0 10px;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.m3e-proj-foot-btn:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.m3e-proj-foot-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
 .m3e-proj-card {
   position: relative;
   border-radius: 24px;
