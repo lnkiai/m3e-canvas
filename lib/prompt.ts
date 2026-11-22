@@ -37,6 +37,9 @@ import {
   Variant,
   defaultPlatformOf,
   explodeGroup,
+  canJoin,
+  connectSpecOf,
+  layoutOf,
   frameOfGroup,
   frameLengthOf,
   frameRect,
@@ -170,6 +173,13 @@ const qe = (s: string) => `"${s.trim()}"`;
 const qz = (s: string) => `“${s.trim()}”`;
 const quote = (lang: Lang) => (lang === "ja" ? qj : lang === "zh" ? qz : qe);
 const trimEnd = (s: string) => s.trim().replace(/[。.\s]+$/, "");
+
+/** The author's own sentence, closed with the full stop its last character calls for: words
+ *  in one language may stand in a prompt written in another. */
+const closed = (s: string) => {
+  const text = trimEnd(s);
+  return `${text}${/[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]$/.test(text) ? "。" : "."}`;
+};
 
 /** Rails without either expressive setting preserve their original export. */
 function railStateText(it: Item, lang: Lang): string {
@@ -1573,7 +1583,7 @@ const sizeLabel = (f: Frame, vp: Viewport, lang: Lang): string | undefined => {
 const PH = {
   ja: {
     screen: "画面",
-    intro: (title: string, brief: string) => `${title}を Material 3 Expressive のデザインで実装してください。${brief ? trimEnd(brief) + "。" : ""}`,
+    intro: (title: string, brief: string) => `${title}を Material 3 Expressive のデザインで実装してください。${brief ? closed(brief) : ""}`,
     titleOnly: (name: string) => `${name}画面`,
     titleAll: (n: number) => (n > 1 ? "このアプリ" : "この画面"),
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
@@ -1617,7 +1627,7 @@ const PH = {
   },
   en: {
     screen: "screen",
-    intro: (title: string, brief: string) => `Please implement ${title} in the Material 3 Expressive design language.${brief ? ` ${trimEnd(brief)}.` : ""}`,
+    intro: (title: string, brief: string) => `Please implement ${title} in the Material 3 Expressive design language.${brief ? ` ${closed(brief)}` : ""}`,
     titleOnly: (name: string) => `the ${name} screen`,
     titleAll: (n: number) => (n > 1 ? "this app" : "this screen"),
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
@@ -1661,7 +1671,7 @@ const PH = {
   },
   zh: {
     screen: "屏幕",
-    intro: (title: string, brief: string) => `请用 Material 3 Expressive 的设计实现${title}。${brief ? trimEnd(brief) + "。" : ""}`,
+    intro: (title: string, brief: string) => `请用 Material 3 Expressive 的设计实现${title}。${brief ? closed(brief) : ""}`,
     titleOnly: (name: string) => `${name}屏幕`,
     titleAll: (n: number) => (n > 1 ? "这个应用" : "这个屏幕"),
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
@@ -1705,7 +1715,7 @@ const PH = {
   },
   ko: {
     screen: "화면",
-    intro: (title: string, brief: string) => `Material 3 Expressive 디자인으로 구현해 주세요: ${title}.${brief ? ` ${trimEnd(brief)}.` : ""}`,
+    intro: (title: string, brief: string) => `Material 3 Expressive 디자인으로 구현해 주세요: ${title}.${brief ? ` ${closed(brief)}` : ""}`,
     titleOnly: (name: string) => `${name} 화면`,
     titleAll: (n: number) => (n > 1 ? "이 앱" : "이 화면"),
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) => `${vp === "phone" ? "세로형 휴대전화 화면(412×892dp)을 대상으로 하며" : vp === "desktop" ? `${pl === "web" ? "데스크톱 브라우저" : "가로형 태블릿"} 화면(1280×800 기준)을 대상으로 하며` : vp === "mixed" ? `세로형 휴대전화(412×892)와 ${pl === "web" ? "데스크톱 브라우저" : "가로형 태블릿"}(1280×800)을 모두 지원하며, 이름이 같은 화면은 서로 다른 너비의 동일한 화면이므로 반응형으로 구현하고` : "레이아웃은 자유 배치이며"}, ${both ? "라이트 모드와 다크 모드를 모두 지원하고 기기의 시스템 설정을 따른다" : `${dark ? "다크" : "라이트"} 모드만 지원한다`}.`,
@@ -1801,6 +1811,19 @@ export function promptMarks(text: string, frames: Frame[], lang: Lang = getLang(
   return out;
 }
 
+/** The runs a group is written as. A run is parts of one family side by side along that
+ *  family's axis: buttons, chips, the rows of a list. The editor makes no other kind, but a
+ *  document written by hand (an agent's, say) may put checkboxes or lines of text in one group,
+ *  and the canvas draws them one after another all the same. Such a group is no run, so it is
+ *  taken apart the way a hand-made group is: each part where it stands, and only the parts
+ *  that really connect kept together. */
+function runsOf(g: Group, widths: Record<string, number>): Group[] {
+  const run = g.items.length < 2 || (connectSpecOf(g.items[0])?.axis === g.axis && g.items.every((it, i) => i === 0 || canJoin(g.items[i - 1], it)));
+  if (g.free || run) return explodeGroup(g, widths);
+  const pos = Object.fromEntries(layoutOf(g, widths).map((pl) => [pl.item.id, { x: pl.x - g.x, y: pl.y - g.y }]));
+  return explodeGroup({ ...g, free: true, pos }, widths);
+}
+
 export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameId?: string, lang: Lang = getLang()): string {
   doc = { ...doc, groups: constrainModalRails(doc.groups) };
   const th = normalizeTheme(doc.theme);
@@ -1815,7 +1838,7 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
    * group is written part by part, since it exists only to move things together. */
   const groups = doc.groups
     .filter((g) => !only || frameOfGroup(g, allFrames, widths)?.id === only.id)
-    .flatMap((g) => explodeGroup(g, widths));
+    .flatMap((g) => runsOf(g, widths));
   const lines: string[] = [];
   const q = quote(lang);
   const ph = PH[lang];
@@ -1879,7 +1902,7 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
     frames.forEach((f, i) => {
       const gs = byFrame.get(f.id) ?? [];
       if (i > 0 || frames.length > 1) lines.push("");
-      if (hasText(f.note)) lines.push(lang === "ja" || lang === "zh" ? `${trimEnd(f.note!)}。` : `${trimEnd(f.note!)}.`);
+      if (hasText(f.note)) lines.push(closed(f.note!));
       lines.push(ph.screenHead(q(f.name || ph.screen), f.bg && f.bg !== "surface" ? f.bg : undefined, gs.length > 0, sizeLabel(f, viewport, lang)));
       if (gs.length > 0 && f.place && f.place !== "top") lines.push(ph.placement(f.place));
       if (gs.length > 0 && scrollsOf(f)) lines.push(ph.scrolls(frameLengthOf(f), frameSizeOf(f).h));
