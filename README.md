@@ -25,9 +25,9 @@
 
 <p align="center"><a href="README.md"><img src="docs/readme/ui/lang-en-on.png" height="40" alt="English" /></a><a href="README.ja.md"><img src="docs/readme/ui/lang-ja.png" height="40" alt="日本語" /></a><a href="README.zh.md"><img src="docs/readme/ui/lang-zh.png" height="40" alt="中文" /></a><a href="README.ko.md"><img src="docs/readme/ui/lang-ko.png" height="40" alt="한국어" /></a></p>
 
-<p align="center"><img src="docs/readme/demo.gif" alt="Sketching the Pantry recipe app in M3E Canvas, tapping through its screens, copying the prompt, Claude Code building it in a terminal, and the finished app running on a phone" /></p>
+<p align="center"><img src="docs/readme/demo.gif" alt="Opening a project in M3E Canvas, sketching the Pantry recipe app, tapping through its screens, copying the prompt, Claude Code building it in a terminal, and the finished app running on a phone; then an agent asked over MCP designs an app, which opens as a new project" /></p>
 
-<p align="center">Sketch the screens, tap through the flow, copy the prompt, and let your AI coding tool build the app. (<a href="docs/readme/demo.mp4">mp4</a>)</p>
+<p align="center">Sketch the screens, tap through the flow, copy the prompt, and let your AI coding tool build the app. Or ask your agent to design it, over MCP. (<a href="docs/readme/demo.mp4">mp4</a>)</p>
 
 M3E Canvas is a free, open-source sketchpad for app screens made of real Material 3 Expressive parts. It runs entirely in your browser: no account, no server, nothing to install. What you sketch becomes a precise prompt that any AI coding tool that takes one, such as Claude Code, Codex, Gemini CLI or Cursor, can turn into a working app.
 
@@ -44,11 +44,13 @@ M3E Canvas is a free, open-source sketchpad for app screens made of real Materia
 2. **Tap through** — Link parts to screens and press Preview to try the flow, transitions included.
 3. **Copy the prompt** — The whole design becomes a short brief in your language. Paste it into your AI coding tool.
 
+Or let your agent do it: with the [MCP server](packages/mcp) connected, ask for the screens and get a link that opens them here. Hand the link back, and the agent builds the app.
+
 ## <img src="docs/readme/ui/icon-features.png" width="32" height="32" align="absmiddle" alt="" /> What's inside
 
 <picture>
   <source media="(max-width: 767px)" srcset="docs/readme/cards/features-narrow.png" />
-  <img src="docs/readme/cards/features-wide.png" alt="Four features: a part's own panel, linked screens, the colors panel and the Ask an AI dialog" />
+  <img src="docs/readme/cards/features-wide.png" alt="Six features: a part's own panel, linked screens, the Theme tab, the projects page, the Ask an AI dialog and the MCP guide" />
 </picture>
 
 <img src="docs/readme/ui/feature-parts.png" width="24" height="24" align="absmiddle" alt="" /> **Real M3 Expressive parts** — Buttons, FABs, bars, tabs, cards, lists, sheets, pickers, carousels, loading indicators and more, each with its own panel for text, style, size and what a tap does.
@@ -57,7 +59,11 @@ M3E Canvas is a free, open-source sketchpad for app screens made of real Materia
 
 <img src="docs/readme/ui/feature-theme.png" width="24" height="24" align="absmiddle" alt="" /> **Theme in one place** — Color, shape, type and motion: seven palettes or your own seed color, light and dark, three contrast levels, corner styles, fonts and the expressive spring motion.
 
+<img src="docs/readme/ui/feature-projects.png" width="24" height="24" align="absmiddle" alt="" /> **Projects** — Keep every design as a project in your browser. One page lists them with their screens: search, rename, duplicate, export them all to one file, or open one from a file or a link.
+
 <img src="docs/readme/ui/feature-ai.png" width="24" height="24" align="absmiddle" alt="" /> **Optional AI help** — Bring your own key to draft a design or write notes for you, or copy an instruction for a coding agent that replies with a share link. Keys never leave your browser.
+
+<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP integration** — Connect the [`m3e-canvas`](packages/mcp) MCP server and your agent designs the screens for you, then builds the app from the screens you finished: `claude mcp add m3e-canvas -- npx -y m3e-canvas`
 
 <details>
 <summary><b>Everything it can do</b></summary>
@@ -73,8 +79,8 @@ M3E Canvas is a free, open-source sketchpad for app screens made of real Materia
 - **Tidy** – one button snaps bars to the edges and the FAB to the corner, joins neighbouring items, and stacks the rest on 16dp margins. Press it again to undo.
 - **AI helper (optional)** – bring your own key for OpenAI, Claude, Gemini or DeepSeek to draft a design from a sentence or write a part's behaviour note and a screen's description. Every rewrite can be undone. The request goes straight from your browser to the provider.
 - **Share links** – copy a link that opens your design on anyone's canvas, or an instruction for Claude Code, Codex or another agent: it reads [agent.md](public/agent.md), sketches what you described, and replies with such a link.
-- **Projects** – keep as many designs as you like. Each is a project in your browser, and a page lists them all: open, rename, duplicate, save as a file or delete one, and add one from a JSON file or a link. A link you open becomes a project of its own instead of replacing your canvas.
-- **MCP** – connect [`m3e-canvas-mcp`](packages/mcp) to Claude Code, Codex or another MCP client, and your agent designs the screens itself and hands back the link that opens them, or a JSON file for a very large design: `claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp` (on Windows, `cmd /c npx …`). Give it the link of a design you finished, and it gets the prompt this app writes and builds the app from it. It runs on your machine and sends nothing anywhere.
+- **Projects** – keep as many designs as you like. Each is a project in your browser, and a page lists them all: open, rename, duplicate, save as a file or delete one, and add one from a JSON file or a link. A link you open becomes a project of its own instead of replacing your canvas. **Export all** writes every project into one file, and opening that file brings the list back in any browser.
+- **MCP** – connect the [`m3e-canvas`](packages/mcp) MCP server to Claude Code, Codex or another MCP client, and your agent designs the screens itself and hands back the link that opens them, or a JSON file for a very large design: `claude mcp add m3e-canvas -- npx -y m3e-canvas` (on Windows, `cmd /c npx …`). Give it the link of a design you finished, and it gets the prompt this app writes and builds the app from it. It runs on your machine and sends nothing anywhere.
 - **Everything else** – alignment guides and a 4dp grid, undo and redo, keyboard shortcuts, a keyboard-usable parts panel, favorites, install as an app, and autosave in your browser.
 - **On a phone** – one fixed screen and a buttons-only editor with bottom sheets. The full editor is for desktop browsers.
 
@@ -128,7 +134,7 @@ Thanks to the sponsors who keep this going:
 Thanks to everyone who has contributed code, ideas and reviews:
 
 <!-- contributors:start -->
-<p><a href="https://github.com/CQMHV" title="CQMHV"><img src="docs/readme/people/CQMHV.png" width="52" height="52" alt="CQMHV" /></a> <a href="https://github.com/Cokedog320" title="Cokedog320"><img src="docs/readme/people/Cokedog320.png" width="52" height="52" alt="Cokedog320" /></a> <a href="https://github.com/Grenish" title="Grenish"><img src="docs/readme/people/Grenish.png" width="52" height="52" alt="Grenish" /></a> <a href="https://github.com/YspritanHyzygy" title="YspritanHyzygy"><img src="docs/readme/people/YspritanHyzygy.png" width="52" height="52" alt="YspritanHyzygy" /></a> <a href="https://github.com/andrewwbuilds" title="andrewwbuilds"><img src="docs/readme/people/andrewwbuilds.png" width="52" height="52" alt="andrewwbuilds" /></a> <a href="https://github.com/rishabhiskawai" title="rishabhiskawai"><img src="docs/readme/people/rishabhiskawai.png" width="52" height="52" alt="rishabhiskawai" /></a> <a href="https://github.com/j-token" title="j-token"><img src="docs/readme/people/j-token.png" width="52" height="52" alt="j-token" /></a> <a href="https://github.com/FlyGues2889" title="FlyGues2889"><img src="docs/readme/people/FlyGues2889.png" width="52" height="52" alt="FlyGues2889" /></a> <a href="https://github.com/xiehuanyi" title="xiehuanyi"><img src="docs/readme/people/xiehuanyi.png" width="52" height="52" alt="xiehuanyi" /></a> <a href="https://github.com/Razshy" title="Razshy"><img src="docs/readme/people/Razshy.png" width="52" height="52" alt="Razshy" /></a> <a href="https://github.com/aakash-kharb" title="aakash-kharb"><img src="docs/readme/people/aakash-kharb.png" width="52" height="52" alt="aakash-kharb" /></a> <a href="https://github.com/kevin9327" title="kevin9327"><img src="docs/readme/people/kevin9327.png" width="52" height="52" alt="kevin9327" /></a></p>
+<p><a href="https://github.com/CQMHV" title="CQMHV"><img src="docs/readme/people/CQMHV.png" width="52" height="52" alt="CQMHV" /></a> <a href="https://github.com/miaoledor" title="miaoledor"><img src="docs/readme/people/miaoledor.png" width="52" height="52" alt="miaoledor" /></a> <a href="https://github.com/Cokedog320" title="Cokedog320"><img src="docs/readme/people/Cokedog320.png" width="52" height="52" alt="Cokedog320" /></a> <a href="https://github.com/Grenish" title="Grenish"><img src="docs/readme/people/Grenish.png" width="52" height="52" alt="Grenish" /></a> <a href="https://github.com/YspritanHyzygy" title="YspritanHyzygy"><img src="docs/readme/people/YspritanHyzygy.png" width="52" height="52" alt="YspritanHyzygy" /></a> <a href="https://github.com/andrewwbuilds" title="andrewwbuilds"><img src="docs/readme/people/andrewwbuilds.png" width="52" height="52" alt="andrewwbuilds" /></a> <a href="https://github.com/rishabhiskawai" title="rishabhiskawai"><img src="docs/readme/people/rishabhiskawai.png" width="52" height="52" alt="rishabhiskawai" /></a> <a href="https://github.com/aakash-kharb" title="aakash-kharb"><img src="docs/readme/people/aakash-kharb.png" width="52" height="52" alt="aakash-kharb" /></a> <a href="https://github.com/rahul05ranjan" title="rahul05ranjan"><img src="docs/readme/people/rahul05ranjan.png" width="52" height="52" alt="rahul05ranjan" /></a> <a href="https://github.com/j-token" title="j-token"><img src="docs/readme/people/j-token.png" width="52" height="52" alt="j-token" /></a> <a href="https://github.com/solquin" title="solquin"><img src="docs/readme/people/solquin.png" width="52" height="52" alt="solquin" /></a> <a href="https://github.com/FlyGues2889" title="FlyGues2889"><img src="docs/readme/people/FlyGues2889.png" width="52" height="52" alt="FlyGues2889" /></a> <a href="https://github.com/xiehuanyi" title="xiehuanyi"><img src="docs/readme/people/xiehuanyi.png" width="52" height="52" alt="xiehuanyi" /></a> <a href="https://github.com/Razshy" title="Razshy"><img src="docs/readme/people/Razshy.png" width="52" height="52" alt="Razshy" /></a></p>
 <!-- contributors:end -->
 
 ## <img src="docs/readme/ui/icon-credits.png" width="32" height="32" align="absmiddle" alt="" /> Credits

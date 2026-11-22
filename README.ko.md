@@ -25,9 +25,9 @@
 
 <p align="center"><a href="README.md"><img src="docs/readme/ui/lang-en.png" height="40" alt="English" /></a><a href="README.ja.md"><img src="docs/readme/ui/lang-ja.png" height="40" alt="日本語" /></a><a href="README.zh.md"><img src="docs/readme/ui/lang-zh.png" height="40" alt="中文" /></a><a href="README.ko.md"><img src="docs/readme/ui/lang-ko-on.png" height="40" alt="한국어" /></a></p>
 
-<p align="center"><img src="docs/readme/demo.gif" alt="M3E Canvas에서 레시피 앱 Pantry를 만들고, 화면을 탭해 보고, 프롬프트를 복사해 터미널의 Claude Code가 앱을 만들고, 완성된 앱이 휴대전화에서 실행되기까지" /></p>
+<p align="center"><img src="docs/readme/demo.gif" alt="M3E Canvas에서 프로젝트를 열어 레시피 앱 Pantry를 만들고, 화면을 탭해 보고, 프롬프트를 복사해 터미널의 Claude Code가 앱을 만들고, 완성된 앱이 휴대전화에서 실행되기까지. 이어서 MCP로 연동한 에이전트가 앱을 설계하고 새 프로젝트로 여는 모습" /></p>
 
-<p align="center">화면을 만들고, 흐름을 탭해 보고, 프롬프트를 복사해 AI 코딩 도구가 앱을 만들게 합니다. (<a href="docs/readme/demo.mp4">mp4</a>)</p>
+<p align="center">화면을 만들고, 흐름을 탭해 보고, 프롬프트를 복사해 AI 코딩 도구가 앱을 만들게 합니다. MCP 연동을 쓰면 설계를 에이전트에게 맡길 수도 있습니다. (<a href="docs/readme/demo.mp4">mp4</a>)</p>
 
 M3E Canvas는 진짜 Material 3 Expressive 부품으로 앱 화면을 그리는 무료 오픈소스 스케치 도구입니다. 브라우저에서만 동작하며 계정도, 서버도, 설치도 필요 없습니다. 그린 화면은 정확한 프롬프트가 되어, Claude Code, Codex, Gemini CLI, Cursor 등 프롬프트를 받을 수 있는 AI 코딩 도구라면 무엇이든 동작하는 앱으로 만들 수 있습니다.
 
@@ -44,11 +44,13 @@ M3E Canvas는 진짜 Material 3 Expressive 부품으로 앱 화면을 그리는 
 2. **탭해 보기** — 부품을 화면에 연결하고 미리보기를 누르면 전환 효과까지 포함해 흐름을 시험할 수 있습니다.
 3. **프롬프트 복사** — 디자인 전체가 선택한 언어의 짧은 지시문이 됩니다. AI 코딩 도구에 붙여 넣으면 됩니다.
 
+에이전트에게 맡길 수도 있습니다. [MCP 서버](packages/mcp)를 설정하고 화면 설계를 요청하면 여기서 열리는 링크가 돌아옵니다. 그 링크를 다시 주면 에이전트가 앱까지 만듭니다.
+
 ## <img src="docs/readme/ui/icon-features.png" width="32" height="32" align="absmiddle" alt="" /> 주요 기능
 
 <picture>
   <source media="(max-width: 767px)" srcset="docs/readme/cards/features-narrow.png" />
-  <img src="docs/readme/cards/features-wide.png" alt="네 가지 기능: 부품별 패널, 연결된 화면, 색상 패널, 'AI에게 맡기기' 대화상자" />
+  <img src="docs/readme/cards/features-wide.png" alt="여섯 가지 기능: 부품별 패널, 연결된 화면, 테마 탭, 프로젝트 목록, 'AI에게 맡기기' 대화상자, MCP 연동 안내" />
 </picture>
 
 <img src="docs/readme/ui/feature-parts.png" width="24" height="24" align="absmiddle" alt="" /> **진짜 M3 Expressive 부품** — 버튼, FAB, 바, 탭, 카드, 목록, 시트, 선택기, 캐러셀, 로딩 표시기 등. 부품마다 텍스트, 스타일, 크기, 탭했을 때의 동작을 정하는 패널이 있습니다.
@@ -57,7 +59,11 @@ M3E Canvas는 진짜 Material 3 Expressive 부품으로 앱 화면을 그리는 
 
 <img src="docs/readme/ui/feature-theme.png" width="24" height="24" align="absmiddle" alt="" /> **테마를 한곳에서** — 색상, 모양, 글꼴, 모션. 7가지 팔레트 또는 나만의 기준 색상, 라이트와 다크, 3단계 대비, 모서리 스타일, 글꼴, 익스프레시브 스프링 모션.
 
+<img src="docs/readme/ui/feature-projects.png" width="24" height="24" align="absmiddle" alt="" /> **프로젝트** — 디자인을 원하는 만큼 브라우저 안에 프로젝트로 보관합니다. 목록에는 화면 미리보기와 함께 나열되며, 검색, 이름 바꾸기, 복제, 전체 프로젝트 내보내기를 할 수 있고 파일이나 링크에서도 열 수 있습니다.
+
 <img src="docs/readme/ui/feature-ai.png" width="24" height="24" align="absmiddle" alt="" /> **선택형 AI 도움** — 자신의 키로 디자인 초안이나 설명을 쓰게 하거나, 코딩 에이전트용 지시를 복사해 공유 링크로 답을 받을 수 있습니다. 키는 브라우저 밖으로 나가지 않습니다.
+
+<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP 연동** — MCP 서버 [`m3e-canvas`](packages/mcp)를 설정하면 에이전트가 화면을 설계해 링크로 돌려주고, 완성한 디자인으로 앱까지 구현합니다. `claude mcp add m3e-canvas -- npx -y m3e-canvas`
 
 <details>
 <summary><b>할 수 있는 모든 것</b></summary>
@@ -73,8 +79,8 @@ M3E Canvas는 진짜 Material 3 Expressive 부품으로 앱 화면을 그리는 
 - **정리** – 버튼 하나로 바를 가장자리에, FAB를 모서리에 붙이고, 이웃한 부품을 연결하며, 나머지를 16dp 여백으로 다시 쌓습니다. 한 번 더 누르면 되돌립니다.
 - **AI 도우미(선택)** – OpenAI, Claude, Gemini, DeepSeek 키를 넣으면 한 문장으로 디자인 초안을 만들거나 부품의 동작과 화면 설명을 써 줍니다. 고쳐 쓴 내용은 모두 되돌릴 수 있습니다. 요청은 브라우저에서 제공업체로 직접 전송됩니다.
 - **공유 링크** – 디자인을 다른 사람의 캔버스에서 여는 링크를 복사할 수 있습니다. Claude Code, Codex 같은 에이전트용 지시도 복사할 수 있으며, 에이전트가 [agent.md](public/agent.md)를 읽고 스케치를 만들어 그런 링크로 답합니다.
-- **프로젝트** – 디자인을 원하는 만큼 보관할 수 있습니다. 각각 브라우저 안의 프로젝트가 되며, 목록 페이지에서 열기, 이름 바꾸기, 복제, 파일로 저장, 삭제를 할 수 있고 JSON 파일이나 링크에서 추가할 수도 있습니다. 링크를 열면 캔버스를 바꾸지 않고 별도의 프로젝트가 됩니다.
-- **MCP 연동** – [`m3e-canvas-mcp`](packages/mcp)를 Claude Code, Codex 같은 MCP 클라이언트에 설정하면 에이전트가 직접 화면을 설계하고 이를 여는 링크(큰 설계는 JSON 파일)를 돌려줍니다. `claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp`(Windows에서는 `cmd /c npx …`). 완성한 설계의 링크를 주면 이 앱이 작성하는 프롬프트를 받아 앱을 구현합니다. 사용자의 컴퓨터 안에서만 동작하며 어디에도 전송하지 않습니다.
+- **프로젝트** – 디자인을 원하는 만큼 보관할 수 있습니다. 각각 브라우저 안의 프로젝트가 되며, 목록 페이지에서 열기, 이름 바꾸기, 복제, 파일로 저장, 삭제를 할 수 있고 JSON 파일이나 링크에서 추가할 수도 있습니다. 링크를 열면 캔버스를 바꾸지 않고 별도의 프로젝트가 됩니다. "모두 내보내기"는 모든 프로젝트를 하나의 파일에 저장하며, 그 파일을 열면 어느 브라우저에서든 목록이 돌아옵니다.
+- **MCP 연동** – MCP 서버 [`m3e-canvas`](packages/mcp)를 Claude Code, Codex 같은 MCP 클라이언트에 설정하면 에이전트가 직접 화면을 설계하고 이를 여는 링크(큰 설계는 JSON 파일)를 돌려줍니다. `claude mcp add m3e-canvas -- npx -y m3e-canvas`(Windows에서는 `cmd /c npx …`). 완성한 설계의 링크를 주면 이 앱이 작성하는 프롬프트를 받아 앱을 구현합니다. 사용자의 컴퓨터 안에서만 동작하며 어디에도 전송하지 않습니다.
 - **그 밖에** – 정렬 안내선과 4dp 그리드, 실행 취소/다시 실행, 키보드 단축키, 키보드로 쓸 수 있는 부품 패널, 즐겨찾기, 앱으로 설치, 브라우저 자동 저장.
 - **휴대전화에서는** – 화면 하나가 고정된 버튼 전용 편집기가 되며 하단 시트에서 편집합니다. 전체 기능은 데스크톱 브라우저용입니다.
 
@@ -128,7 +134,7 @@ M3E Canvas는 무료이며 MIT 라이선스로 계속 유지됩니다. 시간을
 코드, 아이디어, 리뷰로 함께해 주신 모든 분께 감사드립니다.
 
 <!-- contributors:start -->
-<p><a href="https://github.com/CQMHV" title="CQMHV"><img src="docs/readme/people/CQMHV.png" width="52" height="52" alt="CQMHV" /></a> <a href="https://github.com/Cokedog320" title="Cokedog320"><img src="docs/readme/people/Cokedog320.png" width="52" height="52" alt="Cokedog320" /></a> <a href="https://github.com/Grenish" title="Grenish"><img src="docs/readme/people/Grenish.png" width="52" height="52" alt="Grenish" /></a> <a href="https://github.com/YspritanHyzygy" title="YspritanHyzygy"><img src="docs/readme/people/YspritanHyzygy.png" width="52" height="52" alt="YspritanHyzygy" /></a> <a href="https://github.com/andrewwbuilds" title="andrewwbuilds"><img src="docs/readme/people/andrewwbuilds.png" width="52" height="52" alt="andrewwbuilds" /></a> <a href="https://github.com/rishabhiskawai" title="rishabhiskawai"><img src="docs/readme/people/rishabhiskawai.png" width="52" height="52" alt="rishabhiskawai" /></a> <a href="https://github.com/j-token" title="j-token"><img src="docs/readme/people/j-token.png" width="52" height="52" alt="j-token" /></a> <a href="https://github.com/FlyGues2889" title="FlyGues2889"><img src="docs/readme/people/FlyGues2889.png" width="52" height="52" alt="FlyGues2889" /></a> <a href="https://github.com/xiehuanyi" title="xiehuanyi"><img src="docs/readme/people/xiehuanyi.png" width="52" height="52" alt="xiehuanyi" /></a> <a href="https://github.com/Razshy" title="Razshy"><img src="docs/readme/people/Razshy.png" width="52" height="52" alt="Razshy" /></a> <a href="https://github.com/aakash-kharb" title="aakash-kharb"><img src="docs/readme/people/aakash-kharb.png" width="52" height="52" alt="aakash-kharb" /></a> <a href="https://github.com/kevin9327" title="kevin9327"><img src="docs/readme/people/kevin9327.png" width="52" height="52" alt="kevin9327" /></a></p>
+<p><a href="https://github.com/CQMHV" title="CQMHV"><img src="docs/readme/people/CQMHV.png" width="52" height="52" alt="CQMHV" /></a> <a href="https://github.com/miaoledor" title="miaoledor"><img src="docs/readme/people/miaoledor.png" width="52" height="52" alt="miaoledor" /></a> <a href="https://github.com/Cokedog320" title="Cokedog320"><img src="docs/readme/people/Cokedog320.png" width="52" height="52" alt="Cokedog320" /></a> <a href="https://github.com/Grenish" title="Grenish"><img src="docs/readme/people/Grenish.png" width="52" height="52" alt="Grenish" /></a> <a href="https://github.com/YspritanHyzygy" title="YspritanHyzygy"><img src="docs/readme/people/YspritanHyzygy.png" width="52" height="52" alt="YspritanHyzygy" /></a> <a href="https://github.com/andrewwbuilds" title="andrewwbuilds"><img src="docs/readme/people/andrewwbuilds.png" width="52" height="52" alt="andrewwbuilds" /></a> <a href="https://github.com/rishabhiskawai" title="rishabhiskawai"><img src="docs/readme/people/rishabhiskawai.png" width="52" height="52" alt="rishabhiskawai" /></a> <a href="https://github.com/aakash-kharb" title="aakash-kharb"><img src="docs/readme/people/aakash-kharb.png" width="52" height="52" alt="aakash-kharb" /></a> <a href="https://github.com/rahul05ranjan" title="rahul05ranjan"><img src="docs/readme/people/rahul05ranjan.png" width="52" height="52" alt="rahul05ranjan" /></a> <a href="https://github.com/j-token" title="j-token"><img src="docs/readme/people/j-token.png" width="52" height="52" alt="j-token" /></a> <a href="https://github.com/solquin" title="solquin"><img src="docs/readme/people/solquin.png" width="52" height="52" alt="solquin" /></a> <a href="https://github.com/FlyGues2889" title="FlyGues2889"><img src="docs/readme/people/FlyGues2889.png" width="52" height="52" alt="FlyGues2889" /></a> <a href="https://github.com/xiehuanyi" title="xiehuanyi"><img src="docs/readme/people/xiehuanyi.png" width="52" height="52" alt="xiehuanyi" /></a> <a href="https://github.com/Razshy" title="Razshy"><img src="docs/readme/people/Razshy.png" width="52" height="52" alt="Razshy" /></a></p>
 <!-- contributors:end -->
 
 ## <img src="docs/readme/ui/icon-credits.png" width="32" height="32" align="absmiddle" alt="" /> 크레딧

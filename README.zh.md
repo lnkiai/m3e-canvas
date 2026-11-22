@@ -25,9 +25,9 @@
 
 <p align="center"><a href="README.md"><img src="docs/readme/ui/lang-en.png" height="40" alt="English" /></a><a href="README.ja.md"><img src="docs/readme/ui/lang-ja.png" height="40" alt="日本語" /></a><a href="README.zh.md"><img src="docs/readme/ui/lang-zh-on.png" height="40" alt="中文" /></a><a href="README.ko.md"><img src="docs/readme/ui/lang-ko.png" height="40" alt="한국어" /></a></p>
 
-<p align="center"><img src="docs/readme/demo.gif" alt="在 M3E Canvas 中拼出食谱应用 Pantry、点击浏览各屏幕、复制提示词、由终端里的 Claude Code 构建，最后成品应用在手机上运行" /></p>
+<p align="center"><img src="docs/readme/demo.gif" alt="在 M3E Canvas 中打开一个项目，拼出食谱应用 Pantry、点击浏览各屏幕、复制提示词、由终端里的 Claude Code 构建，最后成品应用在手机上运行；随后，通过 MCP 集成的代理设计出一个应用，并作为新项目打开" /></p>
 
-<p align="center">拼出屏幕、点一点走完流程、复制提示词，让 AI 编程工具把应用做出来。（<a href="docs/readme/demo.mp4">mp4</a>）</p>
+<p align="center">拼出屏幕、点一点走完流程、复制提示词，让 AI 编程工具把应用做出来。通过 MCP 集成，也可以把设计交给代理来做。（<a href="docs/readme/demo.mp4">mp4</a>）</p>
 
 M3E Canvas 是一个免费、开源的应用界面草图工具，用的是真正的 Material 3 Expressive 组件。它完全在浏览器中运行：无需账号、无需服务器、无需安装。你画出的界面会变成一份精确的提示词，任何接受提示词的 AI 编程工具，例如 Claude Code、Codex、Gemini CLI 或 Cursor，都能据此做出能运行的应用。
 
@@ -44,11 +44,13 @@ M3E Canvas 是一个免费、开源的应用界面草图工具，用的是真正
 2. **点一点试试**：把组件连到目标屏幕，按下预览即可连同过渡动画一起试用流程。
 3. **复制提示词**：整个设计会变成你所选语言的简短说明。粘贴到 AI 编程工具里即可。
 
+也可以交给代理来做：接入 [MCP 服务器](packages/mcp)后，请它设计界面，它会返回一个能在这里打开的链接。把链接交还给它，代理就会把应用做出来。
+
 ## <img src="docs/readme/ui/icon-features.png" width="32" height="32" align="absmiddle" alt="" /> 主要功能
 
 <picture>
   <source media="(max-width: 767px)" srcset="docs/readme/cards/features-narrow.png" />
-  <img src="docs/readme/cards/features-wide.png" alt="四项功能：每个组件的面板、相连的屏幕、配色面板和“让 AI 来画”对话框" />
+  <img src="docs/readme/cards/features-wide.png" alt="六项功能：每个组件的面板、相连的屏幕、主题标签页、项目列表、“让 AI 来画”对话框和 MCP 集成指南" />
 </picture>
 
 <img src="docs/readme/ui/feature-parts.png" width="24" height="24" align="absmiddle" alt="" /> **真正的 M3 Expressive 组件**：按钮、FAB、各种栏、标签页、卡片、列表、底部面板、选择器、轮播、加载指示器等等。每个组件都有自己的面板，可设置文字、样式、尺寸以及点击后的行为。
@@ -57,7 +59,11 @@ M3E Canvas 是一个免费、开源的应用界面草图工具，用的是真正
 
 <img src="docs/readme/ui/feature-theme.png" width="24" height="24" align="absmiddle" alt="" /> **一处调整主题**：配色、形状、字体和动效：七套配色或你自己的基准色、浅色与深色、三档对比度、圆角风格、字体，以及富有表现力的弹簧动效。
 
+<img src="docs/readme/ui/feature-projects.png" width="24" height="24" align="absmiddle" alt="" /> **项目**：想保存多少个设计都可以，每个设计都是浏览器里的一个项目。项目列表会连同屏幕预览一起列出它们，可以搜索、重命名、复制、把全部项目导出为一个文件，也可以从文件或链接打开。
+
 <img src="docs/readme/ui/feature-ai.png" width="24" height="24" align="absmiddle" alt="" /> **可选的 AI 辅助**：使用自己的密钥让 AI 起草设计或撰写说明，或者复制给编程代理的指令，让它以分享链接回复。密钥不会离开你的浏览器。
+
+<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP 集成**：接入 MCP 服务器 [`m3e-canvas`](packages/mcp) 后，代理会替你设计界面并以链接回复，还能根据你完成的设计把应用做出来：`claude mcp add m3e-canvas -- npx -y m3e-canvas`
 
 <details>
 <summary><b>全部功能</b></summary>
@@ -73,8 +79,8 @@ M3E Canvas 是一个免费、开源的应用界面草图工具，用的是真正
 - **整理** – 一键把栏贴到边缘、FAB 放到角落、相邻组件连成一组，其余组件按 16dp 边距重新堆叠。再按一次即可撤销。
 - **AI 辅助（可选）** – 填入自己的 OpenAI、Claude、Gemini 或 DeepSeek 密钥，就能用一句话起草设计，或写出组件的行为说明和屏幕说明。每次改写都可以撤销。请求直接从浏览器发送给服务商。
 - **分享链接** – 复制一个能在他人画布上打开你设计的链接；也可以复制给 Claude Code、Codex 等代理的指令，代理会阅读 [agent.md](public/agent.md)、画出你描述的草图，并以这样的链接回复。
-- **项目** – 想保存多少个设计都可以。每个设计都是浏览器里的一个项目，在项目列表页可以打开、重命名、复制、保存为文件或删除，也可以从 JSON 文件或链接添加。打开的链接会成为一个新项目，而不是替换当前画布。
-- **MCP 集成** – 把 [`m3e-canvas-mcp`](packages/mcp) 接入 Claude Code、Codex 等 MCP 客户端后，代理会自己设计界面，并返回打开设计的链接（设计很大时返回 JSON 文件）：`claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp`（在 Windows 上使用 `cmd /c npx …`）。把完成的设计的链接交给它，它会取得本应用所写的提示词并据此构建应用。它只在你的电脑上运行，不会向任何地方发送数据。
+- **项目** – 想保存多少个设计都可以。每个设计都是浏览器里的一个项目，在项目列表页可以打开、重命名、复制、保存为文件或删除，也可以从 JSON 文件或链接添加。打开的链接会成为一个新项目，而不是替换当前画布。“全部导出”会把所有项目写入一个文件，在任何浏览器里打开这个文件都能恢复列表。
+- **MCP 集成** – 把 MCP 服务器 [`m3e-canvas`](packages/mcp) 接入 Claude Code、Codex 等 MCP 客户端后，代理会自己设计界面，并返回打开设计的链接（设计很大时返回 JSON 文件）：`claude mcp add m3e-canvas -- npx -y m3e-canvas`（在 Windows 上使用 `cmd /c npx …`）。把完成的设计的链接交给它，它会取得本应用所写的提示词并据此构建应用。它只在你的电脑上运行，不会向任何地方发送数据。
 - **其他** – 对齐辅助线和 4dp 网格、撤销与重做、键盘快捷键、可用键盘操作的组件面板、收藏、安装为应用，以及自动保存在浏览器中。
 - **在手机上** – 一个固定屏幕、只有按钮的编辑器，在底部面板中编辑。完整功能请在电脑浏览器中使用。
 
@@ -128,7 +134,7 @@ M3E Canvas 免费且采用 MIT 许可证，今后也不会改变。如果它为�
 感谢每一位贡献代码、想法和审阅的人：
 
 <!-- contributors:start -->
-<p><a href="https://github.com/CQMHV" title="CQMHV"><img src="docs/readme/people/CQMHV.png" width="52" height="52" alt="CQMHV" /></a> <a href="https://github.com/Cokedog320" title="Cokedog320"><img src="docs/readme/people/Cokedog320.png" width="52" height="52" alt="Cokedog320" /></a> <a href="https://github.com/Grenish" title="Grenish"><img src="docs/readme/people/Grenish.png" width="52" height="52" alt="Grenish" /></a> <a href="https://github.com/YspritanHyzygy" title="YspritanHyzygy"><img src="docs/readme/people/YspritanHyzygy.png" width="52" height="52" alt="YspritanHyzygy" /></a> <a href="https://github.com/andrewwbuilds" title="andrewwbuilds"><img src="docs/readme/people/andrewwbuilds.png" width="52" height="52" alt="andrewwbuilds" /></a> <a href="https://github.com/rishabhiskawai" title="rishabhiskawai"><img src="docs/readme/people/rishabhiskawai.png" width="52" height="52" alt="rishabhiskawai" /></a> <a href="https://github.com/j-token" title="j-token"><img src="docs/readme/people/j-token.png" width="52" height="52" alt="j-token" /></a> <a href="https://github.com/FlyGues2889" title="FlyGues2889"><img src="docs/readme/people/FlyGues2889.png" width="52" height="52" alt="FlyGues2889" /></a> <a href="https://github.com/xiehuanyi" title="xiehuanyi"><img src="docs/readme/people/xiehuanyi.png" width="52" height="52" alt="xiehuanyi" /></a> <a href="https://github.com/Razshy" title="Razshy"><img src="docs/readme/people/Razshy.png" width="52" height="52" alt="Razshy" /></a> <a href="https://github.com/aakash-kharb" title="aakash-kharb"><img src="docs/readme/people/aakash-kharb.png" width="52" height="52" alt="aakash-kharb" /></a> <a href="https://github.com/kevin9327" title="kevin9327"><img src="docs/readme/people/kevin9327.png" width="52" height="52" alt="kevin9327" /></a></p>
+<p><a href="https://github.com/CQMHV" title="CQMHV"><img src="docs/readme/people/CQMHV.png" width="52" height="52" alt="CQMHV" /></a> <a href="https://github.com/miaoledor" title="miaoledor"><img src="docs/readme/people/miaoledor.png" width="52" height="52" alt="miaoledor" /></a> <a href="https://github.com/Cokedog320" title="Cokedog320"><img src="docs/readme/people/Cokedog320.png" width="52" height="52" alt="Cokedog320" /></a> <a href="https://github.com/Grenish" title="Grenish"><img src="docs/readme/people/Grenish.png" width="52" height="52" alt="Grenish" /></a> <a href="https://github.com/YspritanHyzygy" title="YspritanHyzygy"><img src="docs/readme/people/YspritanHyzygy.png" width="52" height="52" alt="YspritanHyzygy" /></a> <a href="https://github.com/andrewwbuilds" title="andrewwbuilds"><img src="docs/readme/people/andrewwbuilds.png" width="52" height="52" alt="andrewwbuilds" /></a> <a href="https://github.com/rishabhiskawai" title="rishabhiskawai"><img src="docs/readme/people/rishabhiskawai.png" width="52" height="52" alt="rishabhiskawai" /></a> <a href="https://github.com/aakash-kharb" title="aakash-kharb"><img src="docs/readme/people/aakash-kharb.png" width="52" height="52" alt="aakash-kharb" /></a> <a href="https://github.com/rahul05ranjan" title="rahul05ranjan"><img src="docs/readme/people/rahul05ranjan.png" width="52" height="52" alt="rahul05ranjan" /></a> <a href="https://github.com/j-token" title="j-token"><img src="docs/readme/people/j-token.png" width="52" height="52" alt="j-token" /></a> <a href="https://github.com/solquin" title="solquin"><img src="docs/readme/people/solquin.png" width="52" height="52" alt="solquin" /></a> <a href="https://github.com/FlyGues2889" title="FlyGues2889"><img src="docs/readme/people/FlyGues2889.png" width="52" height="52" alt="FlyGues2889" /></a> <a href="https://github.com/xiehuanyi" title="xiehuanyi"><img src="docs/readme/people/xiehuanyi.png" width="52" height="52" alt="xiehuanyi" /></a> <a href="https://github.com/Razshy" title="Razshy"><img src="docs/readme/people/Razshy.png" width="52" height="52" alt="Razshy" /></a></p>
 <!-- contributors:end -->
 
 ## <img src="docs/readme/ui/icon-credits.png" width="32" height="32" align="absmiddle" alt="" /> 致谢
