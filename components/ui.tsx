@@ -798,6 +798,7 @@ export function Field({
   const padBottom = pinned ? 40 : 12;
   const lineCount = multiline ? value.split(/\r\n|\r|\n/).length : 1;
   const isMulti = multiline && (rows > 1 || lineCount > 1);
+  const wasMulti = useRef(isMulti);
   const targetH = isMulti
     ? Math.max(height, Math.round((rows > 1 ? Math.max(rows, lineCount) : lineCount) * 22 + 22))
     : height;
@@ -805,7 +806,9 @@ export function Field({
 
   /* restore caret position when transitioning between single-line <input> and multiline <textarea> */
   useLayoutEffect(() => {
-    if (pendingCursor.current !== null) {
+    const transitioned = wasMulti.current !== isMulti;
+    wasMulti.current = isMulti;
+    if (transitioned && pendingCursor.current !== null) {
       const pos = pendingCursor.current;
       pendingCursor.current = null;
       if (isMulti && areaRef.current) {
@@ -815,6 +818,8 @@ export function Field({
         inputRef.current.focus();
         inputRef.current.setSelectionRange(pos, pos);
       }
+    } else {
+      pendingCursor.current = null;
     }
   }, [isMulti]);
   /* one cell of the pinned run: a faint plate behind the button, rounded on the outer side only */
@@ -932,10 +937,16 @@ export function Field({
           value={value}
           rows={rows}
           onChange={(e) => {
-            pendingCursor.current = e.target.selectionStart;
-            onChange(grow ? e.target.value.replace(/[\r\n]+/g, " ") : e.target.value);
+            const next = grow ? e.target.value.replace(/[\r\n]+/g, " ") : e.target.value;
+            const willBeMulti = multiline && (rows > 1 || next.split(/\r\n|\r|\n/).length > 1);
+            if (isMulti && !willBeMulti) {
+              pendingCursor.current = e.target.selectionStart;
+            }
+            onChange(next);
           }}
-          onKeyDown={grow ? (e) => { if (e.key === "Enter") e.preventDefault(); } : undefined}
+          onKeyDown={grow ? (e) => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) e.preventDefault();
+          } : undefined}
           placeholder={placeholder}
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
@@ -960,12 +971,9 @@ export function Field({
         <input
           ref={inputRef}
           value={value}
-          onChange={(e) => {
-            pendingCursor.current = e.target.selectionStart;
-            onChange(e.target.value);
-          }}
+          onChange={(e) => onChange(e.target.value)}
           onKeyDown={multiline ? (e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
               e.preventDefault();
               const input = e.currentTarget;
               const start = input.selectionStart ?? value.length;
