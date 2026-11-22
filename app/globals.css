@@ -416,3 +416,29 @@ input.m3-number {
   }
 }
 
+
+/* The app's mark where it leads somewhere: the layers inside it give way to the icon of the
+   place while the control is pointed at or holds the keyboard focus. */
+.m3e-logo-glyph {
+  transition: opacity 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+.m3e-logo-icon {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 140ms cubic-bezier(0.2, 0, 0, 1), transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.m3e-logo-hit:hover .m3e-logo-glyph,
+.m3e-logo-hit:focus-visible .m3e-logo-glyph {
+  opacity: 0;
+}
+.m3e-logo-hit:hover .m3e-logo-icon,
+.m3e-logo-hit:focus-visible .m3e-logo-icon {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m3e-logo-glyph,
+  .m3e-logo-icon {
+    transition: none;
+  }
+}

@@ -117,6 +117,7 @@ import { FrameSizePicker, Inspector } from "@/components/Inspector";
 import { FrameInspector } from "@/components/FramePanel";
 import { Preview } from "@/components/Preview";
 import { Logo } from "@/components/Logo";
+import { LogoSwap } from "@/components/LogoSwap";
 import { PartsPalette } from "@/components/PartsPalette";
 import { PromptPanel } from "@/components/PromptPanel";
 import { GitHubLink, Mode, Toolbar } from "@/components/Toolbar";
@@ -168,6 +169,15 @@ const GAP_TWEEN = { duration: SETTLE_MS / 1000, ease: [0.2, 0, 0, 1] as const };
 const RAIL_W = 52;
 const MIN_Z = 0.25;
 const MAX_Z = 3;
+/** how long the camera takes to reach a zoom or a fit asked for with a button or a key */
+const CAMERA_MS = 240;
+/** How quickly the view closes on the zoom a wheel asks for, as a time constant. A pinch on a
+ *  trackpad arrives in many small steps and is followed closely; a wheel's notches are far
+ *  apart and are smoothed over. */
+const WHEEL_EASE_MS = 80;
+const PINCH_EASE_MS = 26;
+/** how long the right panel takes to slide open or shut */
+const PANEL_MS = 280;
 /** the room a screen keeps from the canvas edges when the camera glides to it: the floating
  *  toolbar's row at the top, a margin elsewhere */
 const GLIDE_TOP = 84;
@@ -460,16 +470,21 @@ function ThinkingRing({ p, frame }: { p: Palette; frame: Frame }) {
   );
 }
 
-type LeftTab = "parts" | "layers" | "color" | "shape" | "type" | "motion" | "ai";
-/** the left rail: parts and layers, then the four theme axes of the whole design */
-const LEFT_TABS: { key: LeftTab; icon: string; title: "parts" | "layers" | "colors" | "shape" | "typography" | "motion" | "ai" }[] = [
+type LeftTab = "parts" | "layers" | "theme" | "ai";
+/** the left rail: what a screen is built from, how it is stacked, how the whole design looks, and the model */
+const LEFT_TABS: { key: LeftTab; icon: string; title: "parts" | "layers" | "theme" | "ai" }[] = [
   { key: "parts", icon: "add_box", title: "parts" },
   { key: "layers", icon: "layers", title: "layers" },
+  { key: "theme", icon: "palette", title: "theme" },
+  { key: "ai", icon: "auto_awesome", title: "ai" },
+];
+type ThemeTab = "color" | "shape" | "type" | "motion";
+/** the four axes of the theme, chosen between inside its one tab */
+const THEME_TABS: { key: ThemeTab; icon: string; title: "colors" | "shape" | "typography" | "motion" }[] = [
   { key: "color", icon: "palette", title: "colors" },
   { key: "shape", icon: "rounded_corner", title: "shape" },
   { key: "type", icon: "text_fields", title: "typography" },
   { key: "motion", icon: "animation", title: "motion" },
-  { key: "ai", icon: "auto_awesome", title: "ai" },
 ];
 
 /** what the page has to say about how the project came to be open */
@@ -606,11 +621,31 @@ export default function Editor({
   const [rightOpen, setRightOpen] = useState(true);
   const [leftW, setLeftW] = useState(RAIL_W + 268);
   const [leftTab, setLeftTab] = useState<LeftTab>("parts");
+  /** the axis of the theme its tab shows */
+  const [themeTab, setThemeTab] = useState<ThemeTab>("color");
   /** pointer over the collapsed rail: the logo becomes the open button */
   const [railHover, setRailHover] = useState(false);
   /** the screen whose layers are listed when nothing on a screen is selected */
   const [layersFrameId, setLayersFrameId] = useState<string | null>(null);
   const [rightW, setRightW] = useState(320);
+  /** The right panel keeps what is in it while it slides shut, and lets go of it once it has. */
+  const [rightKept, setRightKept] = useState(true);
+  /** the button that reopens the right panel, and the one that closes it: closing or opening
+   *  takes away the button that was pressed, so the focus is handed to its counterpart */
+  const reopenRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLSpanElement>(null);
+  const toggleRight = (open: boolean) => {
+    setRightOpen(open);
+    requestAnimationFrame(() => (open ? closeRef : reopenRef).current?.querySelector("button")?.focus({ preventScroll: true }));
+  };
+  useEffect(() => {
+    if (rightOpen) {
+      setRightKept(true);
+      return;
+    }
+    const id = window.setTimeout(() => setRightKept(false), PANEL_MS + 40);
+    return () => window.clearTimeout(id);
+  }, [rightOpen]);
   const [rightTab, setRightTab] = useState<"edit" | "prompt">("edit");
   const [favorites, setFavorites] = useState<Kind[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -653,6 +688,9 @@ export default function Editor({
   widthsRef.current = widths;
   const viewRef = useRef(view);
   viewRef.current = view;
+  const reducedMotion = useReducedMotion();
+  const reducedMotionRef = useRef(reducedMotion);
+  reducedMotionRef.current = reducedMotion;
   const previewIdRef = useRef(previewId);
   previewIdRef.current = previewId;
   const leftOpenRef = useRef(leftOpen);
@@ -1078,9 +1116,140 @@ export default function Editor({
     });
   }, []);
 
-  const fit = useCallback(() => {
+  /* ---------- the camera in motion ---------- */
+  /** the eased move the view is making: where it is heading, and where it has got to. The page
+   *  draws a frame behind, so a move that takes over from this one starts from `at`, not from
+   *  the view last drawn. */
+  const cameraRef = useRef<{ raf: number; to: View; at: View } | null>(null);
+  /** a wheel zoom still closing on its target, the point of the canvas it holds still, and
+   *  where the view has got to */
+  const wheelZoomRef = useRef<{ z: number; px: number; py: number; ease: number; raf: number; last: number; at: View } | null>(null);
+  /** the view as the camera last left it, whichever way it was moving */
+  const cameraAt = () => cameraRef.current?.at ?? wheelZoomRef.current?.at ?? viewRef.current;
+  const stopCamera = useCallback(() => {
+    if (cameraRef.current) cancelAnimationFrame(cameraRef.current.raf);
+    cameraRef.current = null;
+    if (wheelZoomRef.current) cancelAnimationFrame(wheelZoomRef.current.raf);
+    wheelZoomRef.current = null;
+    /* a glide's own easing is a transition on the same transform: left on, it would be
+       restarted by every frame of whatever moves the view next */
+    setCameraEasing(false);
+  }, []);
+  useEffect(() => stopCamera, [stopCamera]);
+
+  /** Eases the view to `to`. The zoom changes by equal ratios over equal times and the point in
+   *  the middle of the canvas travels in a straight line, so a zoom about the middle holds the
+   *  middle still. With reduced motion the view is simply set. */
+  const easeView = useCallback(
+    (to: View) => {
+      const from = cameraAt();
+      stopCamera();
+      const r = canvasRect();
+      if (!r || reducedMotionRef.current || (from.x === to.x && from.y === to.y && from.z === to.z)) {
+        setView(to);
+        return;
+      }
+      const w = r.width / 2;
+      const h = r.height / 2;
+      const c0 = { x: (w - from.x) / from.z, y: (h - from.y) / from.z };
+      const c1 = { x: (w - to.x) / to.z, y: (h - to.y) / to.z };
+      const start = performance.now();
+      const tick = (now: number) => {
+        /* a frame may be stamped a moment before the press that started this: never less than nothing */
+        const at = Math.min(1, Math.max(0, (now - start) / CAMERA_MS));
+        if (at >= 1) {
+          cameraRef.current = null;
+          setView(to);
+          return;
+        }
+        const s = 1 - Math.pow(1 - at, 3);
+        const z = from.z * Math.pow(to.z / from.z, s);
+        const next = { x: w - (c0.x + (c1.x - c0.x) * s) * z, y: h - (c0.y + (c1.y - c0.y) * s) * z, z };
+        setView(next);
+        cameraRef.current = { raf: requestAnimationFrame(tick), to, at: next };
+      };
+      cameraRef.current = { raf: requestAnimationFrame(tick), to, at: from };
+    },
+    [stopCamera],
+  );
+
+  /** Zooms about the middle of the canvas by `factor`, easing there. Presses made while the
+   *  view is still moving add up from where it is heading, not from where it has got to. */
+  const zoomBy = useCallback(
+    (factor: number) => {
+      const r = canvasRect();
+      const base = cameraRef.current?.to ?? viewRef.current;
+      const z = clamp(base.z * factor, MIN_Z, MAX_Z);
+      const w = (r?.width ?? 0) / 2;
+      const h = (r?.height ?? 0) / 2;
+      easeView({ x: w - ((w - base.x) * z) / base.z, y: h - ((h - base.y) * z) / base.z, z });
+    },
+    [easeView],
+  );
+  const zoomByRef = useRef(zoomBy);
+  zoomByRef.current = zoomBy;
+
+  /** A step of zoom from the wheel or a trackpad pinch, about the pointer. The step moves the
+   *  target; the view closes on it frame by frame, so a wheel's notches run together instead
+   *  of jumping, and the point under the pointer stays under it all the way. */
+  const zoomWheel = useCallback(
+    (deltaY: number, cx: number, cy: number) => {
+      const r = canvasRect();
+      if (!r) return;
+      /* where an eased move had got to, if the wheel cuts in on one */
+      const taken = cameraRef.current?.at;
+      if (cameraRef.current) {
+        cancelAnimationFrame(cameraRef.current.raf);
+        cameraRef.current = null;
+      }
+      const going = wheelZoomRef.current;
+      const z = clamp((going?.z ?? (taken ?? viewRef.current).z) * Math.exp(-deltaY * 0.0022), MIN_Z, MAX_Z);
+      if (reducedMotionRef.current) {
+        setZoomAt(z, cx, cy);
+        return;
+      }
+      const px = cx - r.left;
+      const py = cy - r.top;
+      const ease = Math.abs(deltaY) < 30 ? PINCH_EASE_MS : WHEEL_EASE_MS;
+      if (going) {
+        Object.assign(going, { z, px, py, ease });
+        return;
+      }
+      /* the view as this loop last left it, and every view it has set: the page may not have
+         drawn the latest yet, and one of the loop's own must not be mistaken for a move made
+         elsewhere */
+      let v = taken ?? viewRef.current;
+      const mine = new WeakSet<View>([v, viewRef.current]);
+      const state = { z, px, py, ease, raf: 0, last: performance.now(), at: v };
+      const tick = (now: number) => {
+        const drawn = viewRef.current;
+        /* something else moved the view meanwhile, a pan or a pinch: carry on from there */
+        if (!mine.has(drawn)) {
+          v = drawn;
+          mine.add(drawn);
+        }
+        const dt = Math.min(64, Math.max(1, now - state.last));
+        state.last = now;
+        let nz = v.z * Math.pow(state.z / v.z, 1 - Math.exp(-dt / state.ease));
+        const done = Math.abs(Math.log(state.z / nz)) < 0.0015;
+        if (done) nz = state.z;
+        v = { x: state.px - ((state.px - v.x) * nz) / v.z, y: state.py - ((state.py - v.y) * nz) / v.z, z: nz };
+        mine.add(v);
+        state.at = v;
+        setView(v);
+        if (done) wheelZoomRef.current = null;
+        else state.raf = requestAnimationFrame(tick);
+      };
+      state.raf = requestAnimationFrame(tick);
+      wheelZoomRef.current = state;
+    },
+    [setZoomAt],
+  );
+
+  /** the view that shows the whole design */
+  const fitView = useCallback((): View | null => {
     const r = canvasRect();
-    if (!r) return;
+    if (!r) return null;
     const gs = groupsRef.current;
     let x0 = -BEZEL;
     let y0 = -BEZEL - FRAME_LABEL_H;
@@ -1094,10 +1263,7 @@ export default function Editor({
       y1 = Math.max(...fs.map((f) => frameRect(f).b)) + BEZEL;
     }
     if (frameRef.current === "blank") {
-      if (gs.length === 0) {
-        setView({ x: 48, y: 48, z: 1 });
-        return;
-      }
+      if (gs.length === 0) return { x: 48, y: 48, z: 1 };
       x0 = Infinity;
       y0 = Infinity;
       x1 = -Infinity;
@@ -1118,8 +1284,7 @@ export default function Editor({
     if (mobile) {
       // a phone zooms to the screen's width and starts at its top; the rest scrolls
       const z = clamp((r.width - pad * 2) / (x1 - x0), MIN_Z, MAX_Z);
-      setView({ x: (r.width - (x1 - x0) * z) / 2 - x0 * z, y: top - y0 * z, z });
-      return;
+      return { x: (r.width - (x1 - x0) * z) / 2 - x0 * z, y: top - y0 * z, z };
     }
     const z = clamp(
       Math.min(
@@ -1130,20 +1295,34 @@ export default function Editor({
       MIN_Z,
       MAX_Z,
     );
-    setView({
+    return {
       x: (r.width - (x1 - x0) * z) / 2 - x0 * z,
       y: top + (r.height - top - bottom - (y1 - y0) * z) / 2 - y0 * z,
       z,
-    });
+    };
   }, []);
+  /** shows the whole design at once: a design that has just arrived is simply there */
+  const fit = useCallback(() => {
+    stopCamera();
+    const v = fitView();
+    if (v) setView(v);
+  }, [fitView, stopCamera]);
   const fitRef = useRef(fit);
   fitRef.current = fit;
+  /** the same, eased: the author asked for it and watches the camera go */
+  const fitEased = useCallback(() => {
+    const v = fitView();
+    if (v) easeView(v);
+  }, [fitView, easeView]);
+  const fitEasedRef = useRef(fitEased);
+  fitEasedRef.current = fitEased;
 
   /* touch: two fingers pinch-zoom and pan, cancelling whatever one finger started */
   const onTouchCapture = (e: React.PointerEvent) => {
     if (e.pointerType !== "touch") return;
     touchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touchesRef.current.size === 2) {
+      stopCamera();
       const [a, b] = [...touchesRef.current.values()];
       const v = viewRef.current;
       pinchRef.current = {
@@ -1204,18 +1383,15 @@ export default function Editor({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
-        setZoomAt(
-          viewRef.current.z * Math.exp(-e.deltaY * 0.0022),
-          e.clientX,
-          e.clientY,
-        );
+        zoomWheel(e.deltaY, e.clientX, e.clientY);
       } else {
+        stopCamera();
         setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
       }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [setZoomAt]);
+  }, [zoomWheel, stopCamera]);
 
   /* ---------- rest positions and the magnet ---------- */
   const restPos = useCallback(
@@ -1345,6 +1521,7 @@ export default function Editor({
   useEffect(() => () => flushPending(), [flushPending]);
 
   const startPan = (clientX: number, clientY: number) => {
+    stopCamera();
     const g: Gesture = {
       kind: "pan",
       sx: clientX,
@@ -3002,6 +3179,8 @@ export default function Editor({
   };
 
   const addFrame = () => {
+    /* the view is about to be set on the new screen: an eased move still running must not undo it */
+    stopCamera();
     snapshot();
     const base = framesRef.current[0];
     const f: Frame = {
@@ -3396,6 +3575,7 @@ export default function Editor({
   /** the camera glides for a moment: a screen is brought to the center before the
    *  preview opens over it, and the view returns once the preview closes */
   const glide = (v: View) => {
+    stopCamera();
     setCameraEasing(true);
     setView(v);
     window.setTimeout(() => setCameraEasing(false), SETTLE_MS + 40);
@@ -3560,9 +3740,9 @@ export default function Editor({
       if (mod) return;
       if (e.key === "v" || e.key === "V") setMode("select");
       if (e.key === "h" || e.key === "H") setMode("hand");
-      if (e.key === "=" || e.key === "+") setZoomAt(viewRef.current.z * 1.2);
-      if (e.key === "-" || e.key === "_") setZoomAt(viewRef.current.z / 1.2);
-      if (e.key === "0") fitRef.current();
+      if (e.key === "=" || e.key === "+") zoomByRef.current(1.2);
+      if (e.key === "-" || e.key === "_") zoomByRef.current(1 / 1.2);
+      if (e.key === "0") fitEasedRef.current();
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === " ") setSpaceHeld(false);
@@ -4221,6 +4401,18 @@ export default function Editor({
             >
               {!leftOpen && railHover ? (
                 <IconBtn icon="left_panel_open" p={p} on onClick={() => setLeftOpen(true)} title={t("openPanel", lang)} size={40} />
+              ) : leftOpen ? (
+                /* with the panel open the mark is a second way out to the projects list: pointed
+                   at, the layers in it turn into the list's own icon */
+                <button
+                  onClick={() => router.push("/projects")}
+                  title={t("projects", lang)}
+                  aria-label={t("projects", lang)}
+                  className="m3e-logo-hit m3-press"
+                  style={{ width: 40, height: 40, flex: "0 0 auto", display: "grid", placeItems: "center", padding: 0, border: "none", borderRadius: 20, background: "transparent", cursor: "pointer" }}
+                >
+                  <LogoSwap p={p} icon="grid_view" />
+                </button>
               ) : (
                 <div
                   onClick={() => !leftOpen && setLeftOpen(true)}
@@ -4229,21 +4421,42 @@ export default function Editor({
                   <Logo size={32} color={p.primary} glyph={p.onPrimary} />
                 </div>
               )}
-              <div style={{ height: 6 }} />
-              {LEFT_TABS.map((tab, i) => (
-                <div key={tab.key} style={{ marginTop: i === 2 || i === 6 ? 10 : 0 }}>
-                  <IconBtn
-                    icon={tab.icon}
-                    p={p}
-                    on={leftOpen && leftTab === tab.key}
-                    onClick={() => {
-                      setLeftTab(tab.key);
-                      setLeftOpen(true);
-                    }}
-                    title={t(tab.title, lang)}
-                    size={44}
-                  />
-                </div>
+              {/* The way out to the projects list is not one of the tabs, and does not look like one:
+                  a squared container of its own, with a little room before the tabs begin. */}
+              <button
+                onClick={() => router.push("/projects")}
+                title={t("projects", lang)}
+                aria-label={t("projects", lang)}
+                className="m3-press"
+                style={{
+                  width: 44,
+                  height: 44,
+                  flex: "0 0 auto",
+                  display: "grid",
+                  placeItems: "center",
+                  marginBottom: 8,
+                  border: "none",
+                  borderRadius: 14,
+                  background: p.surfaceContainerHighest,
+                  color: p.onSurface,
+                  cursor: "pointer",
+                }}
+              >
+                <Icon name="grid_view" size={22} />
+              </button>
+              {LEFT_TABS.map((tab) => (
+                <IconBtn
+                  key={tab.key}
+                  icon={tab.icon}
+                  p={p}
+                  on={leftOpen && leftTab === tab.key}
+                  onClick={() => {
+                    setLeftTab(tab.key);
+                    setLeftOpen(true);
+                  }}
+                  title={t(tab.title, lang)}
+                  size={44}
+                />
               ))}
               <div style={{ flex: 1 }} onClick={() => !leftOpen && setLeftOpen(true)} />
               <LangMenu p={p} onLang={changeLanguage} side="right" size={44} />
@@ -4268,6 +4481,8 @@ export default function Editor({
                   }}
                 >
                   {t(LEFT_TABS.find((x) => x.key === leftTab)?.title ?? "parts", lang)}
+                  {/* the theme's tab says which of its axes is open */}
+                  {leftTab === "theme" && <span style={{ fontWeight: 500, color: p.onSurfaceVariant }}>{` · ${t(THEME_TABS.find((x) => x.key === themeTab)?.title ?? "colors", lang)}`}</span>}
                 </span>
                 <IconBtn
                   icon="left_panel_close"
@@ -4276,6 +4491,11 @@ export default function Editor({
                   title={t("closePanel", lang)}
                 />
               </div>
+              {leftTab === "theme" && (
+                <div style={{ padding: "10px 12px 2px", flex: "0 0 auto" }}>
+                  <Segmented options={THEME_TABS.map((x) => ({ key: x.key, icon: x.icon, title: t(x.title, lang) }))} value={themeTab} onChange={setThemeTab} p={p} label={t("theme", lang)} />
+                </div>
+              )}
               <div style={{ flex: 1, minHeight: 0 }}>
                 {leftTab === "parts" ? (
                   <PartsPalette
@@ -4289,7 +4509,7 @@ export default function Editor({
                     onPartPointerDown={onPartPointerDown}
                     onPartActivate={addPart}
                   />
-                ) : leftTab === "color" ? (
+                ) : leftTab === "theme" && themeTab === "color" ? (
                   <ColorPanel
                     p={p}
                     paletteKey={paletteKey}
@@ -4301,11 +4521,11 @@ export default function Editor({
                     theme={theme}
                     onTheme={patchTheme}
                   />
-                ) : leftTab === "shape" ? (
+                ) : leftTab === "theme" && themeTab === "shape" ? (
                   <ShapePanel p={p} theme={theme} onChange={patchTheme} />
-                ) : leftTab === "type" ? (
+                ) : leftTab === "theme" && themeTab === "type" ? (
                   <TypePanel p={p} theme={theme} onChange={patchTheme} />
-                ) : leftTab === "motion" ? (
+                ) : leftTab === "theme" ? (
                   <MotionPanel p={p} theme={theme} onChange={patchTheme} />
                 ) : leftTab === "ai" ? (
                   <AiPanel p={p} settings={aiSettings} onSettings={updateAiSettings} />
@@ -4729,8 +4949,8 @@ export default function Editor({
             frame={frame}
             onFrame={changeFrame}
             zoom={view.z}
-            onZoom={(z) => setZoomAt(z)}
-            onFit={fit}
+            onZoom={(z) => zoomBy(z / viewRef.current.z)}
+            onFit={fitEased}
             canUndo={pastRef.current.length > 0}
             canRedo={futureRef.current.length > 0}
             onUndo={undo}
@@ -4878,13 +5098,14 @@ export default function Editor({
 
           {!rightOpen && !isMobile && (
             <div
+              ref={reopenRef}
               style={{ position: "absolute", right: 20, top: 20, zIndex: 45 }}
             >
               <IconBtn
                 icon="right_panel_open"
                 p={p}
                 on
-                onClick={() => setRightOpen(true)}
+                onClick={() => toggleRight(true)}
                 title={t("edit", lang)}
                 size={44}
               />
@@ -4893,8 +5114,17 @@ export default function Editor({
         </main>
 
         {/* ---- right: inspector / prompt ---- */}
-        {showRight && (
-          <aside style={{ ...panelStyle, width: rightW }}>
+        {/* The panel slides: its width eases between nothing and its own, and what is in it
+            keeps that own width throughout, so nothing inside is squeezed on the way. It rides
+            the panel's left edge out of view and back. */}
+        {!isMobile && (
+          <aside
+            inert={!rightOpen || undefined}
+            aria-hidden={!rightOpen || undefined}
+            style={{ ...panelStyle, width: rightOpen ? rightW : 0, transition: resizing === "right" || reducedMotion ? undefined : `width ${PANEL_MS}ms cubic-bezier(0.2, 0, 0, 1)` }}
+          >
+          {(rightOpen || rightKept) && (
+          <div style={{ width: rightW, flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column" }}>
             <div
               onPointerDown={(e) => {
                 e.preventDefault();
@@ -4940,13 +5170,15 @@ export default function Editor({
               </div>
               {/* the same button in the same spot as the one that reopens the panel, but plain:
                 * the filled look belongs to the one that has to be found over the canvas */}
-              <IconBtn
-                icon="right_panel_close"
-                p={p}
-                size={44}
-                onClick={() => setRightOpen(false)}
-                title={t("closePanel", lang)}
-              />
+              <span ref={closeRef} style={{ display: "contents" }}>
+                <IconBtn
+                  icon="right_panel_close"
+                  p={p}
+                  size={44}
+                  onClick={() => toggleRight(false)}
+                  title={t("closePanel", lang)}
+                />
+              </span>
             </div>
             <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
               {/* what scrolls past the top of the panel dissolves into the band instead of being cut */}
@@ -5031,6 +5263,8 @@ export default function Editor({
                 />
               )}
             </div>
+          </div>
+          )}
           </aside>
         )}
 

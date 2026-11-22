@@ -86,9 +86,10 @@ export function Skeleton() {
           <div style={{ width: 40, height: 40, display: "grid", placeItems: "center" }}>
             <Logo size={32} color="var(--skel-primary)" />
           </div>
-          <div style={{ height: 6 }} />
-          {Array.from({ length: 7 }, (_, i) => (
-            <div key={i} style={{ width: 44, height: 44, display: "grid", placeItems: "center", marginTop: i === 2 || i === 6 ? 16 : 6 }}>
+          {/* the way out to the projects list, then the four tabs */}
+          <Bone w={44} h={44} r={14} style={{ margin: "6px 0 8px" }} />
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} style={{ width: 44, height: 44, display: "grid", placeItems: "center", marginTop: 6 }}>
               <Bone w={26} h={26} r={13} />
             </div>
           ))}
@@ -116,7 +117,7 @@ export function Skeleton() {
             <Bone w={180} h={10} r={5} style={{ position: "absolute", left: "50%", top: 84, transform: "translateX(-50%)" }} />
           </span>
           <span className="m3e-skel-desk">
-            <Pill icons={0} tail={104} style={{ position: "absolute", left: 22, bottom: 22 }} />
+            <Pill icons={0} tail={86} style={{ position: "absolute", left: 22, bottom: 22 }} />
             <Pill icons={3} style={{ position: "absolute", right: 22, bottom: 22 }} />
           </span>
           <span className="m3e-skel-mobile">
