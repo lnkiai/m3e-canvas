@@ -272,9 +272,17 @@ function TextRows({ item, onChange, p, labelKey = "label", supportingKey = "supp
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {spec.hasLabel && (
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: item.kind === "text" ? "flex-start" : "center" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Field value={item.label} onChange={(label) => onChange({ label })} placeholder={t(labelKey, lang)} p={p} />
+            <Field
+              value={item.label}
+              onChange={(label) => onChange({ label })}
+              placeholder={t(labelKey, lang)}
+              p={p}
+              multiline={item.kind === "text"}
+              rows={item.kind === "text" ? 1 : undefined}
+              maxHeight={item.kind === "text" ? 100 : undefined}
+            />
           </div>
           {isChoice(item.kind) && <ChoiceToggle item={item} onChange={onChange} p={p} />}
           {bold && (

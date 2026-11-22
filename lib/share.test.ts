@@ -88,6 +88,18 @@ describe("shareLink and readShareHash", () => {
     expect(plain?.groups[0].items).toEqual(value.groups[0].items);
   });
 
+  it("preserves explicit line breaks in free text labels through share links", async () => {
+    const value = doc();
+    value.groups[0].items = [
+      { id: "text-1", kind: "text", label: "First line\nSecond line\n\nFourth line", icon: null, variant: "filled", size: 28 },
+    ];
+    const link = await shareLink(value, "https://example.test/canvas/");
+    const result = await readShareHash(new URL(link).hash);
+    expect(result?.groups[0].items[0].label).toBe("First line\nSecond line\n\nFourth line");
+    const plain = await readShareHash(plainHash(value));
+    expect(plain?.groups[0].items[0].label).toBe("First line\nSecond line\n\nFourth line");
+  });
+
   it("keeps the public wire parameter names stable", () => {
     expect(DOC_PARAM).toBe("doc");
     expect(DOCZ_PARAM).toBe("docz");

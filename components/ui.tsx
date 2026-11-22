@@ -649,6 +649,8 @@ export function Field({
   const lang = useLang();
   const filled = value.length > 0;
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pendingCursor = useRef<number | null>(null);
   const reduced = useReducedMotion();
   /* the ring stays mounted through its own fade out, so the gradient leaves as quietly as it came */
   const [ring, setRing] = useState(false);
@@ -794,6 +796,27 @@ export function Field({
   const padLeft = (icon ? 42 : 14) + (leading ? LEAD_W : 0);
   /* as tall as the fade, so the line being typed always sits clear of it */
   const padBottom = pinned ? 40 : 12;
+  const lineCount = multiline ? value.split(/\r\n|\r|\n/).length : 1;
+  const isMulti = multiline && (rows > 1 || lineCount > 1);
+  const targetH = isMulti
+    ? Math.max(height, Math.round((rows > 1 ? Math.max(rows, lineCount) : lineCount) * 22 + 22))
+    : height;
+  const fieldH = maxHeight ? Math.min(targetH, maxHeight) : targetH;
+
+  /* restore caret position when transitioning between single-line <input> and multiline <textarea> */
+  useLayoutEffect(() => {
+    if (pendingCursor.current !== null) {
+      const pos = pendingCursor.current;
+      pendingCursor.current = null;
+      if (isMulti && areaRef.current) {
+        areaRef.current.focus();
+        areaRef.current.setSelectionRange(pos, pos);
+      } else if (!isMulti && inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(pos, pos);
+      }
+    }
+  }, [isMulti]);
   /* one cell of the pinned run: a faint plate behind the button, rounded on the outer side only */
   const run = (child: React.ReactNode, first: boolean, last: boolean) => (
     <span
@@ -836,13 +859,18 @@ export function Field({
      * that box would be thicker along the bottom than anywhere else */
     display: "block",
     width: "100%",
-    padding: multiline ? `12px ${padRight}px ${padBottom}px ${padLeft}px` : `0 ${padRight}px 0 ${padLeft}px`,
-    borderRadius: multiline ? 18 : height / 2,
+    padding: isMulti
+      ? `12px ${padRight}px ${padBottom}px ${padLeft}px`
+      : `0 ${padRight}px 0 ${padLeft}px`,
+    borderRadius: isMulti ? 18 : height / 2,
     border: "none",
     background: p.surfaceContainerHigh,
     color: p.onSurface,
     fontSize: 14,
-    lineHeight: multiline ? 1.55 : undefined,
+    lineHeight: isMulti ? 1.55 : undefined,
+    whiteSpace: isMulti ? "pre-wrap" : undefined,
+    overflowWrap: isMulti ? "anywhere" : undefined,
+    wordBreak: isMulti ? "break-word" : undefined,
     outline: "none",
     boxSizing: "border-box",
     fontFamily: "inherit",
@@ -856,7 +884,7 @@ export function Field({
           style={{
             position: "absolute",
             inset: -RING,
-            borderRadius: (multiline ? 18 : height / 2) + RING,
+            borderRadius: (isMulti ? 18 : height / 2) + RING,
             backgroundImage: draftGradient(p),
             backgroundSize: "300% 300%",
             animation: "m3e-drift 3s ease-in-out infinite",
@@ -872,7 +900,7 @@ export function Field({
           style={{
             position: "absolute",
             inset: 0,
-            borderRadius: multiline ? 18 : height / 2,
+            borderRadius: isMulti ? 18 : height / 2,
             background: p.surfaceContainerHigh,
             pointerEvents: "none",
           }}
@@ -883,7 +911,7 @@ export function Field({
           style={{
             position: "absolute",
             left: 12,
-            top: multiline ? 12 : (height - 20) / 2,
+            top: isMulti ? 12 : (height - 20) / 2,
             color: p.onSurfaceVariant,
             pointerEvents: "none",
             lineHeight: 1,
@@ -897,13 +925,16 @@ export function Field({
       {leading && (
         <span style={{ position: "absolute", left: icon ? 36 : 6, top: (height - LEAD_W) / 2, width: LEAD_W, height: LEAD_W, display: "grid", placeItems: "center", zIndex: 1 }}>{leading}</span>
       )}
-      {multiline ? (
+      {isMulti ? (
         <textarea
           ref={areaRef}
-          className={maxHeight ? "no-scrollbar" : undefined}
+          className="m3-hidden-scrollbar"
           value={value}
           rows={rows}
-          onChange={(e) => onChange(grow ? e.target.value.replace(/[\r\n]+/g, " ") : e.target.value)}
+          onChange={(e) => {
+            pendingCursor.current = e.target.selectionStart;
+            onChange(grow ? e.target.value.replace(/[\r\n]+/g, " ") : e.target.value);
+          }}
           onKeyDown={grow ? (e) => { if (e.key === "Enter") e.preventDefault(); } : undefined}
           placeholder={placeholder}
           aria-invalid={invalid || undefined}
@@ -914,7 +945,11 @@ export function Field({
           }}
           style={{
             ...base,
-            ...(grow ? { overflow: "hidden" } : null),
+            width: "100%",
+            height: grow ? undefined : fieldH,
+            transition: "height 160ms cubic-bezier(0.2, 0, 0, 1), border-radius 160ms cubic-bezier(0.2, 0, 0, 1)",
+            overflowY: grow ? "hidden" : "auto",
+            scrollbarWidth: "none",
             position: "relative",
             /* the cover masks the whole field, so while it is on, the field's own colour is
              * painted by the plate behind it and the text is all that can be hidden */
@@ -923,8 +958,34 @@ export function Field({
         />
       ) : (
         <input
+          ref={inputRef}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            pendingCursor.current = e.target.selectionStart;
+            onChange(e.target.value);
+          }}
+          onKeyDown={multiline ? (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              const input = e.currentTarget;
+              const start = input.selectionStart ?? value.length;
+              const end = input.selectionEnd ?? value.length;
+              pendingCursor.current = start + 1;
+              onChange(value.slice(0, start) + "\n" + value.slice(end));
+            }
+          } : undefined}
+          onPaste={multiline ? (e) => {
+            const text = e.clipboardData.getData("text");
+            if (text.includes("\n") || text.includes("\r")) {
+              e.preventDefault();
+              const input = e.currentTarget;
+              const start = input.selectionStart ?? value.length;
+              const end = input.selectionEnd ?? value.length;
+              const next = value.slice(0, start) + text + value.slice(end);
+              pendingCursor.current = start + text.length;
+              onChange(next);
+            }
+          } : undefined}
           placeholder={placeholder}
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
@@ -953,7 +1014,7 @@ export function Field({
           </div>
         </>
       ) : (
-        filled && <span style={{ position: "absolute", right: 6, top: multiline ? 8 : (height - 30) / 2, display: "inline-flex" }}>{clearBtn}</span>
+        filled && <span style={{ position: "absolute", right: 6, top: isMulti ? 8 : (height - 30) / 2, display: "inline-flex" }}>{clearBtn}</span>
       )}
     </div>
   );

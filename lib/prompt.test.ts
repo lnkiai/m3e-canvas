@@ -68,6 +68,30 @@ const QUOTED: Record<Lang, { label: string; others: string[] }> = {
   ko: { label: '"Save"', others: ["「Save」", "“Save”"] },
 };
 
+describe("multiline free text", () => {
+  afterEach(() => setGlobalLang("ja"));
+
+  const description: Record<Lang, string> = {
+    ja: "上から「Alpha」、「Beta」の2行、28sp",
+    en: '2 lines, top to bottom: "Alpha", "Beta"; at 28sp',
+    zh: "2 行，从上到下：“Alpha”、“Beta”；28sp",
+    ko: '2줄(위에서부터 "Alpha", "Beta", 28sp)',
+  };
+
+  it.each(LANGS)("describes authored lines in order without putting raw newlines inside the item sentence in %s", (lang) => {
+    setGlobalLang(lang);
+    const doc = fixture();
+    doc.groups = [{ id: "g-text", x: 16, y: 100, axis: "x", items: [{ ...makeItem("text"), id: "copy", label: "Alpha\nBeta" }] }];
+    const prompt = buildPrompt(doc, { copy: 100 }, undefined, lang);
+    expect(prompt).toContain(description[lang]);
+    const alpha = prompt.indexOf("Alpha");
+    const beta = prompt.indexOf("Beta", alpha);
+    expect(alpha).toBeGreaterThanOrEqual(0);
+    expect(beta).toBeGreaterThan(alpha);
+    expect(prompt.slice(alpha, beta)).not.toContain("\n");
+  });
+});
+
 describe("progress track thickness", () => {
   afterEach(() => setGlobalLang("ja"));
 

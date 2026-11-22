@@ -60,6 +60,7 @@ import {
   railMetrics,
   isScrollableTabs,
   tabScrollOffset,
+  textLines,
   SCROLL_TAB_W,
   RIPPLE_KINDS,
   TOP_BAR_SIZES,
@@ -407,6 +408,7 @@ function CheckboxContent({ item, p }: { item: Item; p: Palette }) {
 function TextContent({ item, p }: { item: Item; p: Palette }) {
   const w = useWeight();
   const fs = item.size ?? 28;
+  const lines = textLines(item.label);
   return (
     <span
       style={{
@@ -416,11 +418,14 @@ function TextContent({ item, p }: { item: Item; p: Palette }) {
         fontWeight: item.bold ? w(700, 800) : w(400, fs >= 22 ? 600 : 500),
         letterSpacing: fs >= 28 ? -0.25 : 0,
         color: p.onSurface,
-        whiteSpace: "nowrap",
         padding: "0 2px",
       }}
     >
-      {item.label || " "}
+      {lines.map((line, i) => (
+        <span key={i} style={{ display: "block", minHeight: "1.3em", whiteSpace: "nowrap" }}>
+          {line || "\u00a0"}
+        </span>
+      ))}
     </span>
   );
 }
