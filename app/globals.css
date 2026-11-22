@@ -442,3 +442,378 @@ input.m3-number {
     transition: none;
   }
 }
+
+/* ---------- the Ask-an-AI dialog ---------- */
+.m3e-ask-idea {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 16px;
+  outline: none;
+  box-sizing: border-box;
+  resize: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: inset 0 0 0 2px transparent;
+  transition: box-shadow 160ms;
+}
+.m3e-ask-idea:focus {
+  box-shadow: inset 0 0 0 2px var(--ask-ring);
+}
+/* the three ways stand side by side, each ending in its one button on the same line */
+.m3e-ask-ways {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.m3e-ask-way {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 20px;
+}
+.m3e-ask-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 20px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .m3e-ask-ways {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- the guide to MCP, a sheet over the whole window ---------- */
+.m3e-mcp-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 700;
+  /* its outline is drawn by the clip path it opens and closes with */
+  will-change: clip-path;
+}
+.m3e-mcp-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* the cross keeps its corner while the sheet scrolls under it */
+.m3e-mcp-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 1088px;
+  height: 0;
+  margin: 0 auto;
+  padding: 0 40px;
+  pointer-events: none;
+}
+.m3e-mcp-bar button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-top: 16px;
+  border: none;
+  border-radius: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.m3e-mcp-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 1088px;
+  margin: 0 auto;
+  /* clear of the cross at the top */
+  padding: 76px 40px 56px;
+}
+.m3e-mcp-done {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  margin-top: 20px;
+  padding: 0 22px 0 16px;
+  border: none;
+  border-radius: 22px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* the head of the sheet: what it is about, with the character beside it */
+.m3e-mcp-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 36px 40px;
+  border-radius: 32px;
+  overflow: hidden;
+}
+.m3e-mcp-hero-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.m3e-mcp-hero h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.m3e-mcp-lead {
+  margin: 0;
+  max-width: 520px;
+  font-size: 15px;
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+.m3e-mcp-hero button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  margin-top: 6px;
+  padding: 0 18px 0 22px;
+  border: none;
+  border-radius: 22px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.m3e-mcp-hero-bot {
+  flex: 0 0 auto;
+  margin: -12px 8px -12px 0;
+}
+.m3e-mcp-heading {
+  margin: 20px 4px 2px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+/* three pictures in a row, an arrow between each pair */
+.m3e-mcp-scenes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 6px;
+}
+.m3e-mcp-arrow {
+  display: grid;
+  place-items: center;
+}
+.m3e-mcp-scene {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 18px;
+  border-radius: 24px;
+}
+.m3e-mcp-scene h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.m3e-mcp-scene p {
+  margin: 0 4px;
+  font-size: 13px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+.m3e-mcp-scene > div:nth-child(2) {
+  margin: 4px 4px 0;
+}
+/* where a scene's picture stands */
+.m3e-mcp-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 196px;
+  padding: 14px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+/* what the person says, as a message sent */
+.m3e-mcp-bubble {
+  align-self: flex-end;
+  max-width: 92%;
+  padding: 12px 16px;
+  border-radius: 20px 20px 6px 20px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.m3e-mcp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.m3e-mcp-chips code,
+.m3e-mcp-linkchip {
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.m3e-mcp-linkchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.m3e-mcp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 24px;
+  scroll-margin-top: 16px;
+}
+.m3e-mcp-card h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.m3e-mcp-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+/* a snippet and its copy button: the button keeps its corner while a long line scrolls under it */
+.m3e-mcp-code {
+  position: relative;
+  border-radius: 16px;
+}
+.m3e-mcp-code pre {
+  margin: 0;
+  padding: 16px 16px 16px 18px;
+  overflow-x: auto;
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre;
+  /* room for the button on the first line */
+  padding-right: 124px;
+}
+.m3e-mcp-code button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 10px;
+  border: none;
+  border-radius: 18px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 160ms, color 160ms;
+}
+/* the tools, two to a row */
+.m3e-mcp-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.m3e-mcp-tools > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+}
+.m3e-mcp-tools code {
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.m3e-mcp-tools p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (max-width: 840px) {
+  .m3e-mcp-main {
+    padding: 72px 16px 40px;
+  }
+  .m3e-mcp-bar {
+    padding: 0 16px;
+  }
+  .m3e-mcp-bar button {
+    margin-top: 12px;
+  }
+  .m3e-mcp-hero {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 20px 24px 28px;
+  }
+  .m3e-mcp-hero h1 {
+    font-size: 26px;
+  }
+  .m3e-mcp-hero-bot {
+    align-self: center;
+    margin: -8px 0;
+  }
+  /* the pictures one under another, the arrows pointing down */
+  .m3e-mcp-scenes {
+    grid-template-columns: 1fr;
+  }
+  .m3e-mcp-arrow {
+    transform: rotate(90deg);
+    height: 28px;
+  }
+  .m3e-mcp-tools {
+    grid-template-columns: 1fr;
+  }
+  /* no room beside a snippet for its button: the button stands under it */
+  .m3e-mcp-code {
+    display: flex;
+    flex-direction: column;
+  }
+  .m3e-mcp-code pre {
+    padding-right: 16px;
+    padding-bottom: 8px;
+  }
+  .m3e-mcp-code button {
+    position: static;
+    align-self: flex-end;
+    margin: 0 8px 8px 0;
+  }
+}
