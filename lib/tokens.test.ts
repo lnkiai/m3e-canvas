@@ -1,8 +1,25 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { DEFAULT_THEME, R_FULL, baseRadii, makeItem, normalizeTheme, railLayoutWidth, railMetrics, runCorners, scaleR, setGlobalShape, sizeOf, isScrollableTabs, tabScrollOffset, removeTabPatch, tabCountPatch, SCROLL_TAB_W, type Item } from "./tokens";
+import { DEFAULT_THEME, R_FULL, baseRadii, makeItem, normalizeTheme, railLayoutWidth, railMetrics, runCorners, scaleR, setGlobalShape, sizeOf, isScrollableTabs, tabScrollOffset, removeTabPatch, tabCountPatch, SCROLL_TAB_W, textLines, type Item } from "./tokens";
 
 afterEach(() => setGlobalShape("rounded")); // restore the module default
+
+describe("multiline free text geometry", () => {
+  const text = (label: string): Item => ({ ...makeItem("text"), id: "text", label, size: 28 });
+
+  it("keeps one-line text at its legacy height", () => {
+    expect(sizeOf(text("Heading"), { text: 144 })).toEqual({ w: 144, h: Math.round(28 * 1.3) });
+  });
+
+  it("uses one line-height for every authored line without changing measured width", () => {
+    expect(sizeOf(text("First\nSecond"), { text: 180 })).toEqual({ w: 180, h: Math.round(28 * 1.3 * 2) });
+    expect(sizeOf(text("First\n\nThird\n"), { text: 180 })).toEqual({ w: 180, h: Math.round(28 * 1.3 * 4) });
+  });
+
+  it("normalizes imported newline styles and preserves empty lines", () => {
+    expect(textLines("First\r\n\rThird\n")).toEqual(["First", "", "Third", ""]);
+  });
+});
 
 describe("navigation rail geometry", () => {
   it("keeps old rails unchanged and creates expressive collapsed rails", () => {

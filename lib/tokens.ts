@@ -2494,6 +2494,10 @@ export const MEASURED: Kind[] = ["button", "extendedFab", "chip", "switch", "che
 /** the part is as wide as its own content makes it, whatever kind it is */
 export const isMeasured = (it: Item) => (MEASURED.includes(it.kind) && !((it.kind === "switch" || it.kind === "button") && it.size)) || menuOpen(it);
 
+/** The authored lines of a free-text part. Browsers write LF, while imported project files may
+ *  carry CRLF or CR; all three mean the same thing and empty lines remain significant. */
+export const textLines = (label: string = ""): string[] => (label || "").split(/\r\n|\r|\n/);
+
 /** Progress track thickness range in dp; Material's standard bar is 4 and its thick bar 8. */
 export const TRACK_MIN = 2;
 export const TRACK_MAX = 16;
@@ -2534,7 +2538,7 @@ export function sizeOf(it: Item, widths: Record<string, number>) {
     case "tabs":
       return { w: n, h: s.h };
     case "text":
-      return { w: widths[it.id] ?? 120, h: Math.round(n * 1.3) };
+      return { w: widths[it.id] ?? 120, h: Math.round(n * 1.3 * textLines(it.label).length) };
     case "fab":
       return menuOpen(it) ? { w: widths[it.id] ?? 220, h: menuHeight(it, FAB_MENU_CLOSE) } : { w: n, h: n };
     case "iconButton":

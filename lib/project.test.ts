@@ -82,6 +82,12 @@ describe("isProject", () => {
     expect(isProject(withItem({ tabs: [] }))).toBe(true);
   });
 
+  it("accepts and reloads explicit line breaks in text labels", async () => {
+    const value = withItem({ kind: "text", label: "First line\n\nThird line\n" });
+    expect(isProject(value)).toBe(true);
+    await expect(readProject(new File([JSON.stringify(value)], "multiline.json"))).resolves.toEqual(value);
+  });
+
   it("accepts card layout customization fields", () => {
     expect(isProject(withItem({
       kind: "card",

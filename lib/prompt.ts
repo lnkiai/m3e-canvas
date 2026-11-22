@@ -59,6 +59,7 @@ import {
   carouselCardsOf,
   TOP_BAR_SIZES,
   topBarHeightOf,
+  textLines,
 } from "./tokens";
 
 const VARIANT_TEXT: Record<Lang, Record<Variant, string>> = {
@@ -170,6 +171,25 @@ const qe = (s: string) => `"${s.trim()}"`;
 const qz = (s: string) => `“${s.trim()}”`;
 const quote = (lang: Lang) => (lang === "ja" ? qj : lang === "zh" ? qz : qe);
 const trimEnd = (s: string) => s.trim().replace(/[。.\s]+$/, "");
+
+/** A free-text label in prompt prose. A raw newline would look like prompt structure, so explicit
+ *  lines are named in order; the long-standing sentence stays untouched for a one-line label. */
+function textDescription(it: Item, lang: Lang): string {
+  const lines = textLines(it.label);
+  const size = it.size ?? 28;
+  const q = quote(lang);
+  if (lines.length === 1) {
+    if (lang === "ja") return `${it.bold ? "太字の" : ""}テキスト${q(it.label)}（${size}sp）`;
+    if (lang === "zh") return `${it.bold ? "粗体" : ""}文本${q(it.label)}（${size}sp）`;
+    if (lang === "ko") return `${it.bold ? "굵은 " : ""}텍스트 ${q(it.label)}(${size}sp)`;
+    return `${it.bold ? "bold " : ""}text ${q(it.label)} at ${size}sp`;
+  }
+  const listed = lines.map(q);
+  if (lang === "ja") return `${it.bold ? "太字の" : ""}テキスト（上から${listed.join("、")}の${lines.length}行、${size}sp）`;
+  if (lang === "zh") return `${it.bold ? "粗体" : ""}文本（${lines.length} 行，从上到下：${listed.join("、")}；${size}sp）`;
+  if (lang === "ko") return `${it.bold ? "굵은 " : ""}텍스트 ${lines.length}줄(위에서부터 ${listed.join(", ")}, ${size}sp)`;
+  return `${it.bold ? "bold " : ""}text with ${lines.length} lines, top to bottom: ${listed.join(", ")}; at ${size}sp`;
+}
 
 /** Rails without either expressive setting preserve their original export. */
 function railStateText(it: Item, lang: Lang): string {
@@ -394,7 +414,7 @@ function itemJa(it: Item): string {
     case "slider":
       return `スライダー（初期値 ${it.value ?? 40}%）`;
     case "text":
-      return `${it.bold ? "太字の" : ""}テキスト${q(it.label)}（${it.size ?? 28}sp）`;
+      return textDescription(it, "ja");
     case "image":
       return `${imageDims(it)} の画像${imageSrc(it) ? `（${imageSrc(it)} の画像を表示）` : it.src ? "（指定の画像を表示）" : "プレースホルダー"}`;
     case "camera":
@@ -491,7 +511,7 @@ function itemEn(it: Item): string {
     case "slider":
       return `a slider (initial value ${it.value ?? 40}%)`;
     case "text":
-      return `${it.bold ? "bold " : ""}text ${q(it.label)} at ${it.size ?? 28}sp`;
+      return textDescription(it, "en");
     case "image":
       return `a ${imageDims(it)} image${imageSrc(it) ? ` (load it from ${imageSrc(it)})` : it.src ? " (use the provided image)" : " placeholder"}`;
     case "camera":
@@ -588,7 +608,7 @@ function itemZh(it: Item): string {
     case "slider":
       return `滑块（初始值 ${it.value ?? 40}%）`;
     case "text":
-      return `${it.bold ? "粗体" : ""}文本${q(it.label)}（${it.size ?? 28}sp）`;
+      return textDescription(it, "zh");
     case "image":
       return `${imageDims(it)} 的图片${imageSrc(it) ? `（显示 ${imageSrc(it)} 的图片）` : it.src ? "（显示指定的图片）" : "占位符"}`;
     case "camera":
@@ -667,7 +687,7 @@ function itemKo(it: Item): string {
     case "switch": return `${q(it.label)} 스위치(초기 상태 ${it.checked ? "켜짐" : "꺼짐"})`;
     case "checkbox": return `${q(it.label)} 체크박스(초기 상태 ${it.checked ? "선택됨" : "선택 안 됨"})`;
     case "slider": return `슬라이더(초깃값 ${it.value ?? 40}%)`;
-    case "text": return `${it.bold ? "굵은 " : ""}텍스트 ${q(it.label)}(${it.size ?? 28}sp)`;
+    case "text": return textDescription(it, "ko");
     case "image": return `${imageDims(it)} 이미지${imageSrc(it) ? `(${imageSrc(it)}의 이미지 표시)` : it.src ? "(지정한 이미지 표시)" : " 자리표시자"}`;
     case "camera": return `${viewSize(it, 4 / 3)} 카메라 미리보기`;
     case "map": return `${viewSize(it, 3 / 4)} 지도`;
