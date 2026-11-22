@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { flushSync } from "react-dom";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion, useSpring } from "motion/react";
 import { toPng } from "html-to-image";
 import { buildPrompt, effectivePrompt } from "@/lib/prompt";
@@ -43,7 +44,6 @@ import {
   migrateSheetBox,
   buttonHeightOf,
   explodeGroup,
-  freeRadii,
   radiiOfRuns,
   BEZEL,
   canJoin,
@@ -103,14 +103,14 @@ import {
   Transition,
   TRANSITIONS,
   uid,
-  uniformRadii,
   FULL_WIDTH,
   fitHeight,
   railExpansionSide,
   CONTENT_W,
   contentWidth,
 } from "@/lib/tokens";
-import { Icon, M3Node, M3Static, MeasuredContent } from "@/components/M3Node";
+import { Icon, M3Node, MeasuredContent } from "@/components/M3Node";
+import { FrameStatic } from "@/components/FrameStatic";
 import { CORNER_GAIN, CORNERS, HandleSide, SizeHandles } from "@/components/SizeHandles";
 import { LayersPanel } from "@/components/Layers";
 import { FrameSizePicker, Inspector } from "@/components/Inspector";
@@ -127,7 +127,8 @@ import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBeh
 import { barSlotOf, bodyRect, carryFrame, holdsEdgeBar, maxFrameLength, minFrameLength, pullInto, stretchFrame, tidyFrame } from "@/lib/tidy";
 import { constrainModalRails, modalRailOf, updateRail } from "@/lib/rail";
 import { joinRun, landMoved, liftSelection, sequenceOf, sequenceSize } from "@/lib/move";
-import { isProject, readProject, saveProject } from "@/lib/project";
+import { readProject, saveProject } from "@/lib/project";
+import { Backend, Project, createSaver, lockName } from "@/lib/projects";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
 import { draftDesign } from "@/lib/ai";
@@ -172,10 +173,6 @@ const MAX_Z = 3;
 const GLIDE_TOP = 84;
 const GLIDE_PAD = 40;
 const HISTORY_MAX = 100;
-const DOC_KEY = "m3e:doc";
-/** the design a draft or a link replaced, until the author keeps or undoes it */
-const BEFORE_KEY = "m3e:doc:before";
-const DOC_LOCK = "m3e:doc:editor";
 const UI_KEY = "m3e:ui";
 
 type View = { x: number; y: number; z: number };
@@ -475,9 +472,62 @@ const LEFT_TABS: { key: LeftTab; icon: string; title: "parts" | "layers" | "colo
   { key: "ai", icon: "auto_awesome", title: "ai" },
 ];
 
-export default function Editor({ initialLang, onReady }: { initialLang: Lang; onReady?: () => void }) {
+/** what the page has to say about how the project came to be open */
+/** `unsaved`: this visit runs without storage, so nothing outlives the tab. `unkept`: storage
+ *  is there but would not take what this visit opened, so that is on screen unsaved. */
+export type EditorNotice = "arrived" | "missing" | "invalid" | "unsaved" | "unkept";
+
+export default function Editor({
+  initialLang,
+  project,
+  backend,
+  notice,
+  onArrive,
+  onReady,
+}: {
+  initialLang: Lang;
+  /** the project this editor works on, as the page read it; the editor is mounted anew for another one */
+  project: Project;
+  backend: Backend;
+  notice?: EditorNotice;
+  /** a design that arrived while this project holds work: the page opens it as a project of its own */
+  /** hands a design on to become a project of its own; settles false when it could not be stored */
+  onArrive: (doc: Doc) => Promise<boolean>;
+  onReady?: () => void;
+}) {
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
+  const onArriveRef = useRef(onArrive);
+  onArriveRef.current = onArrive;
+  const router = useRouter();
+  /** tell the author that changes are not reaching storage, and note when they do again */
+  const saveFailedRef = useRef<() => void>(() => {});
+  const saveOkRef = useRef<() => void>(() => {});
+  const [saver] = useState(() =>
+    createSaver(backend, project.meta, {
+      /* a project that already has a document is not written back as it was opened */
+      stored: project.doc !== null,
+      onError: () => saveFailedRef.current(),
+      onSaved: () => saveOkRef.current(),
+    }),
+  );
+  /* While the editor is on screen its saver writes. Once the editor is left it stops, and hands
+     on what it could not write, so nothing lands later on top of newer work. */
+  useEffect(() => {
+    saver.attach();
+    return () => saver.dispose();
+  }, [saver]);
+  /* A change still on its way to storage, one storage has refused, or work in a browser that
+     keeps nothing: closing the tab now would lose it, so the browser asks first. */
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (!saver.pending() && !(backend.kind === "memory" && saver.meta().edited)) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [saver, backend]);
   /* ---------- document ---------- */
   const [lang, setLang] = useState<Lang>(initialLang);
   const [editAccess, setEditAccess] = useState<"checking" | "editable" | "readonly">("checking");
@@ -525,8 +575,6 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   const [promptCoverUp, setPromptCoverUp] = useState(false);
   /** the author's explicit target; null follows the screens (web once a desktop screen exists) */
   const [platform, setPlatform] = useState<Platform | null>(null);
-  /** a project file waiting for the author to confirm replacing the canvas */
-  const [pendingImport, setPendingImport] = useState<Doc | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   /** the idea typed into the "ask an AI" dialog; kept here so a failed draft does not lose it */
   const [ideaText, setIdeaText] = useState("");
@@ -709,8 +757,9 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
 
   /* ---------- persistence ---------- */
   useEffect(() => {
-    /* The first tab keeps this promise pending for its lifetime. Later tabs get
-       `null` immediately and stay read-only until they are reloaded. Where the
+    /* The first tab on a project keeps this promise pending for its lifetime. Later
+       tabs on the same project get `null` immediately and stay read-only until they
+       are reloaded; a tab on another project is not in their way. Where the
        browser has no locks (an insecure origin, an old WebKit) the editor works
        as it always did, without the guard. */
     if (!navigator.locks) {
@@ -724,7 +773,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     queueMicrotask(() => {
       if (!active) return;
       void navigator.locks
-        .request(DOC_LOCK, { ifAvailable: true }, async (lock) => {
+        .request(lockName(project.meta.id), { ifAvailable: true }, async (lock) => {
           if (!active) return;
           if (!lock) {
             setEditAccess("readonly");
@@ -788,18 +837,15 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     // React's development double-run would otherwise read back its own first save
     if (loadedRef.current) return;
     try {
-      const d = localStorage.getItem(DOC_KEY);
+      const d = project.doc;
       if (d) {
         hadDocRef.current = true;
-        applyDoc(JSON.parse(d) as Partial<Doc>, false);
+        applyDoc(d as Partial<Doc>, false);
         // frame mode is decided by the device (media-query effect), not restored
-      }
-      const before = d ? localStorage.getItem(BEFORE_KEY) : null;
-      if (!d) localStorage.removeItem(BEFORE_KEY);
-      if (before) {
-        const value: unknown = JSON.parse(before);
-        if (isProject(value)) setDraftBefore(value);
-        else localStorage.removeItem(BEFORE_KEY);
+        if (project.before) setDraftBefore(project.before);
+      } else if (project.meta.title) {
+        /* named in the projects list before it was ever opened */
+        setTitle(project.meta.title);
       }
       const u = localStorage.getItem(UI_KEY);
       if (u) {
@@ -909,13 +955,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
 
   useEffect(() => {
     if (!loadedRef.current || editAccess !== "editable") return;
-    try {
-      localStorage.setItem(
-        DOC_KEY,
-        JSON.stringify({ groups, frames, paletteKey, frame, title, brief, promptEdit, promptOptions, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme }),
-      );
-    } catch {}
-  }, [editAccess, groups, frames, paletteKey, frame, title, brief, promptEdit, promptOptions, platform, customPalette, dynamicColor, theme]);
+    saver.push({ groups, frames, paletteKey, frame, title, brief, promptEdit, promptOptions, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme });
+  }, [saver, editAccess, groups, frames, paletteKey, frame, title, brief, promptEdit, promptOptions, platform, customPalette, dynamicColor, theme]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
@@ -2695,9 +2736,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
       return;
     setDraftBefore(null);
     setQuickUndo(false);
-    try {
-      localStorage.removeItem(BEFORE_KEY);
-    } catch {}
+    saver.hold(null);
     snapshot();
     setGroups([]);
     setFrames([]);
@@ -2705,8 +2744,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     setSelectedFrameId(null);
   };
 
-  /** Opening a project file replaces the canvas with the same restore path the saved
-   *  document goes through, then starts the editor fresh on it. */
+  /** Puts another design on the canvas through the same restore path the saved document
+   *  goes through, then starts the editor fresh on it. */
   const importDoc = (next: Doc) => {
     hadDocRef.current = true;
     /* the whole document being replaced stays one undo away */
@@ -2714,9 +2753,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     /* whatever was under review is over: a file, a clear or a new arrival replaces it */
     setDraftBefore(null);
     setQuickUndo(false);
-    try {
-      localStorage.removeItem(BEFORE_KEY);
-    } catch {}
+    saver.hold(null);
     applyDoc(next, true);
     if (!mobileRef.current) {
       const nextFrame = next.frame === "blank" ? "blank" : "phone";
@@ -2731,10 +2768,11 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     queueMicrotask(() => fitRef.current());
   };
 
-  /* A link with a design in its hash offers it once the editor is ready to take it,
-     whether the page opened on that link or the link was pasted into this tab. */
+  /* A link pasted into this tab carries a design in its hash. (A page that opens on such a
+     link has already taken the design before the editor is mounted.) A read-only tab can
+     still pass it on: the design opens as a project of its own. */
   useEffect(() => {
-    if (editAccess !== "editable" || typeof window === "undefined") return;
+    if (editAccess === "checking" || typeof window === "undefined") return;
     let active = true;
     const offer = () => {
       if (!hasShareHash(window.location.hash)) return;
@@ -2742,8 +2780,9 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
         if (!active) return;
         if (next) {
           setShareOpen(false);
-          arrive(next);
           clearShareHash();
+          if (editAccess === "editable") receive(next);
+          else pass(next);
         } else {
           clearShareHash();
           showToast(t("invalidProject", getLang()), 3000, "error");
@@ -2759,13 +2798,23 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editAccess]);
 
-  /** Asks the author's own model for a design and puts it on the canvas. The guide it reads
-   *  is the one a coding agent reads (public/agent.md). The replaced design waits in
-   *  `draftBefore` until the author keeps or undoes the draft. */
-  /** A design that arrived from a model or a link takes the canvas with its colours easing
+  /** A design from a link or a file. A project the author has not touched takes it in
+   *  place; one that holds work is left alone, and the design opens as a project of its own. */
+  const receive = (next: Doc) => {
+    if (saver.meta().edited) pass(next);
+    else importDoc(next);
+  };
+  /** hands a design on to become a project of its own, and says so when it could not be kept */
+  const pass = (next: Doc) =>
+    void onArriveRef.current(next).then(
+      (kept) => !kept && showToast(t("saveFailed", getLang()), 5000, "error"),
+      () => showToast(t("saveFailed", getLang()), 5000, "error"),
+    );
+
+  /** A design drafted by the author's own model takes the canvas with its colours easing
    *  over; the design it replaced waits in `draftBefore` until the author keeps or undoes it. */
   const arrive = (next: Doc) => {
-    /* the phone editor has no keep / undo buttons: a link simply opens there, undoable as usual */
+    /* the phone editor has no keep / undo buttons: a draft simply opens there, undoable as usual */
     if (mobileRef.current) {
       importDoc(next);
       return;
@@ -2776,11 +2825,11 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     revealTimer.current = setTimeout(() => setRevealing(false), 900);
     importDoc(next);
     setDraftBefore(before);
-    try {
-      localStorage.setItem(BEFORE_KEY, JSON.stringify(before));
-    } catch {}
+    saver.hold(before);
   };
 
+  /** Asks the author's own model for a design and puts it on the canvas. The guide it reads
+   *  is the one a coding agent reads (public/agent.md). */
   const startDraft = async (idea: string) => {
     setShareOpen(false);
     setDraftBusy(true);
@@ -2804,9 +2853,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
   const keepDraft = () => {
     setDraftBefore(null);
     setQuickUndo(true);
-    try {
-      localStorage.removeItem(BEFORE_KEY);
-    } catch {}
+    saver.hold(null);
   };
   const undoDraft = () => {
     if (draftBefore) {
@@ -3143,6 +3190,27 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     toastTimer.current = window.setTimeout(() => setToast(null), ms);
   };
 
+  /* said at once, then again each minute for as long as writes keep failing: one notice an
+     hour ago is not a warning */
+  const saveFailedAt = useRef(0);
+  saveFailedRef.current = () => {
+    const at = Date.now();
+    if (at - saveFailedAt.current < 60_000) return;
+    saveFailedAt.current = at;
+    showToast(t("saveFailed", getLang()), 5000, "error");
+  };
+  saveOkRef.current = () => {
+    saveFailedAt.current = 0;
+  };
+  useEffect(() => {
+    if (notice === "unkept") showToast(t("saveFailed", getLang()), 8000, "error");
+    else if (notice === "unsaved" || backend.kind === "memory") showToast(t("storageUnavailable", getLang()), 8000, "error");
+    else if (notice === "arrived") showToast(t("openedAsProject", getLang()), 2600, "check");
+    else if (notice === "missing") showToast(t("projectMissing", getLang()), 3200, "error");
+    else if (notice === "invalid") showToast(t("invalidProject", getLang()), 3000, "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const updateAiSettings = (s: AiSettings) => {
     setAiSettings(s);
     saveAiSettings(s);
@@ -3308,77 +3376,8 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     }
   };
 
-  /** the runs of one screen drawn with plain divs: the export layer */
-  const renderExport = (f: Frame) => {
-    const gs = groups.filter((g) => frameOfGroup(g, frames, widths)?.id === f.id);
-    const { w } = frameSizeOf(f);
-    const h = frameLengthOf(f);
-    return (
-      <div
-        data-export={f.id}
-        style={{
-          position: "relative",
-          width: w,
-          height: h,
-          background: p[f.bg ?? "surface"],
-          overflow: "hidden",
-        }}
-      >
-        {gs.map((g) =>
-          g.free ? (
-            ((corners) =>
-            layoutOf(g, widths).map((pl) => (
-              <div key={pl.item.id} style={{ position: "absolute", left: pl.x - f.x, top: pl.y - f.y, zIndex: modalRailOf(g) ? 2 : undefined }}>
-                <M3Static
-                  item={pl.item}
-                  palette={p}
-                  radii={corners.get(pl.item.id)}
-                  style={MEASURED.includes(pl.item.kind) ? undefined : { width: pl.w, height: pl.h }}
-                />
-              </div>
-            )))(freeRadii(g, widths))
-          ) : (
-          <div
-            key={g.id}
-            style={{
-              position: "absolute",
-              left: g.x - f.x,
-              top: g.y - f.y,
-              zIndex: modalRailOf(g) ? 2 : undefined,
-              display: "flex",
-              flexDirection: g.axis === "x" ? "row" : "column",
-              alignItems: g.axis === "x" ? "center" : "stretch",
-              gap: GAP,
-            }}
-          >
-            {g.items.map((it, i) => {
-              const conn = connectSpecOf(it);
-              const n = g.items.length;
-              const radii =
-                conn && n > 1
-                  ? runRadii(g.axis, i === 0, i === n - 1, false, false, 0, conn.outer, conn.inner)
-                  : conn
-                    ? uniformRadii(conn.outer)
-                    : baseRadii(it);
-              return (
-                <M3Static
-                  key={it.id}
-                  item={it}
-                  palette={p}
-                  radii={radii}
-                  style={MEASURED.includes(it.kind) ? undefined : { width: sizeOf(it, widths).w, height: sizeOf(it, widths).h }}
-                />
-              );
-            })}
-          </div>
-          ),
-        )}
-        {gs.some((g) => modalRailOf(g)) && (
-          <div aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.32)", pointerEvents: "none", zIndex: 1 }} />
-        )}
-      </div>
-    );
-  };
+  /** the screen drawn with plain parts: the export layer */
+  const renderExport = (f: Frame) => <FrameStatic frame={f} groups={groups} frames={frames} widths={widths} palette={p} exportId={f.id} />;
 
   /** the view before the preview opened, restored when it closes */
   const viewBeforePreview = useRef<View | null>(null);
@@ -3486,7 +3485,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
           t.isContentEditable);
       if (typing) return;
       // dialogs, the preview and the prompt's full-screen cover own the keyboard while they are up
-      if (confirmClear || pendingImport !== null || shareOpen || previewId !== null || promptCoverUp) return;
+      if (confirmClear || shareOpen || previewId !== null || promptCoverUp) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault();
@@ -3595,7 +3594,6 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
     selectedFrameId,
     deleteFrame,
     confirmClear,
-    pendingImport,
     shareOpen,
     previewId,
     promptCoverUp,
@@ -5044,20 +5042,7 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = "";
-            if (file) void readProject(file).then((next) => (next ? setPendingImport(next) : showToast(t("invalidProject", lang), 3000, "error")));
-          }}
-        />
-
-        <ConfirmDialog
-          open={pendingImport !== null}
-          icon="file_open"
-          title={t("replaceProjectTitle", lang)}
-          body={t("replaceProject", lang)}
-          p={p}
-          onCancel={() => setPendingImport(null)}
-          onConfirm={() => {
-            if (pendingImport) importDoc(pendingImport);
-            setPendingImport(null);
+            if (file) void readProject(file).then((next) => (next ? receive(next) : showToast(t("invalidProject", lang), 3000, "error")));
           }}
         />
 
@@ -5133,7 +5118,24 @@ export default function Editor({ initialLang, onReady }: { initialLang: Lang; on
               <p style={{ margin: 0, color: p.onSurfaceVariant, fontSize: 14, lineHeight: 1.5 }}>
                 {t("readOnlyBody", lang)}
               </p>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 24 }}>
+                <button
+                  className="m3-press"
+                  onClick={() => router.push("/projects")}
+                  style={{
+                    minHeight: 40,
+                    padding: "0 16px",
+                    border: "none",
+                    borderRadius: 20,
+                    background: "transparent",
+                    color: p.primary,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t("projects", lang)}
+                </button>
                 <button
                   autoFocus
                   className="m3-press"
