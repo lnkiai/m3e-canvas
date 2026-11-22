@@ -43,16 +43,24 @@ function advance(ch: string): number {
   return 0.55;
 }
 
+/** what is drawn as one glyph: an emoji made of several code points is one, not several */
+const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+const glyphsOf = (text: string): string[] => (segmenter ? Array.from(segmenter.segment(text), (s) => s.segment) : [...text]);
+
+/** a label as the browser sets it on one line: runs of white space are one space, and none
+ *  stands at either end */
+const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
+
 /** how wide a line of text comes out, in the units the font size is given in */
 export function textWidth(text: string, fontSize: number, weight = 400, letterSpacing = 0): number {
   let ems = 0;
   let glyphs = 0;
-  for (const ch of text) {
-    ems += advance(ch);
+  for (const glyph of glyphsOf(text)) {
+    ems += advance(glyph);
     glyphs++;
   }
   /* a heavier face sets a little wider */
-  const heavier = weight >= 700 ? 1.05 : weight >= 500 ? 1.02 : 1;
+  const heavier = weight >= 800 ? 1.07 : weight >= 700 ? 1.05 : weight >= 600 ? 1.035 : weight >= 500 ? 1.02 : 1;
   return ems * fontSize * heavier + glyphs * letterSpacing;
 }
 
@@ -61,21 +69,23 @@ const BORDERED: Item["kind"][] = ["button", "chip", "extendedFab"];
 
 /** How wide one part comes out, or undefined where its width is not a matter of its text: a part
  *  the author gave a width, a kind with a fixed one, and a menu standing open, whose width is
- *  that of its entries. */
-export function estimatedWidth(it: Item): number | undefined {
+ *  that of its entries. `emphasized` is the theme's heavier type, which sets labels wider. */
+export function estimatedWidth(it: Item, emphasized = false): number | undefined {
   if (!isMeasured(it) || menuOpen(it)) return undefined;
-  const label = it.label ?? "";
-  const hasLabel = label.trim().length > 0;
+  const label = oneLine(typeof it.label === "string" ? it.label : "");
+  const hasLabel = label.length > 0;
   const border = it.variant === "outlined" && BORDERED.includes(it.kind) ? 2 : 0;
+  /* the weight of a label: the heavier of the two under the emphasized setting */
+  const w = (normal: number, strong: number) => (emphasized ? strong : normal);
   switch (it.kind) {
     case "button": {
       const m = buttonMetrics(buttonHeightOf(it));
       const padX = hasLabel ? m.padX : Math.round((m.h - m.icon) / 2);
-      return Math.ceil(padX * 2 + (it.icon ? m.icon : 0) + (it.icon && hasLabel ? m.gap : 0) + (hasLabel ? textWidth(label, m.font, 500, 0.1) : 0) + border);
+      return Math.ceil(padX * 2 + (it.icon ? m.icon : 0) + (it.icon && hasLabel ? m.gap : 0) + (hasLabel ? textWidth(label, m.font, w(500, 700), 0.1) : 0) + border);
     }
     case "extendedFab": {
       const m = extendedFabMetrics(extendedFabHeight(it));
-      return Math.ceil(m.padX * 2 + (it.icon ? m.icon : 0) + (it.icon && hasLabel ? m.gap : 0) + (hasLabel ? textWidth(label, m.font, 500) : 0) + border);
+      return Math.ceil(m.padX * 2 + (it.icon ? m.icon : 0) + (it.icon && hasLabel ? m.gap : 0) + (hasLabel ? textWidth(label, m.font, w(500, 700)) : 0) + border);
     }
     case "chip": {
       const m = chipMetrics(chipHeightOf(it));
@@ -89,14 +99,15 @@ export function estimatedWidth(it: Item): number | undefined {
       return Math.ceil(40 + (hasLabel ? 4 + textWidth(label, 16) + 8 : 0));
     case "text": {
       const size = it.size ?? 28;
-      const weight = it.bold ? 700 : 400;
+      const weight = it.bold ? w(700, 800) : w(400, size >= 22 ? 600 : 500);
       return Math.ceil(textWidth(label || " ", size, weight, size >= 28 ? -0.25 : 0) + 4);
     }
     case "splitButton": {
       const m = splitMetrics(buttonHeightOf(it));
       const padX = hasLabel ? m.padX : Math.round((m.h - m.icon) / 2);
-      const main = padX * 2 + (it.icon ? m.icon : 0) + (it.icon && hasLabel ? m.gap : 0) + (hasLabel ? textWidth(label, m.font, 500) : 0);
-      return Math.ceil(main + SPLIT_GAP + m.trailW);
+      const main = padX * 2 + (it.icon ? m.icon : 0) + (it.icon && hasLabel ? m.gap : 0) + (hasLabel ? textWidth(label, m.font, w(500, 700)) : 0);
+      /* outlined, each of the two segments carries its own hairline on either side */
+      return Math.ceil(main + SPLIT_GAP + m.trailW + (it.variant === "outlined" ? 4 : 0));
     }
     default:
       return undefined;
@@ -105,11 +116,12 @@ export function estimatedWidth(it: Item): number | undefined {
 
 /** the estimate for every part of a design that has one, keyed by the part's id the way the
  *  editor's measured widths are */
-export function estimatedWidths(groups: Group[]): Record<string, number> {
+export function estimatedWidths(groups: Group[], theme?: { emphasized?: unknown }): Record<string, number> {
   const out: Record<string, number> = {};
+  const emphasized = theme?.emphasized === true;
   for (const g of groups)
     for (const it of g.items) {
-      const w = estimatedWidth(it);
+      const w = estimatedWidth(it, emphasized);
       if (w !== undefined) out[it.id] = w;
     }
   return out;

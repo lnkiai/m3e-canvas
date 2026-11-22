@@ -72,3 +72,32 @@ describe("the width of a part that is as wide as its text", () => {
     expect(widths.a).toBe(estimatedWidth(groups[0].items[0]));
   });
 });
+
+describe("what the estimate takes from the theme and from the label as it is set", () => {
+  it("sets labels wider under the emphasized type, where the part's weight follows it", () => {
+    const button = part("button", { label: "Continue", size: undefined });
+    expect(estimatedWidth(button, true)).toBeGreaterThan(estimatedWidth(button)!);
+    const text = part("text", { label: "Where to next?", size: 28 });
+    expect(estimatedWidth(text, true)).toBeGreaterThan(estimatedWidth(text)!);
+    /* a chip's label has one weight whatever the theme says */
+    const chip = part("chip", { label: "Upcoming" });
+    expect(estimatedWidth(chip, true)).toBe(estimatedWidth(chip));
+    const groups = [{ id: "g", x: 0, y: 0, axis: "x", items: [{ ...button, id: "b" }] }] as unknown as Group[];
+    expect(estimatedWidths(groups, { emphasized: true }).b).toBe(estimatedWidth(button, true));
+    expect(estimatedWidths(groups, { emphasized: "yes" }).b).toBe(estimatedWidth(button));
+    expect(estimatedWidths(groups).b).toBe(estimatedWidth(button));
+  });
+
+  it("counts an outlined split button's hairlines on both of its segments", () => {
+    const split = part("splitButton", { label: "Send", variant: "filled" });
+    expect(estimatedWidth({ ...split, variant: "outlined" })).toBe(estimatedWidth(split)! + 4);
+  });
+
+  it("reads a label the way one line of it is set", () => {
+    const chip = part("chip", { label: "Past trips" });
+    expect(estimatedWidth({ ...chip, label: "  Past   trips \n" })).toBe(estimatedWidth(chip));
+    /* an emoji made of several code points is one glyph */
+    expect(textWidth("\u{1F468}\u200D\u{1F469}\u200D\u{1F467}", 20)).toBe(20);
+    expect(textWidth("\u{1F600}\u{1F600}", 20)).toBe(40);
+  });
+});

@@ -174,11 +174,16 @@ const qz = (s: string) => `“${s.trim()}”`;
 const quote = (lang: Lang) => (lang === "ja" ? qj : lang === "zh" ? qz : qe);
 const trimEnd = (s: string) => s.trim().replace(/[。.\s]+$/, "");
 
-/** The author's own sentence, closed with the full stop its last character calls for: words
- *  in one language may stand in a prompt written in another. */
+/** The author's own sentence, closed with the full stop of the language it is written in:
+ *  words in one language may stand in a prompt written in another. Japanese and Chinese are
+ *  told by their kana and their characters, wherever in the sentence they stand, so one that
+ *  ends in a Latin word or a digit keeps its own stop. A sentence that already ends in a mark
+ *  of its own gets none, and one that is nothing but full stops is no sentence. */
 const closed = (s: string) => {
   const text = trimEnd(s);
-  return `${text}${/[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]$/.test(text) ? "。" : "."}`;
+  if (!text) return "";
+  if (/[?!？！…‥]$/.test(text)) return text;
+  return `${text}${/[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/.test(text) ? "。" : "."}`;
 };
 
 /** Rails without either expressive setting preserve their original export. */
@@ -1583,7 +1588,7 @@ const sizeLabel = (f: Frame, vp: Viewport, lang: Lang): string | undefined => {
 const PH = {
   ja: {
     screen: "画面",
-    intro: (title: string, brief: string) => `${title}を Material 3 Expressive のデザインで実装してください。${brief ? closed(brief) : ""}`,
+    intro: (title: string, brief: string) => `${title}を Material 3 Expressive のデザインで実装してください。${brief}`,
     titleOnly: (name: string) => `${name}画面`,
     titleAll: (n: number) => (n > 1 ? "このアプリ" : "この画面"),
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
@@ -1627,7 +1632,7 @@ const PH = {
   },
   en: {
     screen: "screen",
-    intro: (title: string, brief: string) => `Please implement ${title} in the Material 3 Expressive design language.${brief ? ` ${closed(brief)}` : ""}`,
+    intro: (title: string, brief: string) => `Please implement ${title} in the Material 3 Expressive design language.${brief ? ` ${brief}` : ""}`,
     titleOnly: (name: string) => `the ${name} screen`,
     titleAll: (n: number) => (n > 1 ? "this app" : "this screen"),
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
@@ -1671,7 +1676,7 @@ const PH = {
   },
   zh: {
     screen: "屏幕",
-    intro: (title: string, brief: string) => `请用 Material 3 Expressive 的设计实现${title}。${brief ? closed(brief) : ""}`,
+    intro: (title: string, brief: string) => `请用 Material 3 Expressive 的设计实现${title}。${brief}`,
     titleOnly: (name: string) => `${name}屏幕`,
     titleAll: (n: number) => (n > 1 ? "这个应用" : "这个屏幕"),
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
@@ -1715,7 +1720,7 @@ const PH = {
   },
   ko: {
     screen: "화면",
-    intro: (title: string, brief: string) => `Material 3 Expressive 디자인으로 구현해 주세요: ${title}.${brief ? ` ${closed(brief)}` : ""}`,
+    intro: (title: string, brief: string) => `Material 3 Expressive 디자인으로 구현해 주세요: ${title}.${brief ? ` ${brief}` : ""}`,
     titleOnly: (name: string) => `${name} 화면`,
     titleAll: (n: number) => (n > 1 ? "이 앱" : "이 화면"),
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) => `${vp === "phone" ? "세로형 휴대전화 화면(412×892dp)을 대상으로 하며" : vp === "desktop" ? `${pl === "web" ? "데스크톱 브라우저" : "가로형 태블릿"} 화면(1280×800 기준)을 대상으로 하며` : vp === "mixed" ? `세로형 휴대전화(412×892)와 ${pl === "web" ? "데스크톱 브라우저" : "가로형 태블릿"}(1280×800)을 모두 지원하며, 이름이 같은 화면은 서로 다른 너비의 동일한 화면이므로 반응형으로 구현하고` : "레이아웃은 자유 배치이며"}, ${both ? "라이트 모드와 다크 모드를 모두 지원하고 기기의 시스템 설정을 따른다" : `${dark ? "다크" : "라이트"} 모드만 지원한다`}.`,
@@ -1836,9 +1841,9 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
   const viewport = viewportOf(frames, phone);
   /* canvas order is the layer order; rows are worked out per screen. A hand-made
    * group is written part by part, since it exists only to move things together. */
-  const groups = doc.groups
-    .filter((g) => !only || frameOfGroup(g, allFrames, widths)?.id === only.id)
-    .flatMap((g) => runsOf(g, widths));
+  /* taken apart first and sorted to a screen after, so one screen asked for alone holds
+     exactly what it holds in the prompt for the whole design */
+  const groups = doc.groups.flatMap((g) => runsOf(g, widths)).filter((g) => !only || frameOfGroup(g, allFrames, widths)?.id === only.id);
   const lines: string[] = [];
   const q = quote(lang);
   const ph = PH[lang];
@@ -1869,7 +1874,8 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
   // isProject deliberately accepts legacy minimal documents without title or brief
   // (project.test.ts pins that), so the prompt must not trim what may be absent.
   const title = only ? ph.titleOnly(q(only.name || ph.screen)) : (typeof doc.title === "string" ? doc.title.trim() : "") || ph.titleAll(frames.length);
-  lines.push(ph.intro(title, typeof doc.brief === "string" ? doc.brief.trim() : ""));
+  /* the brief arrives as a finished sentence, or as nothing */
+  lines.push(ph.intro(title, typeof doc.brief === "string" ? closed(doc.brief) : ""));
   lines.push(ph.target(viewport, platform, th.dark, th.bothModes));
   lines.push(ph.platform(platform));
   lines.push(ph.sketch);
@@ -1902,7 +1908,7 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
     frames.forEach((f, i) => {
       const gs = byFrame.get(f.id) ?? [];
       if (i > 0 || frames.length > 1) lines.push("");
-      if (hasText(f.note)) lines.push(closed(f.note!));
+      if (hasText(f.note) && closed(f.note!)) lines.push(closed(f.note!));
       lines.push(ph.screenHead(q(f.name || ph.screen), f.bg && f.bg !== "surface" ? f.bg : undefined, gs.length > 0, sizeLabel(f, viewport, lang)));
       if (gs.length > 0 && f.place && f.place !== "top") lines.push(ph.placement(f.place));
       if (gs.length > 0 && scrollsOf(f)) lines.push(ph.scrolls(frameLengthOf(f), frameSizeOf(f).h));
@@ -1946,4 +1952,4 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
 }
 
 /** the prompt to hand out: the author's edited text when there is one, otherwise the generated one */
-export const effectivePrompt = (doc: Doc, widths: Record<string, number>, lang: Lang = getLang()): string => (doc.promptEdit !== undefined ? doc.promptEdit : buildPrompt(doc, widths, undefined, lang));
+export const effectivePrompt = (doc: Doc, widths: Record<string, number>, lang: Lang = getLang()): string => (typeof doc.promptEdit === "string" ? doc.promptEdit : buildPrompt(doc, widths, undefined, lang));

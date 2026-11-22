@@ -554,11 +554,92 @@ describe("the author's own sentences in a prompt of another language", () => {
     expect(japanese).toContain("一覧はスクロールする。");
   });
 
+  it("tells Japanese and Chinese by their characters, not by the last one", () => {
+    setGlobalLang("ja");
+    /* a sentence that ends in a Latin word, a digit or a bracket is still a Japanese sentence */
+    for (const brief of ["日本語のApp", "バージョン2", "家計簿アプリ(仮)"]) expect(buildPrompt(doc(brief), {}, undefined, "ja"), brief).toContain(`実装してください。${brief}。`);
+    expect(buildPrompt(doc("记录每天的开销 v2"), {}, undefined, "zh")).toContain("记录每天的开销 v2。");
+    /* an abbreviation keeps its own stop and gets no second one */
+    expect(buildPrompt(doc("Units, e.g."), {}, undefined, "ja")).toContain("実装してください。Units, e.g.");
+    expect(buildPrompt(doc("Units, e.g."), {}, undefined, "ja")).not.toContain("e.g。");
+  });
+
+  it("adds no stop after a mark that already ends the sentence, and none to nothing", () => {
+    setGlobalLang("en");
+    for (const brief of ["Why wait?", "Go!", "本当に必要？", "すぐ始めよう！", "And so on…"]) {
+      const prompt = buildPrompt(doc(brief), {}, undefined, "en");
+      expect(prompt, brief).toContain(`design language. ${brief}\n`);
+    }
+    /* a brief that is nothing but full stops says nothing */
+    const empty = buildPrompt(doc("..."), {}, undefined, "en");
+    expect(empty).toContain("design language.\n");
+    expect(buildPrompt(doc("。"), {}, undefined, "ja")).toContain("実装してください。\n");
+    expect(lines(buildPrompt(doc("", "..."), {}, undefined, "en")).some((l) => l === "." || l === "")).toBe(lines(buildPrompt(doc(""), {}, undefined, "en")).some((l) => l === ""));
+    expect(lines(buildPrompt(doc("", "..."), {}, undefined, "en"))).not.toContain(".");
+  });
+
   it("leaves a sentence in the prompt's own language as it always was", () => {
     setGlobalLang("ja");
     expect(buildPrompt(doc("レシピを保存する。"), {}, undefined, "ja")).toContain("実装してください。レシピを保存する。");
     setGlobalLang("en");
     expect(buildPrompt(doc("Save your own recipes."), {}, undefined, "en")).toContain("design language. Save your own recipes.");
     expect(buildPrompt(doc("나만의 레시피 저장"), {}, undefined, "ko")).toContain("나만의 레시피 저장.");
+  });
+});
+
+describe("one screen asked for alone", () => {
+  /* four checkboxes in one group that lies across two screens: the group's centre is between
+     them, its parts are on one or the other */
+  const across = (): Doc => ({
+    groups: [{ id: "g", x: 200, y: 200, axis: "x", items: ["One", "Two", "Three", "Four"].map((label, i) => ({ ...makeItem("checkbox"), id: `c${i}`, label })) }],
+    frames: [
+      { id: "a", name: "First", x: 0, y: 0 },
+      /* edge to edge, so no part stands in a gap between the two */
+      { id: "b", name: "Second", x: 412, y: 0 },
+    ],
+    paletteKey: "purple",
+    frame: "phone",
+    title: "Lists",
+    brief: "",
+  });
+  const widths = { c0: 150, c1: 150, c2: 150, c3: 150 };
+  const mentioned = (prompt: string) => ["One", "Two", "Three", "Four"].filter((label) => lines(prompt).some((l) => l.includes(`"${label}"`)));
+
+  it("holds what that screen holds in the prompt for the whole design", () => {
+    setGlobalLang("en");
+    const whole = buildPrompt(across(), widths, undefined, "en");
+    expect(mentioned(whole)).toEqual(["One", "Two", "Three", "Four"]);
+    const first = mentioned(buildPrompt(across(), widths, "a", "en"));
+    const second = mentioned(buildPrompt(across(), widths, "b", "en"));
+    /* every part is on exactly one of the two, and neither screen comes back empty */
+    expect(first.length).toBeGreaterThan(0);
+    expect(second.length).toBeGreaterThan(0);
+    expect([...first, ...second].sort()).toEqual(["Four", "One", "Three", "Two"]);
+  });
+
+  it("is unchanged for a run that stands on its screen", () => {
+    setGlobalLang("en");
+    const prompt = buildPrompt(fixture(), {}, "f-home", "en");
+    expect(prompt).toContain('"Save"');
+    expect(prompt).toContain('"Cancel"');
+  });
+});
+
+describe("runs the editor makes", () => {
+  it("still writes buttons and icon buttons joined in one group as one connected group", () => {
+    setGlobalLang("en");
+    const items = [{ ...makeItem("button"), id: "b1", label: "Save" }, { ...makeItem("iconButton"), id: "i1", icon: "share" }, { ...makeItem("button"), id: "b2", label: "Cancel" }];
+    const prompt = buildPrompt({ groups: [{ id: "g", x: 16, y: 300, axis: "x", items }], frames: [{ id: "f", name: "Home", x: 0, y: 0 }], paletteKey: "purple", frame: "phone", title: "T", brief: "" }, {}, undefined, "en");
+    const line = lines(prompt).filter((l) => l.includes('"Save"'));
+    expect(line).toHaveLength(1);
+    expect(line[0]).toContain("connected button group of 3");
+    expect(line[0]).toContain('"Cancel"');
+  });
+
+  it("still writes chips in a row as one chip group", () => {
+    setGlobalLang("en");
+    const items = ["All", "Upcoming", "Past"].map((label, i) => ({ ...makeItem("chip"), id: `c${i}`, label, checked: i === 1 }));
+    const prompt = buildPrompt({ groups: [{ id: "g", x: 16, y: 300, axis: "x", items }], frames: [{ id: "f", name: "Home", x: 0, y: 0 }], paletteKey: "purple", frame: "phone", title: "T", brief: "" }, {}, undefined, "en");
+    expect(prompt).toContain('a chip group: "All", "Upcoming" (selected), "Past"');
   });
 });

@@ -377,6 +377,66 @@ describe("the tools", () => {
     expect(cut.text).toContain("No prompt was written.");
   });
 
+  it("takes a design as the app does when it opens one", async () => {
+    /* no `frame` at all: the app opens it as phone screens, and so the prompt has screens */
+    const { frame: _frame, ...bare } = design() as unknown as Record<string, unknown>;
+    expect((await call("check_design", { design: bare })).text).toContain("sound");
+    const whole = await call("get_build_prompt", { design: bare });
+    expect(whole.isError).toBe(false);
+    expect(whole.text).toBe((await call("get_build_prompt", { design: design() })).text);
+    const one = await call("get_build_prompt", { design: bare, screen: "Home" });
+    expect(one.isError).toBe(false);
+    expect(one.text).toContain("Tomato soup");
+    /* a free canvas has no screens to ask for */
+    const free = await call("get_build_prompt", { design: { ...design(), frame: "blank" }, screen: "Home" });
+    expect(free.isError).toBe(true);
+    expect(free.text).toContain("The design has no screens.");
+    /* a rewritten prompt that is not text is no rewritten prompt: the generated one is given */
+    for (const promptEdit of [null, 42, {}]) {
+      const reply = await call("get_build_prompt", { design: { ...design(), promptEdit } });
+      expect(reply.isError, String(promptEdit)).toBe(false);
+      expect(reply.text, String(promptEdit)).toBe(whole.text);
+    }
+  });
+
+  it("refuses a screen that is not named, rather than picking one", async () => {
+    const unnamed = { ...design(), frames: [{ id: "home", name: "Home", x: 0, y: 0 }, { id: "x", name: "", x: 492, y: 0 }] };
+    for (const screen of ["   ", 5, {}, ["Home"]]) {
+      const reply = await call("get_build_prompt", { design: unnamed, screen });
+      expect(reply.isError, JSON.stringify(screen)).toBe(true);
+      expect(reply.text).toContain("`screen` must be the id or the name of a screen");
+    }
+    /* left out, or empty, it is simply not asked for */
+    expect((await call("get_build_prompt", { design: unnamed, screen: "" })).isError).toBe(false);
+    expect((await call("get_build_prompt", { design: unnamed, screen: null })).isError).toBe(false);
+  });
+
+  it("finds by name the file it saved by name, wherever the working folder sent it", async () => {
+    /* at the root of the disk the file goes into the home folder, and is read from there too */
+    const root = parse(folder).root;
+    const at = (name: string, args: Record<string, unknown>) =>
+      answer({ ...server({ cwd: root }), tools: toolsOf({ guide: "", base: APP_URL, cwd: root, home, windows: false }) }, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) as Promise<{
+        result: { content: { text: string }[]; isError: boolean };
+      }>;
+    const saved = await at("save_design_file", { design: design(), path: "by-name.json" });
+    expect(saved.result.isError).toBe(false);
+    expect(saved.result.content[0].text.split("\n")[0]).toBe(join(home, "by-name.json"));
+    const read = await at("get_build_prompt", { path: "by-name.json" });
+    expect(read.result.isError).toBe(false);
+    expect(read.result.content[0].text).toContain("Tomato soup");
+  });
+
+  it("takes nothing from, and writes nothing to, another machine's share", async () => {
+    for (const path of ["\\\\server\\share\\design.json", "//server/share/design.json"]) {
+      const read = await call("get_build_prompt", { path });
+      expect(read.isError, path).toBe(true);
+      expect(read.text).toContain("A path on the network is not taken");
+      const saved = await call("save_design_file", { design: design(), path });
+      expect(saved.isError, path).toBe(true);
+      expect(saved.text).toContain("A path on the network is not taken");
+    }
+  });
+
   it("says what is wrong with a file it cannot take a design from", async () => {
     const missing = await call("get_build_prompt", { path: "not-there.json" });
     expect(missing.isError).toBe(true);
