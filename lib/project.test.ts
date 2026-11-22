@@ -148,6 +148,14 @@ describe("isProject", () => {
 });
 
 describe("projectFileName", () => {
+  it("leaves out control characters, and keeps a very long title to a length a file system takes", () => {
+    expect(projectFileName({ ...doc(), title: "a\u0001b\u007fc" })).toBe("m3e-canvas a b c.json");
+    const long = projectFileName({ ...doc(), title: "x".repeat(300) });
+    expect(long.length).toBeLessThanOrEqual("m3e-canvas ".length + 120 + ".json".length);
+    expect(long.endsWith(".json")).toBe(true);
+    expect(projectFileName({ ...doc(), title: "Notes. . " })).toBe("m3e-canvas Notes.json");
+  });
+
   it.each([
     ["", "m3e-canvas.json"], [" \t\n ", "m3e-canvas.json"],
     ['\\/:*?"<>|', "m3e-canvas.json"],

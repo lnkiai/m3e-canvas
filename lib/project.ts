@@ -83,8 +83,13 @@ export const isProject = (value: unknown): value is Doc =>
 export const projectFileName = (doc: Doc) => {
   const name = (typeof doc.title === "string" ? doc.title : "")
     .trim()
-    .replace(/[\\/:*?"<>|]+/g, " ")
+    /* what no file system takes in a name: its reserved marks, and control characters */
+    .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]+/g, " ")
     .replace(/\s+/g, " ")
+    /* a name has a length limit too, well above this */
+    .slice(0, 120)
+    /* Windows drops dots and spaces at the end of a name, which would leave a different file */
+    .replace(/[. ]+$/, "")
     .trim();
   return name ? `m3e-canvas ${name}.json` : "m3e-canvas.json";
 };

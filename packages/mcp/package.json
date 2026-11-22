@@ -1,0 +1,38 @@
+{
+  "name": "m3e-canvas-mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for M3E Canvas: an AI agent writes a Material 3 Expressive design and hands back the link that opens it.",
+  "license": "MIT",
+  "author": "lnkiai",
+  "type": "module",
+  "bin": {
+    "m3e-canvas-mcp": "dist/server.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "material-design",
+    "material-3-expressive",
+    "design",
+    "m3e-canvas"
+  ],
+  "homepage": "https://lnkiai.github.io/m3e-canvas/mcp/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnkiai/m3e-canvas.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/lnkiai/m3e-canvas/issues"
+  }
+}

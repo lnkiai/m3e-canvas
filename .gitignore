@@ -47,3 +47,7 @@ next-env.d.ts
 
 # promo video project (kept private)
 /promo
+
+# the MCP server package: its bundle is built before publishing
+/packages/mcp/dist
+/packages/mcp/node_modules

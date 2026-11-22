@@ -1,0 +1,87 @@
+# m3e-canvas-mcp
+
+A [Model Context Protocol](https://modelcontextprotocol.io/) server for [M3E Canvas](https://lnkiai.github.io/m3e-canvas/), the browser editor for Material 3 Expressive screens.
+
+With it connected, an AI agent can design the screens of an app and hand you a link. Opening the link adds the design to your projects in M3E Canvas, where you refine it and turn it into a prompt for a coding tool.
+
+The server runs on your machine and talks only to the agent that started it. It sends nothing anywhere and does not drive a browser: the link itself carries the design. The one thing it can write is a design file, when the agent is asked for one.
+
+## Set up
+
+You need Node.js 20 or later.
+
+**Claude Code**
+
+```sh
+claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp
+```
+
+**Claude Desktop, Cursor and other clients that read `mcpServers`**
+
+```json
+{
+  "mcpServers": {
+    "m3e-canvas": {
+      "command": "npx",
+      "args": ["-y", "m3e-canvas-mcp"]
+    }
+  }
+}
+```
+
+**VS Code** (`.vscode/mcp.json`)
+
+```json
+{
+  "servers": {
+    "m3e-canvas": {
+      "command": "npx",
+      "args": ["-y", "m3e-canvas-mcp"]
+    }
+  }
+}
+```
+
+**Codex** (`~/.codex/config.toml`)
+
+```toml
+[mcp_servers.m3e-canvas]
+command = "npx"
+args = ["-y", "m3e-canvas-mcp"]
+```
+
+**On Windows**, clients start the command without a shell, so `npx` needs `cmd /c` in front of it:
+
+```sh
+claude mcp add m3e-canvas -- cmd /c npx -y m3e-canvas-mcp
+```
+
+In the settings files, that is `"command": "cmd"` with `"args": ["/c", "npx", "-y", "m3e-canvas-mcp"]`.
+
+Then ask for a design:
+
+> In M3E Canvas, design the screens of an app for saving and searching recipes.
+
+The agent replies with a link. Open it.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `get_guide` | Returns the guide to the design format: the document's fields and every kind of part. |
+| `check_design` | Checks a design and says what to fix, with the path of each field. |
+| `create_design_link` | Checks a design and returns the link that opens it as a new project. |
+| `save_design_file` | Checks a design and saves it as a `.json` file, for a design too large for a link. Never writes over an existing file. |
+| `read_design_link` | Returns the design a link carries, so an existing design can be changed. |
+
+To change a design you already have, press **Copy link** in the app's **Ask an AI** dialog and give the link to the agent.
+
+A saved file opens from the projects page: **Open from file**, or drop it on the page.
+
+## Options
+
+`M3E_CANVAS_URL` sets the address the links open, for a copy of the app hosted somewhere else. It defaults to `https://lnkiai.github.io/m3e-canvas/`.
+
+## License
+
+MIT. The source is in [`packages/mcp`](https://github.com/lnkiai/m3e-canvas/tree/main/packages/mcp) of the M3E Canvas repository.
