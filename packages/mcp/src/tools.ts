@@ -1,16 +1,20 @@
-import { accessSync, constants, existsSync, statSync, writeFileSync } from "node:fs";
+import { accessSync, constants, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, parse, resolve } from "node:path";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { SIZE_PATH, checkDesign, problemLines } from "../../../lib/check";
 import { isProject, projectFileName } from "../../../lib/project";
+import { buildPrompt, effectivePrompt } from "../../../lib/prompt";
 import { DOC_PARAM, DOCZ_PARAM, shareable } from "../../../lib/share";
 import type { Doc } from "../../../lib/tokens";
+import { estimatedWidths } from "../../../lib/widths";
 import type { Tool, ToolResult } from "./protocol";
 
 /* The tools. They do what an agent following public/agent.md used to do by hand: read the
  * guide, check the document, and turn it into the link the person opens, or into a file where
- * a link would be too long to pass around. Nothing is sent anywhere and nothing drives a
- * browser: the link or the file itself carries the design, as it always has. */
+ * a link would be too long to pass around. The other way round, they turn a design the person
+ * made into the prompt the app writes for it, so the agent can build what was drawn. Nothing is
+ * sent anywhere and nothing drives a browser: the link or the file itself carries the design,
+ * as it always has. */
 
 export const APP_URL = "https://lnkiai.github.io/m3e-canvas/";
 
@@ -89,6 +93,9 @@ const takesFiles = (dir: string) => {
 /** names Windows hands to a device whatever follows them */
 const DEVICE = /^(con|prn|aux|nul|com\d|lpt\d)$/i;
 
+/** a path as it was asked for: absolute, starting with `~` for the home folder, or against `base` */
+const pathFrom = (base: string, home: string, asked: string) => resolve(base, /^~(?=$|[\\/])/.test(asked) ? join(home, asked.slice(1)) : asked);
+
 /** Where a design is saved. `given` names a folder or a `.json` file: absolute, starting with
  *  `~` for the home folder, or against the working folder `cwd`. Left out, the file goes into
  *  `cwd` under the name the app itself would give it; where `cwd` is no place for files (some
@@ -97,7 +104,7 @@ function placeFor(env: { cwd: string; home: string; windows: boolean }, given: u
   if (given !== undefined && typeof given !== "string") return { problem: "`path` must be text: a folder, or a file name ending in .json." };
   const asked = given?.trim() ?? "";
   const base = takesFiles(env.cwd) ? env.cwd : env.home;
-  const target = asked ? resolve(base, /^~(?=$|[\\/])/.test(asked) ? join(env.home, asked.slice(1)) : asked) : base;
+  const target = asked ? pathFrom(base, env.home, asked) : base;
   /* on Windows a colon after the drive letter writes into a hidden stream of another file */
   if (env.windows && target.slice(2).includes(":")) return { problem: `A file name cannot contain a colon: ${asked}` };
   /* an existing folder is a folder, whatever its name ends in */
@@ -154,6 +161,54 @@ export function docOf(link: string): { doc: Doc } | { problem: string } {
     return { problem: "The link could not be read: it may have been cut short when it was copied." };
   }
 }
+
+/** the design in a saved project file */
+function docIn(file: string): { doc: Doc } | { problem: string } {
+  if (extname(file).toLowerCase() !== ".json") return { problem: `A saved design is a .json file; ${basename(file)} is not one.` };
+  let text: string;
+  try {
+    if (statSync(file).size > FILE_BYTES_MAX) return { problem: `${file} is too large to be a design.` };
+    text = readFileSync(file, "utf8");
+  } catch {
+    return { problem: `The file ${file} could not be read. Pass the path of a project file saved from M3E Canvas or by save_design_file.` };
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(text.replace(/^\uFEFF/, ""));
+  } catch {
+    return { problem: `${file} is not valid JSON, so it is not a saved design.` };
+  }
+  if (!isProject(value)) return { problem: `${file} is not a design the app can open:\n${problemLines(checkDesign(value).errors).join("\n")}` };
+  return { doc: value };
+}
+
+const present = (value: unknown) => value !== undefined && value !== null && value !== "";
+
+/** The design a tool is pointed at: the one a link carries, the one in a saved file, or the
+ *  document itself. Exactly one of them is expected; `from` says which of the three the tool
+ *  takes. */
+function designAt(env: { cwd: string; home: string }, args: Record<string, unknown>, from: readonly ("link" | "path" | "design")[] = ["link", "path", "design"]): { doc: Doc } | { problem: string } {
+  const named = from.filter((key) => present(args[key]));
+  if (named.length !== 1) {
+    const ways = { link: "`link` (a M3E Canvas link)", path: "`path` (a saved project .json file)", design: "`design` (the document itself)" };
+    const list = from.map((key) => ways[key]);
+    return { problem: `Pass exactly one of ${list.slice(0, -1).join(", ")} or ${list[list.length - 1]}.` };
+  }
+  const key = named[0];
+  if (key === "design") {
+    const passed = designOf(args);
+    if ("problem" in passed) return passed;
+    const { errors, text } = report(passed.value, true);
+    return errors.length ? { problem: text } : { doc: passed.value as Doc };
+  }
+  const value = args[key];
+  if (typeof value !== "string" || !value.trim()) return { problem: `\`${key}\` must be text.` };
+  return key === "link" ? docOf(value.trim()) : docIn(pathFrom(env.cwd, env.home, value.trim()));
+}
+
+/** the languages the app writes its prompt in */
+const PROMPT_LANGS = ["en", "ja", "zh", "ko"] as const;
+type PromptLang = (typeof PROMPT_LANGS)[number];
 
 const designSchema = {
   type: "object",
@@ -213,10 +268,10 @@ export function toolsOf(env: {
         const doc = given.value as Doc;
         /* measured as the link will carry it: a picked image is left out of a link anyway */
         const bytes = Buffer.byteLength(carried(doc));
-        if (bytes > DESIGN_BYTES_MAX) return { text: `No link was made: the document is ${Math.round(bytes / 1000)} KB, too large for a link. Use fewer screens or parts, and do not embed image data.`, isError: true };
+        if (bytes > DESIGN_BYTES_MAX) return { text: `No link was made: the document is ${Math.round(bytes / 1000)} KB, too large for a link. Call save_design_file with it instead, which has room for it; or use fewer screens or parts. Do not embed image data.`, isError: true };
         const link = linkOf(doc, env.base);
         const lines = [link, "", "Give the person this link as it is. Opening it adds the design to their projects in M3E Canvas."];
-        if (link.length > LINK_CHARS_COMFORTABLE) lines.push(`The link is ${link.length} characters long. If it could be cut on its way to the person, call save_design_file with the same design and give them the file instead.`);
+        if (link.length > LINK_CHARS_COMFORTABLE) lines.push(`The link is ${link.length} characters long. If it could be cut on its way to the person, call save_design_file with this link as its \`link\` argument (the design need not be written out again) and give them the file instead.`);
         if (text) lines.push("", text);
         return { text: lines.join("\n") };
       },
@@ -225,22 +280,22 @@ export function toolsOf(env: {
       name: "save_design_file",
       title: "Save a design as a file",
       description:
-        "Checks a design document and saves it as a .json file on this computer, for a design too large for a link or when the person asks for a file. Returns where the file is. The person opens it in M3E Canvas with Open from file on the projects page, or by dropping it there. An existing file is never written over: a taken name gets a number.",
+        "Checks a design document and saves it as a .json file on this computer, for a design too large for a link or when the person asks for a file. Pass the document as `design`, or, when create_design_link has already made its link, that link as `link`: the design need not be written out twice. Returns where the file is. The person opens it in M3E Canvas with Open from file on the projects page, or by dropping it there. An existing file is never written over: a taken name gets a number.",
       inputSchema: {
         type: "object",
         properties: {
           design: designSchema.properties.design,
+          link: { type: "string", description: "In place of `design`: a M3E Canvas link, whose design is saved as it stands." },
           path: { type: "string", description: "Optional. A folder to save into, or a file name ending in .json. It may be absolute, or start with ~ for the home folder; otherwise it is taken against the current working folder. Left out, the file goes into the current working folder under the design's own name." },
         },
-        required: ["design"],
       },
       readOnly: false,
       run: (args): ToolResult => {
-        const given = designOf(args);
-        if ("problem" in given) return { text: given.problem, isError: true };
-        const { errors, text } = report(given.value, true);
-        if (errors.length) return { text: `No file was saved. ${text}`, isError: true };
-        const doc = given.value as Doc;
+        const found = designAt(env, args, ["design", "link"]);
+        if ("problem" in found) return { text: `No file was saved. ${found.problem}`, isError: true };
+        const doc = found.doc;
+        /* what the app will open but looks unintended is still worth saying beside the file */
+        const { text } = report(doc, true);
         const json = JSON.stringify(doc, null, 2);
         if (Buffer.byteLength(json) > FILE_BYTES_MAX) return { text: "No file was saved: the document is too large. Do not embed image data; point `src` at a picture on the web.", isError: true };
         const place = placeFor(env, args.path, doc);
@@ -251,7 +306,7 @@ export function toolsOf(env: {
         } catch (error) {
           return { text: `No file was saved: ${error instanceof Error ? error.message : String(error)}`, isError: true };
         }
-        const lines = [file, "", "Tell the person where the file is. In M3E Canvas they open it from the projects page with Open from file, or drop it on that page; it joins their projects."];
+        const lines = [file, "", "Give the person this path in full, exactly as it stands above. In M3E Canvas they open the file from the projects page with Open from file, or drop it on that page; it joins their projects."];
         if (text) lines.push("", text);
         return { text: lines.join("\n") };
       },
@@ -272,6 +327,56 @@ export function toolsOf(env: {
         return "problem" in read ? { text: read.problem, isError: true } : { text: JSON.stringify(read.doc) };
       },
     },
+    {
+      name: "get_build_prompt",
+      title: "Get the prompt that builds a design",
+      description:
+        "Returns the build prompt M3E Canvas writes for a design: the target platform, the color scheme, the theme, every screen part by part with its size and place, how the screens lead to one another, and how each kind of part is to be built. Use it when the person wants the app built from a design they made or refined in M3E Canvas, and follow the prompt rather than reading the document yourself: it states what the document only implies. Pass exactly one of `link`, `path` or `design`.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          link: { type: "string", description: 'A M3E Canvas link, from "Copy link" in the app, or just the part after #.' },
+          path: { type: "string", description: "A saved project .json file: the one the app saves, or the one save_design_file wrote. Absolute, starting with ~ for the home folder, or against the current working folder." },
+          design: designSchema.properties.design,
+          screen: { type: "string", description: "Optional. The id or the name of one screen, to get the prompt for that screen alone. Left out, the prompt covers the whole design." },
+          lang: { type: "string", enum: [...PROMPT_LANGS], description: "Optional. The language the prompt is written in: en (the default), ja, zh or ko. The prompt is for you to work from, so leave this out unless the person asks for the prompt itself in one of those languages." },
+        },
+      },
+      readOnly: true,
+      run: (args): ToolResult => {
+        const lang = present(args.lang) ? args.lang : "en";
+        if (!PROMPT_LANGS.includes(lang as PromptLang)) return { text: `\`lang\` must be one of ${PROMPT_LANGS.join(", ")}.`, isError: true };
+        const found = designAt(env, args);
+        if ("problem" in found) return { text: `No prompt was written. ${found.problem}`, isError: true };
+        const doc = found.doc;
+        let screenId: string | undefined;
+        if (present(args.screen)) {
+          const asked = typeof args.screen === "string" ? args.screen.trim() : "";
+          const screens = doc.frame === "phone" ? doc.frames : [];
+          const named = screens.filter((f) => (f.name ?? "").trim().toLowerCase() === asked.toLowerCase());
+          /* an id is exact; a name counts only where one screen alone carries it */
+          const one = screens.find((f) => f.id === asked) ?? (named.length === 1 ? named[0] : undefined);
+          if (!one) {
+            const list = screens.map((f) => `"${f.id}" (${f.name})`).join(", ");
+            const why = named.length > 1 ? "is the name of more than one screen; pass its id" : "is not a screen of this design";
+            return { text: `No prompt was written. ${asked ? `"${asked}"` : "That"} ${why}. ${list ? `The screens are ${list}.` : "The design has no screens."}`, isError: true };
+          }
+          screenId = one.id;
+        }
+        /* the app measures the parts that are as wide as their own text once it has drawn them;
+           with nothing to draw on, their widths are worked out from their words instead */
+        const widths = estimatedWidths(doc.groups);
+        let prompt: string;
+        try {
+          prompt = screenId ? buildPrompt(doc, widths, screenId, lang as PromptLang) : effectivePrompt(doc, widths, lang as PromptLang);
+        } catch (error) {
+          return { text: `No prompt was written: the design could not be described (${error instanceof Error ? error.message : String(error)}).`, isError: true };
+        }
+        const rewritten = !screenId && doc.promptEdit !== undefined;
+        const lead = rewritten ? "The person rewrote this design's prompt by hand in M3E Canvas; it follows as they left it. Build what it describes." : "The prompt M3E Canvas writes for this design follows. Build what it describes.";
+        return { text: [lead, "", prompt].join("\n") };
+      },
+    },
   ];
 }
 
@@ -279,8 +384,9 @@ export function toolsOf(env: {
 export const INSTRUCTIONS = [
   "M3E Canvas is a browser editor for Material 3 Expressive app screens. A design is one JSON document; the person opens it from a link.",
   "To make a design: call get_guide once, write the document, then call create_design_link and reply with the link it returns.",
-  "If the design is large and its link very long, or the person asks for a file, call save_design_file instead and tell them where the file is.",
+  "If the design is large and its link very long, or the person asks for a file, call save_design_file and give them the full path of the file. Where you already have the design's link, pass that as `link` rather than writing the design out again.",
   "To change a design the person already has: ask for its link, call read_design_link, edit the document, and call create_design_link again.",
+  "To build the app a design describes: ask for its link or its saved file, call get_build_prompt, and follow the prompt it returns. Do not work from the raw document: the prompt states the sizes, colors and behavior the document only implies.",
   "create_design_link checks the document itself; do not call check_design first.",
   "Do not write scripts to build or decode links yourself, and do not open a browser: the tools do all of it.",
 ].join("\n");
@@ -289,7 +395,7 @@ export const INSTRUCTIONS = [
  *  build the link by hand; with this server connected that step is one call. */
 export const guideFor = (guide: string) =>
   [
-    "> You are connected to the M3E Canvas MCP server. Where this guide says to save the document to a file and run a script to make the link, call `create_design_link` with the document instead, and reply with the link it returns. It checks the document itself and says what to fix, so do not call `check_design` first. With this server you never run code and never reply with the JSON itself, whatever the guide says about that: always make the link. Call `save_design_file` only when `create_design_link` says its link is very long, or when the person asks for a file, and tell them where the file is; they open it with Open from file on the app's projects page. Use `read_design_link` only to change a design the person already has.",
+    "> You are connected to the M3E Canvas MCP server. Where this guide says to save the document to a file and run a script to make the link, call `create_design_link` with the document instead, and reply with the link it returns. It checks the document itself and says what to fix, so do not call `check_design` first. With this server you never run code and never reply with the JSON itself, whatever the guide says about that: always make the link. Call `save_design_file` only when `create_design_link` says its link is very long (pass it that link as `link`), or when the person asks for a file, and give them the full path of the file; they open it with Open from file on the app's projects page. Use `read_design_link` only to change a design the person already has.",
     "",
     guide,
   ].join("\n");

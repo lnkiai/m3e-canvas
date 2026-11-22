@@ -78,6 +78,7 @@ const TOOLS = [
   ["create_design_link", "add_link", "mcpToolCreate"],
   ["save_design_file", "save", "mcpToolSave"],
   ["read_design_link", "link", "mcpToolRead"],
+  ["get_build_prompt", "deployed_code", "mcpToolPrompt"],
 ] as const;
 
 /** a block of text to copy as it is, with the button that copies it */
@@ -248,6 +249,16 @@ function Guide({ p, lang, onClose }: { p: Palette; lang: Lang; onClose: () => vo
           <h2>{t("mcpEditTitle", lang)}</h2>
         </div>
         <p style={{ color: p.onSurfaceVariant }}>{t("mcpEditBody", lang)}</p>
+      </section>
+
+      <section className="m3e-mcp-card" style={{ background: p.surface }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span aria-hidden style={{ display: "grid", color: p.primary }}>
+            <Icon name="deployed_code" size={24} />
+          </span>
+          <h2>{t("mcpBuildTitle", lang)}</h2>
+        </div>
+        <p style={{ color: p.onSurfaceVariant }}>{t("mcpBuildBody", lang)}</p>
       </section>
 
       <h2 className="m3e-mcp-heading">{t("mcpToolsTitle", lang)}</h2>

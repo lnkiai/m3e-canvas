@@ -2,8 +2,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join, parse } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { buildPrompt } from "../../../lib/prompt";
 import { readShareHash } from "../../../lib/share";
 import type { Doc } from "../../../lib/tokens";
+import { estimatedWidths } from "../../../lib/widths";
 import { PROTOCOL_VERSIONS, answer, answerLine, type ServerInfo } from "./protocol";
 import { APP_URL, INSTRUCTIONS, appUrl, docOf, guideFor, linkOf, toolsOf } from "./tools";
 
@@ -72,7 +74,7 @@ describe("the protocol", () => {
 
   it("lists every tool with a schema a client can show", async () => {
     const reply = (await ask("tools/list")) as { result: { tools: { name: string; inputSchema: { type: string }; annotations: { readOnlyHint: boolean } }[] } };
-    expect(reply.result.tools.map((t) => t.name)).toEqual(["get_guide", "check_design", "create_design_link", "save_design_file", "read_design_link"]);
+    expect(reply.result.tools.map((t) => t.name)).toEqual(["get_guide", "check_design", "create_design_link", "save_design_file", "read_design_link", "get_build_prompt"]);
     for (const tool of reply.result.tools) {
       expect(tool.inputSchema.type).toBe("object");
       /* only the one that writes a file is not marked as merely reading, nor as giving the same result twice */
@@ -179,6 +181,8 @@ describe("the tools", () => {
     const { text, isError } = await call("create_design_link", { design: big });
     expect(isError).toBe(false);
     expect(text).toContain("save_design_file");
+    /* the file is to be made from the link, not from the document written out a second time */
+    expect(text).toContain("with this link as its `link` argument");
     expect((await call("create_design_link", { design: design() })).text).not.toContain("save_design_file");
   });
 
@@ -188,6 +192,24 @@ describe("the tools", () => {
     const file = text.split("\n")[0];
     expect(file).toBe(join(folder, "m3e-canvas Recipes.json"));
     expect(JSON.parse(readFileSync(file, "utf8"))).toEqual(design());
+  });
+
+  it("saves the design a link carries, so a long design is not written out twice", async () => {
+    const link = linkOf(design(), APP_URL);
+    const { text, isError } = await call("save_design_file", { link, path: "from-link.json" });
+    expect(isError).toBe(false);
+    const file = text.split("\n")[0];
+    expect(file).toBe(join(folder, "from-link.json"));
+    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual(JSON.parse(JSON.stringify(design())));
+    expect(text).toContain("Give the person this path in full");
+    /* one or the other, never both and never neither */
+    const both = await call("save_design_file", { link, design: design() });
+    expect(both.isError).toBe(true);
+    expect(both.text).toContain("exactly one of `design` (the document itself) or `link` (a M3E Canvas link)");
+    expect((await call("save_design_file", {})).isError).toBe(true);
+    const cut = await call("save_design_file", { link: link.slice(0, -30) });
+    expect(cut.isError).toBe(true);
+    expect(cut.text).toContain("No file was saved.");
   });
 
   it("never writes over a file that is there", async () => {
@@ -289,6 +311,83 @@ describe("the tools", () => {
     expect(await call("read_design_link", { link: APP_URL })).toMatchObject({ isError: true });
     expect(await call("read_design_link", { link: `${APP_URL}#doc=${encodeURIComponent('{"frames":1}')}` })).toMatchObject({ isError: true });
     expect(await call("read_design_link", {})).toMatchObject({ isError: true });
+  });
+
+  it("writes the prompt the app writes for a design: from its link, its file, or the document", async () => {
+    const prompt = buildPrompt(design(), estimatedWidths(design().groups), undefined, "en");
+    expect(prompt).toContain("Recipes");
+    expect(prompt).toContain("Tomato soup");
+    const fromLink = await call("get_build_prompt", { link: linkOf(design(), APP_URL) });
+    expect(fromLink.isError).toBe(false);
+    expect(fromLink.text).toBe(`The prompt M3E Canvas writes for this design follows. Build what it describes.\n\n${prompt}`);
+    await call("save_design_file", { design: design(), path: "for-prompt.json" });
+    expect((await call("get_build_prompt", { path: "for-prompt.json" })).text).toBe(fromLink.text);
+    expect((await call("get_build_prompt", { path: join(folder, "for-prompt.json") })).text).toBe(fromLink.text);
+    expect((await call("get_build_prompt", { design: design() })).text).toBe(fromLink.text);
+    expect((await call("get_build_prompt", { design: JSON.stringify(design()) })).text).toBe(fromLink.text);
+  });
+
+  it("writes the prompt in the language asked for, and for one screen alone", async () => {
+    const widths = estimatedWidths(design().groups);
+    const ja = await call("get_build_prompt", { design: design(), lang: "ja" });
+    expect(ja.text.endsWith(buildPrompt(design(), widths, undefined, "ja"))).toBe(true);
+    expect(ja.text).not.toContain(buildPrompt(design(), widths, undefined, "en"));
+    const one = await call("get_build_prompt", { design: design(), screen: "detail" });
+    expect(one.text.endsWith(buildPrompt(design(), widths, "detail", "en"))).toBe(true);
+    expect(one.text).not.toContain("Tomato soup");
+    /* a screen may be named as the person names it */
+    expect((await call("get_build_prompt", { design: design(), screen: " recipe " })).text).toBe(one.text);
+    const none = await call("get_build_prompt", { design: design(), screen: "settings" });
+    expect(none.isError).toBe(true);
+    expect(none.text).toContain('The screens are "home" (Home), "detail" (Recipe).');
+    const twins = { ...design(), frames: design().frames.map((f) => ({ ...f, name: "Same" })) };
+    expect((await call("get_build_prompt", { design: twins, screen: "Same" })).text).toContain("more than one screen");
+    const french = await call("get_build_prompt", { design: design(), lang: "fr" });
+    expect(french.isError).toBe(true);
+    expect(french.text).toContain("en, ja, zh, ko");
+  });
+
+  it("hands back the prompt the person rewrote by hand as they left it", async () => {
+    const rewritten = { ...design(), promptEdit: "Build exactly this." };
+    const whole = await call("get_build_prompt", { link: linkOf(rewritten as Doc, APP_URL) });
+    expect(whole.isError).toBe(false);
+    expect(whole.text).toContain("rewrote this design's prompt by hand");
+    expect(whole.text.endsWith("\n\nBuild exactly this.")).toBe(true);
+    /* one screen alone is always written afresh */
+    const one = await call("get_build_prompt", { design: rewritten, screen: "home" });
+    expect(one.text).not.toContain("Build exactly this.");
+    expect(one.text).toContain("Tomato soup");
+  });
+
+  it("writes no prompt without exactly one design to write it for, nor for one the app would refuse", async () => {
+    const nothing = await call("get_build_prompt", {});
+    expect(nothing.isError).toBe(true);
+    expect(nothing.text).toContain("exactly one of `link`");
+    expect((await call("get_build_prompt", { link: linkOf(design(), APP_URL), design: design() })).isError).toBe(true);
+    const broken = await call("get_build_prompt", { design: { ...design(), frames: "none" } });
+    expect(broken.isError).toBe(true);
+    expect(broken.text).toContain("frames");
+    const cut = await call("get_build_prompt", { link: linkOf(design(), APP_URL).slice(0, -30) });
+    expect(cut.isError).toBe(true);
+    expect(cut.text).toContain("No prompt was written.");
+  });
+
+  it("says what is wrong with a file it cannot take a design from", async () => {
+    const missing = await call("get_build_prompt", { path: "not-there.json" });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toContain("could not be read");
+    writeFileSync(join(folder, "notes.json"), '{"hello": 1}');
+    expect((await call("get_build_prompt", { path: "notes.json" })).text).toContain("is not a design the app can open");
+    writeFileSync(join(folder, "torn.json"), '{"title": ');
+    expect((await call("get_build_prompt", { path: "torn.json" })).text).toContain("is not valid JSON");
+    writeFileSync(join(folder, "notes.txt"), "hello");
+    expect((await call("get_build_prompt", { path: "notes.txt" })).text).toContain("A saved design is a .json file");
+    /* a file saved with a byte order mark is still the design it was */
+    writeFileSync(join(folder, "marked.json"), `\uFEFF${JSON.stringify(design())}`);
+    expect((await call("get_build_prompt", { path: "marked.json" })).isError).toBe(false);
+    /* and one in the home folder is reached with ~ */
+    writeFileSync(join(home, "at-home.json"), JSON.stringify(design()));
+    expect((await call("get_build_prompt", { path: "~/at-home.json" })).isError).toBe(false);
   });
 
   it("leaves out of a link what a link should not carry", async () => {

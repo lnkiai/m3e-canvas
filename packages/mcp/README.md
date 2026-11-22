@@ -73,8 +73,15 @@ The agent replies with a link. Open it.
 | `create_design_link` | Checks a design and returns the link that opens it as a new project. |
 | `save_design_file` | Checks a design and saves it as a `.json` file, for a design too large for a link. Never writes over an existing file. |
 | `read_design_link` | Returns the design a link carries, so an existing design can be changed. |
+| `get_build_prompt` | Returns the prompt M3E Canvas writes for a design, from its link or its saved file, so the agent can build the app that was drawn. |
 
 To change a design you already have, press **Copy link** in the app's **Ask an AI** dialog and give the link to the agent.
+
+To have the app built, give the agent the same link and ask for it:
+
+> Build the app in this M3E Canvas design: https://lnkiai.github.io/m3e-canvas/#docz=...
+
+The agent gets the prompt the app itself writes for that design (the screens part by part, the color scheme, the theme, and how the screens connect) and builds from it. The prompt is in English unless you ask for Japanese, Chinese or Korean.
 
 A saved file opens from the projects page: **Open from file**, or drop it on the page.
 
