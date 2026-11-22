@@ -20,6 +20,7 @@ npm run dev        # http://localhost:3000
 npm run typecheck  # tsc --noEmit
 npm test           # Vitest unit tests
 npm run build      # static export into out/
+npm run build:mcp  # the MCP server, into packages/mcp/dist/
 ```
 
 Node 22.12 or newer is required (the test suite needs it); CI uses Node 22. The app is a single Next.js page with no server; everything is stored in the browser.
@@ -36,7 +37,11 @@ Node 22.12 or newer is required (the test suite needs it); CI uses Node 22. The 
 | Prompt text (ja / en / zh / ko) | `lib/prompt.ts` |
 | Color schemes | `lib/color.ts`, `components/ColorPanel.tsx` |
 | Shape / type / motion panels | `components/ThemePanel.tsx` |
-| The editor itself | `app/page.tsx` |
+| The editor itself | `app/Editor.tsx` (`app/page.tsx` picks the project it opens) |
+| Projects: the store, the list page, backups | `lib/projects.ts`, `components/Projects.tsx`, `lib/backup.ts` |
+| What a design file or link must hold | `lib/project.ts`, `lib/check.ts`, `lib/share.ts` |
+| The guide an AI agent reads | `public/agent.md` |
+| MCP server (published to npm as `m3e-canvas`) | `packages/mcp/` |
 
 ### Adding a part
 
@@ -44,9 +49,12 @@ A new kind touches all of these; the existing kinds are the reference:
 
 1. `Kind`, `KIND_SPEC`, `KIND_ORDER` and, if needed, `sizeOf` / `baseRadii` / `iconSlotsOf` in `lib/tokens.ts`
 2. `KIND_TEXT` for all four languages in `lib/i18n.ts`
-3. Rendering in `components/M3Node.tsx` (and `MEASURED` / `NO_BOX` when it applies)
+3. Rendering in `components/M3Node.tsx` (and `MEASURED` / `NO_BOX` when it applies). A kind added to `MEASURED` is as wide as its text: give it a case in `estimatedWidth` in `lib/widths.ts` as well, which is how the MCP server places it without a browser
 4. The item sentence in `itemJa`, `itemEn`, `itemZh`, `itemKo` and a `STYLE_NOTES` entry per language in `lib/prompt.ts`
 5. Any special editor in `components/Inspector.tsx`; tap targets in `components/Preview.tsx` if it is tappable
+6. The kind and its fields in `public/agent.md`, and the checks in `lib/check.ts`, so an agent can write it
+
+The MCP server carries its own copy of the guide, the checks and the prompt, so changes to those reach people's agents only when the server is published again. [RELEASING.md](RELEASING.md) says when and how.
 
 ## Conventions
 
@@ -62,7 +70,7 @@ A new kind touches all of these; the existing kinds are the reference:
 ## Pull requests
 
 - Branch from `main` in your fork.
-- Run `npm run typecheck`, `npm test` and `npm run build`; CI runs the same three on every PR.
+- Run `npm run typecheck`, `npm test` and `npm run build`; CI runs the same on every PR, and builds the MCP server too.
 - Fill in the PR template: what changed, why, and how you checked it. Screenshots
   help for anything visual.
 - By contributing you agree that your changes are licensed under the project's
