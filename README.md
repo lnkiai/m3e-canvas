@@ -73,6 +73,8 @@ M3E Canvas is a free, open-source sketchpad for app screens made of real Materia
 - **Tidy** – one button snaps bars to the edges and the FAB to the corner, joins neighbouring items, and stacks the rest on 16dp margins. Press it again to undo.
 - **AI helper (optional)** – bring your own key for OpenAI, Claude, Gemini or DeepSeek to draft a design from a sentence or write a part's behaviour note and a screen's description. Every rewrite can be undone. The request goes straight from your browser to the provider.
 - **Share links** – copy a link that opens your design on anyone's canvas, or an instruction for Claude Code, Codex or another agent: it reads [agent.md](public/agent.md), sketches what you described, and replies with such a link.
+- **Projects** – keep as many designs as you like. Each is a project in your browser, and a page lists them all: open, rename, duplicate, save as a file or delete one, and add one from a JSON file or a link. A link you open becomes a project of its own instead of replacing your canvas.
+- **MCP** – connect [`m3e-canvas-mcp`](packages/mcp) to Claude Code, Codex or another MCP client, and your agent designs the screens itself and hands back the link that opens them, or a JSON file for a very large design: `claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp` (on Windows, `cmd /c npx …`). It runs on your machine and sends nothing anywhere.
 - **Everything else** – alignment guides and a 4dp grid, undo and redo, keyboard shortcuts, a keyboard-usable parts panel, favorites, install as an app, and autosave in your browser.
 - **On a phone** – one fixed screen and a buttons-only editor with bottom sheets. The full editor is for desktop browsers.
 
