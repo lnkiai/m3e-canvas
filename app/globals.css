@@ -443,6 +443,338 @@ input.m3-number {
   }
 }
 
+/* ---------- projects list ---------- */
+.m3e-projects {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+/* everything here is sized like the editor's parts panel: 40px controls, 12 to 14px type */
+.m3e-proj-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  /* solid behind the controls, then clear: the list fades out as it scrolls under */
+  padding: 10px 0 20px;
+  background: linear-gradient(to bottom, var(--proj-bg) calc(100% - 20px), transparent);
+  /* the clear part must not swallow presses meant for the card under it */
+  pointer-events: none;
+}
+/* slid out above the window, nothing in it can be pressed */
+.m3e-proj-head[data-hidden] .m3e-proj-head-in {
+  pointer-events: none;
+}
+/* the header keeps the list's own margins on either side */
+.m3e-proj-head-in {
+  display: grid;
+  /* the left end takes what it needs; the right end has the rest and keeps to its far side */
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 1264px;
+  margin: 0 auto;
+  padding: 0 40px;
+  pointer-events: auto;
+}
+/* the header's right end, for doing things: finding a project and asking an AI, as one
+   connected pair, then adding a project */
+.m3e-proj-head-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+/* the search field and the AI button, joined: the field is the half that gives */
+.m3e-proj-find {
+  display: flex;
+  flex: 0 1 348px;
+  gap: 3px;
+  min-width: 0;
+}
+/* a text button of the header, a link or a button alike */
+.m3e-proj-link {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px 0 12px;
+  border: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* the header's left end, about the app: its mark, its repository, its language */
+.m3e-proj-head-left {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  /* the mark's own edge, not its box, lines up with the cards */
+  margin-left: -4px;
+}
+.m3e-proj-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding-right: 12px;
+  border-radius: 20px;
+  text-decoration: none;
+}
+.m3e-proj-wordmark {
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.m3e-proj-search {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  height: 40px;
+  padding: 0 14px 0 12px;
+  /* squared off where it meets the AI button */
+  border-radius: 20px 8px 8px 20px;
+}
+/* the field has a button of its own to empty it; the browser's is not drawn */
+.m3e-proj-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+/* the list keeps a margin on either side: about three cards across on a desktop window */
+.m3e-proj-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1264px;
+  /* the first row starts where the header has turned clear, so nothing dims it at rest */
+  margin: 0 auto;
+  /* room at the foot for what floats there */
+  padding: 0 40px 104px;
+}
+.m3e-proj-grid {
+  display: grid;
+  /* about three across on a desktop window, one on a phone */
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: 16px;
+}
+.m3e-proj-card {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  transition: box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.m3e-proj-card:hover,
+.m3e-proj-card:focus-within {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+/* the whole card opens the project; the Open button and the menu sit above this link */
+.m3e-proj-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  outline: none;
+}
+.m3e-proj-open:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--proj-ring);
+}
+/* The picture stands inside the card with one margin above and beside it, the margin the name
+   and the buttons under it keep too. Its corners follow the card's: 24 less the 12 between. */
+.m3e-proj-thumb {
+  position: relative;
+  height: 220px;
+  margin: 12px 12px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.m3e-proj-screens {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  transition: transform 240ms cubic-bezier(0.2, 0, 0, 1);
+}
+.m3e-proj-card:hover .m3e-proj-screens,
+.m3e-proj-card:focus-within .m3e-proj-screens {
+  transform: translateY(-6px);
+}
+/* a picture being read breathes, the way the page's skeleton does */
+.m3e-proj-thumb[data-wait] {
+  animation: m3e-breathe 1.6s ease-in-out infinite;
+}
+/* A card that is not there yet. The cards breathe one after another, so the wait reads as a
+   wave across the list rather than as one block blinking. */
+.m3e-proj-ghost {
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--skel-surface);
+}
+.m3e-proj-ghost .m3e-bone {
+  animation-delay: calc(var(--i, 0) * 110ms);
+}
+/* three icon buttons in one connected run */
+.m3e-proj-trio {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 3px;
+}
+.m3e-proj-trio button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 40px;
+  border: none;
+  cursor: pointer;
+}
+/* where the run of three will stand, and where the repository's link will */
+.m3e-proj-ghost-trio {
+  flex: 0 0 auto;
+  width: 138px;
+  height: 40px;
+  border-radius: 20px;
+}
+.m3e-proj-ghost-find {
+  height: 40px;
+  border-radius: 20px;
+}
+.m3e-proj-ghost-link {
+  flex: 0 0 auto;
+  width: 98px;
+  height: 40px;
+  border-radius: 20px;
+}
+/* nothing to list: the picture, the reason and the way out, in the middle of the page */
+.m3e-proj-blank {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0 48px;
+  text-align: center;
+}
+.m3e-proj-shape {
+  display: block;
+  animation: m3-spin 40s linear infinite;
+}
+/* The FAB sits in a strip with the list's own width and margins, so its right edge lines
+   up with the cards'. The strip itself takes no presses. */
+.m3e-proj-float {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+.m3e-proj-float-in {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 1264px;
+  margin: 0 auto;
+  padding: 0 40px 24px;
+}
+.m3e-proj-fab {
+  position: relative;
+  pointer-events: auto;
+}
+
+@media (max-width: 840px) {
+  /* the search and the AI button take a line of their own, under the mark and the run of three */
+  .m3e-proj-head {
+    padding-top: 6px;
+  }
+  .m3e-proj-head-in {
+    gap: 8px;
+    padding: 0 16px;
+  }
+  .m3e-proj-head-right {
+    display: contents;
+  }
+  .m3e-proj-find {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .m3e-proj-trio {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .m3e-proj-wordmark {
+    display: none;
+  }
+  .m3e-proj-brand {
+    padding-right: 0;
+  }
+  .m3e-proj-main {
+    padding: 0 16px 96px;
+  }
+  .m3e-proj-float-in {
+    padding: 0 16px 16px;
+  }
+  .m3e-proj-grid {
+    gap: 12px;
+  }
+}
+/* not room for the repository's name: its link keeps its mark */
+@media (max-width: 560px) {
+  .m3e-proj-link-label {
+    display: none;
+  }
+  .m3e-proj-link {
+    padding: 0 12px;
+  }
+  .m3e-proj-ghost-link {
+    width: 42px;
+  }
+}
+/* the narrowest phones: the run of three gives up a little of each button */
+@media (max-width: 400px) {
+  .m3e-proj-trio button {
+    width: 36px;
+  }
+  .m3e-proj-ghost-trio {
+    width: 114px;
+  }
+  .m3e-proj-link {
+    padding: 0 10px;
+  }
+  .m3e-proj-head-left {
+    gap: 2px;
+  }
+  .m3e-proj-head-in {
+    gap: 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m3e-proj-card,
+  .m3e-proj-screens {
+    transition: none;
+  }
+  .m3e-proj-thumb[data-wait],
+  .m3e-proj-shape {
+    animation: none;
+  }
+  .m3e-proj-card:hover .m3e-proj-screens,
+  .m3e-proj-card:focus-within .m3e-proj-screens {
+    transform: none;
+  }
+}
+
 /* ---------- the Ask-an-AI dialog ---------- */
 .m3e-ask-idea {
   display: block;
