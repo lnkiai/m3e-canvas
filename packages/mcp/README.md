@@ -1,10 +1,10 @@
-# m3e-canvas-mcp
+# m3e-canvas
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) server for [M3E Canvas](https://lnkiai.github.io/m3e-canvas/), the browser editor for Material 3 Expressive screens.
 
-With it connected, an AI agent can design the screens of an app and hand you a link. Opening the link adds the design to your projects in M3E Canvas, where you refine it and turn it into a prompt for a coding tool.
+With it connected, an AI agent can design the screens of an app and hand you a link. Opening the link adds the design to your projects in M3E Canvas, where you refine it. Give the agent the link of the finished design, and it builds the app from the prompt M3E Canvas writes for it.
 
-The server runs on your machine and talks only to the agent that started it. It sends nothing anywhere and does not drive a browser: the link itself carries the design. The one thing it can write is a design file, when the agent is asked for one.
+The server runs on your machine and talks only to the agent that started it. It sends nothing anywhere and does not drive a browser: the link itself carries the design. The one thing it can write is a design file, when the agent is asked for one, and the one thing it reads is a design file you point it at.
 
 ## Set up
 
@@ -13,7 +13,7 @@ You need Node.js 20 or later.
 **Claude Code**
 
 ```sh
-claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp
+claude mcp add m3e-canvas -- npx -y m3e-canvas
 ```
 
 **Claude Desktop, Cursor and other clients that read `mcpServers`**
@@ -23,7 +23,7 @@ claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp
   "mcpServers": {
     "m3e-canvas": {
       "command": "npx",
-      "args": ["-y", "m3e-canvas-mcp"]
+      "args": ["-y", "m3e-canvas"]
     }
   }
 }
@@ -36,7 +36,7 @@ claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp
   "servers": {
     "m3e-canvas": {
       "command": "npx",
-      "args": ["-y", "m3e-canvas-mcp"]
+      "args": ["-y", "m3e-canvas"]
     }
   }
 }
@@ -47,16 +47,16 @@ claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp
 ```toml
 [mcp_servers.m3e-canvas]
 command = "npx"
-args = ["-y", "m3e-canvas-mcp"]
+args = ["-y", "m3e-canvas"]
 ```
 
 **On Windows**, clients start the command without a shell, so `npx` needs `cmd /c` in front of it:
 
 ```sh
-claude mcp add m3e-canvas -- cmd /c npx -y m3e-canvas-mcp
+claude mcp add m3e-canvas -- cmd /c npx -y m3e-canvas
 ```
 
-In the settings files, that is `"command": "cmd"` with `"args": ["/c", "npx", "-y", "m3e-canvas-mcp"]`.
+In the settings files, that is `"command": "cmd"` with `"args": ["/c", "npx", "-y", "m3e-canvas"]`.
 
 Then ask for a design:
 

@@ -13,9 +13,9 @@ import { Segmented } from "./ui";
 
 /* How to use the app with an agent over MCP, as a sheet that opens over whatever is on screen:
  * what happens in three pictures, then which command or setting each client takes. The server
- * itself is packages/mcp, published as m3e-canvas-mcp; this only says how to start it. */
+ * itself is packages/mcp, published as m3e-canvas; this only says how to start it. */
 
-const PACKAGE = "m3e-canvas-mcp";
+const PACKAGE = "m3e-canvas";
 const EASE = [0.2, 0, 0, 1] as const;
 
 /** where on the window the sheet opens out from, and closes back to: the control that asked for it */

@@ -16,15 +16,15 @@ const VERSION = typeof built.__M3E_VERSION__ === "string" ? built.__M3E_VERSION_
 /* run from the sources, the guide is read from where the app serves it */
 const GUIDE = typeof built.__M3E_GUIDE__ === "string" ? built.__M3E_GUIDE__ : readFileSync(new URL("../../../public/agent.md", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
-const HELP = `m3e-canvas-mcp ${VERSION}
+const HELP = `m3e-canvas ${VERSION}
 
 A Model Context Protocol server for M3E Canvas (https://lnkiai.github.io/m3e-canvas/).
 It is started by an MCP client, which talks to it over stdin and stdout.
 
-  Claude Code    claude mcp add m3e-canvas -- npx -y m3e-canvas-mcp
-  Other clients  command "npx", arguments ["-y", "m3e-canvas-mcp"]
+  Claude Code    claude mcp add m3e-canvas -- npx -y m3e-canvas
+  Other clients  command "npx", arguments ["-y", "m3e-canvas"]
   On Windows     put "cmd /c" in front of npx:
-                 claude mcp add m3e-canvas -- cmd /c npx -y m3e-canvas-mcp
+                 claude mcp add m3e-canvas -- cmd /c npx -y m3e-canvas
 
 Options
   --version   print the version
@@ -46,7 +46,7 @@ if (flag === "--version" || flag === "-v") {
     base = appUrl(process.env.M3E_CANVAS_URL);
   } catch (error) {
     /* a client shows what a server writes to stderr in its log: say why, and do not start */
-    process.stderr.write(`m3e-canvas-mcp: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(`m3e-canvas: ${error instanceof Error ? error.message : String(error)}\n`);
     process.exit(1);
   }
   const server: ServerInfo = {
