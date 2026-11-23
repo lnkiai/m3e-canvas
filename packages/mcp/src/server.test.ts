@@ -426,7 +426,10 @@ describe("the tools", () => {
     expect(read.result.content[0].text).toContain("Tomato soup");
   });
 
-  it("takes nothing from, and writes nothing to, another machine's share", async () => {
+  /* Only Windows reaches another machine through a path. Elsewhere the same text names a file on
+   * this computer (`//server/x` is `/server/x`, and a backslash is a letter like any other), so
+   * there is no share to refuse. */
+  it.runIf(process.platform === "win32")("takes nothing from, and writes nothing to, another machine's share", async () => {
     for (const path of ["\\\\server\\share\\design.json", "//server/share/design.json"]) {
       const read = await call("get_build_prompt", { path });
       expect(read.isError, path).toBe(true);

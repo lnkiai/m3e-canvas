@@ -31,3 +31,17 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+
+  # What the MCP server refuses about a path is partly Windows' own (another machine's share, a
+  # device's name), and those tests only mean something there.
+  windows:
+    name: tests on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
