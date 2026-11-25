@@ -1649,6 +1649,8 @@ export type Item = {
   tabs?: NavTab[];
   /** navigation bars, rails and tab rows: index of the selected destination (0 when unset) */
   selected?: number;
+  /** the selected index only tracks a reordered default; Preview may still follow the destination that opened the screen */
+  selectionImplicit?: boolean;
   /** list items: a switch at the trailing end instead of an icon; `checked` is its state */
   switch?: boolean;
   /** cards: no image area; `src` puts a picture in it */
@@ -2684,36 +2686,51 @@ function remapTabActions(actions: Item["actions"], to: (j: number) => number | u
 
 /** the patch that puts the entries in a new order, carrying each one's tap target with it.
  *  `order` holds the old index of every entry, in the order they are to be read. */
-export function reorderTabsPatch(it: Item, order: number[]): Pick<Item, "tabs" | "selected" | "actions"> {
+export function reorderTabsPatch(it: Item, order: number[]): Pick<Item, "tabs" | "selected" | "selectionImplicit" | "actions"> {
   const cur = it.tabs ?? [];
   const tabs = order.map((j) => ({ ...cur[j] }));
   const to = new Map(order.map((from, at) => [from, at]));
+  // A moved default needs an editor index, but remains implicit in Preview.
+  const implicit = (it.selected === undefined || it.selectionImplicit === true) &&
+    (it.kind === "bottomNav" || it.kind === "navRail" || it.kind === "tabs");
+  const selected = it.selected ?? (implicit ? 0 : undefined);
+  const nextSelected = selected === undefined ? undefined : to.get(selected) ?? selected;
   return {
     tabs,
-    selected: it.selected === undefined ? undefined : to.get(it.selected) ?? it.selected,
+    selected: implicit && nextSelected === 0 ? undefined : nextSelected,
+    selectionImplicit: implicit && nextSelected !== undefined && nextSelected !== 0 ? true : undefined,
     actions: remapTabActions(it.actions, (j) => to.get(j)),
   };
 }
 
-/** the patch that drops entry i: later entries, the selected index and the tap targets move up one; a
- *  dropdown may end with no initial value, a bar or tab row keeps the entry that takes the removed one's place */
-export function removeTabPatch(it: Item, i: number): Pick<Item, "tabs" | "selected" | "actions"> {
+/** the patch that drops entry i: later entries, the selected index and the tap targets move up one.
+ *  Removing the tracked implicitly selected entry clears the saved selection. Removing an explicitly
+ *  selected entry clears a dropdown's initial value; a navigation bar, rail or tab row selects its replacement. */
+export function removeTabPatch(it: Item, i: number): Pick<Item, "tabs" | "selected" | "selectionImplicit" | "actions"> {
   const tabs = (it.tabs ?? []).filter((_, j) => j !== i);
   const sel = it.selected;
   const last = Math.max(0, tabs.length - 1);
   const selected =
-    sel === undefined ? undefined : sel > i ? sel - 1 : sel < i ? sel : it.kind === "select" ? undefined : Math.min(i, last);
-  return { tabs, selected, actions: remapTabActions(it.actions, (j) => (j === i ? undefined : j > i ? j - 1 : j)) };
+    sel === undefined || (it.selectionImplicit === true && sel === i) ? undefined
+      : sel > i ? sel - 1 : sel < i ? sel : it.kind === "select" ? undefined : Math.min(i, last);
+  const implicit = it.selectionImplicit === true && sel !== i;
+  return {
+    tabs,
+    selected: implicit && selected === 0 ? undefined : selected,
+    selectionImplicit: implicit && selected !== undefined && selected !== 0 ? true : undefined,
+    actions: remapTabActions(it.actions, (j) => (j === i ? undefined : j > i ? j - 1 : j)),
+  };
 }
 
 /** the patch that sets the entry count: extra entries come from the defaults, and the tap targets of dropped entries go */
-export function tabCountPatch(it: Item, n: number, defaults: NavTab[]): Pick<Item, "tabs" | "selected" | "actions"> {
+export function tabCountPatch(it: Item, n: number, defaults: NavTab[]): Pick<Item, "tabs" | "selected" | "selectionImplicit" | "actions"> {
   const cur = it.tabs ?? [];
   const tabs: NavTab[] = [];
   for (let i = 0; i < n; i++) tabs.push(cur[i] ? { ...cur[i] } : { ...defaults[i % defaults.length] });
   return {
     tabs,
     selected: it.selected !== undefined && it.selected >= n ? undefined : it.selected,
+    selectionImplicit: it.selected !== undefined && it.selected >= n ? undefined : it.selectionImplicit,
     actions: remapTabActions(it.actions, (j) => (j < n ? j : undefined)),
   };
 }

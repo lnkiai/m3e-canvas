@@ -1,6 +1,6 @@
 import { isValidElement, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PALETTES, PHONE_H, makeItem, sizeOf, type Doc, type Group, type Item, type Kind } from "../lib/tokens";
+import { PALETTES, PHONE_H, makeItem, removeTabPatch, reorderTabsPatch, sizeOf, type Doc, type Group, type Item, type Kind } from "../lib/tokens";
 import { Preview } from "./Preview";
 
 const hooks = vi.hoisted(() => ({
@@ -194,6 +194,43 @@ describe("preview screen modal lifecycle", () => {
     expect(previous.focus).toHaveBeenCalledTimes(status === "connected" ? 1 : 0);
     // an unusable previous target hands the keyboard to the screen itself, never to the body
     expect(host.focus).toHaveBeenCalledTimes(status === "connected" ? 0 : 1);
+  });
+});
+
+describe("preview navigation selection", () => {
+  it.each<Kind>(["bottomNav", "navRail", "tabs"])("follows the opened destination after the tracked %s entry is deleted", (kind) => {
+    hooks.refs = [];
+    hooks.present = true;
+    const element = screenElement();
+    const original: Item = { ...makeItem(kind), id: "nav", tabs: [
+      { icon: "home", label: "Home" }, { icon: "search", label: "Search" }, { icon: "favorite", label: "Saved" }, { icon: "settings", label: "Settings" },
+    ] };
+    const moved = { ...original, ...reorderTabsPatch(original, [1, 2, 3, 0]) };
+    const item = { ...moved, ...removeTabPatch(moved, 3) };
+    const frame = { ...doc.frames[1] };
+    const groups: Group[] = [{ id: "target", x: frame.x, y: frame.y + 140, axis: "x", items: [item] }];
+    const values = { [`nav:${kind}:Search|Saved|Settings:opened:${frame.id}`]: 0 };
+    const tree = renderScreen({ ...element, props: { ...element.props, frame, groups, values } });
+    const rendered = elements(tree).find((node) => node.props.item && (node.props.item as Item).id === item.id)?.props.item as Item;
+    expect(rendered.selected).toBe(0);
+  });
+
+  it("shows the destination that opened a screen after its implicit default moved", () => {
+    hooks.refs = [];
+    hooks.present = true;
+    const element = screenElement();
+    const tabs = [{ icon: "search", label: "Search" }, { icon: "favorite", label: "Saved" }, { icon: "home", label: "Home" }];
+    const item: Item = { ...makeItem("navRail"), id: "nav", tabs, selected: 2, selectionImplicit: true };
+    const frame = { ...doc.frames[1] };
+    const groups: Group[] = [{ id: "target", x: frame.x, y: frame.y + 140, axis: "x", items: [item] }];
+    const navKey = "nav:navRail:Search|Saved|Home";
+    const render = (values: Record<string, number>, patch: Partial<Item> = {}) => {
+      const tree = renderScreen({ ...element, props: { ...element.props, frame, groups: [{ ...groups[0], items: [{ ...item, ...patch }] }], values } });
+      return elements(tree).find((node) => node.props.item && (node.props.item as Item).id === item.id)?.props.item as Item;
+    };
+    expect(render({ [`${navKey}:opened:${frame.id}`]: 0 }).selected).toBe(0);
+    expect(render({ [`${navKey}:opened:${frame.id}`]: 0 }, { selectionImplicit: undefined }).selected).toBe(2);
+    expect(render({ [navKey]: 1, [`${navKey}:opened:${frame.id}`]: 0 }).selected).toBe(1);
   });
 });
 

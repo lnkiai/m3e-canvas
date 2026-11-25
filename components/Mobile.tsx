@@ -127,7 +127,8 @@ export function MobileInspector({
     const defaults = defaultTabsFor(item.kind);
     const next: NavTab[] = [];
     for (let i = 0; i < n; i++) next.push(tabs[i] ? { ...tabs[i] } : { ...defaults[i % defaults.length] });
-    onChange({ tabs: next, selected: item.selected !== undefined && item.selected >= n ? undefined : item.selected });
+    onChange({ tabs: next, selected: item.selected !== undefined && item.selected >= n ? undefined : item.selected,
+      selectionImplicit: item.selected !== undefined && item.selected >= n ? undefined : item.selectionImplicit });
   };
   /* a dropdown's rows are options: no icons, and one of them may be the initial value */
   const isSelect = item.kind === "select";

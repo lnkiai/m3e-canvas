@@ -41,6 +41,7 @@ const validItem = (item: unknown) =>
   VARIANTS.some((variant) => variant.key === item.variant) &&
   (item.supporting === undefined || typeof item.supporting === "string") &&
   (item.selected === undefined || Number.isFinite(item.selected)) &&
+  (item.selectionImplicit === undefined || typeof item.selectionImplicit === "boolean") &&
   (item.note === undefined || typeof item.note === "string") &&
   (item.layout === undefined || (typeof item.layout === "string" && LAYOUTS.has(item.layout))) &&
   optionalNumber(item.count) &&
