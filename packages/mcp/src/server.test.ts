@@ -74,7 +74,7 @@ describe("the protocol", () => {
 
   it("lists every tool with a schema a client can show", async () => {
     const reply = (await ask("tools/list")) as { result: { tools: { name: string; inputSchema: { type: string }; annotations: { readOnlyHint: boolean } }[] } };
-    expect(reply.result.tools.map((t) => t.name)).toEqual(["get_guide", "check_design", "create_design_link", "save_design_file", "read_design_link", "get_build_prompt"]);
+    expect(reply.result.tools.map((t) => t.name)).toEqual(["get_guide", "create_design_link", "save_design_file", "read_design", "get_build_prompt"]);
     for (const tool of reply.result.tools) {
       expect(tool.inputSchema.type).toBe("object");
       /* only the one that writes a file is not marked as merely reading, nor as giving the same result twice */
@@ -168,7 +168,7 @@ describe("the tools", () => {
   it("passes a design read from a link back through without complaint, special targets and all", async () => {
     const made = design() as unknown as { groups: { items: Record<string, unknown>[] }[] };
     made.groups[1].items[0].action = { to: "menu", transition: "none" };
-    const read = JSON.parse((await call("read_design_link", { link: linkOf(made as unknown as Doc, APP_URL) })).text);
+    const read = JSON.parse((await call("read_design", { link: linkOf(made as unknown as Doc, APP_URL) })).text);
     const { text, isError } = await call("create_design_link", { design: read });
     expect(isError).toBe(false);
     expect(text).not.toContain("is not a screen id");
@@ -294,23 +294,42 @@ describe("the tools", () => {
 
   it("reads a design back from its link, from the fragment alone, and from an uncompressed link", async () => {
     const link = linkOf(design(), APP_URL);
-    expect(JSON.parse((await call("read_design_link", { link })).text)).toEqual(design());
+    expect(JSON.parse((await call("read_design", { link })).text)).toEqual(design());
     expect(docOf(link.slice(link.indexOf("#") + 1))).toEqual({ doc: design() });
     expect(docOf(`${APP_URL}#doc=${encodeURIComponent(JSON.stringify(design()))}`)).toEqual({ doc: design() });
   });
 
+  it("reads a design back from its saved file, without the pictures it holds", async () => {
+    const pictured = design();
+    pictured.groups[0].items[0].src = "data:image/png;base64,AAAA";
+    const file = (await call("save_design_file", { design: pictured, path: "pictured.json" })).text.split("\n")[0];
+    const { text, isError } = await call("read_design", { path: file });
+    expect(isError).toBe(false);
+    const [json, , note] = text.split("\n");
+    expect(JSON.parse(json)).toEqual(design());
+    expect(note).toContain("Pictures");
+    expect(await call("read_design", { path: file, link: linkOf(design(), APP_URL) })).toMatchObject({ isError: true });
+  });
+
+  it("still answers to the names of 1.0, which it no longer lists", async () => {
+    const link = linkOf(design(), APP_URL);
+    expect(await call("read_design_link", { link })).toEqual(await call("read_design", { link }));
+    expect(await call("read_design_link", {})).toMatchObject({ isError: true });
+    expect((await call("check_design", { design: design() })).text).toContain("sound");
+  });
+
   it("says what is wrong with a link it cannot read", async () => {
     const link = linkOf(design(), APP_URL);
-    expect(await call("read_design_link", { link: link.slice(0, -30) })).toMatchObject({ isError: true });
+    expect(await call("read_design", { link: link.slice(0, -30) })).toMatchObject({ isError: true });
     /* padding and white space the app lets through, so they read here too */
-    expect(JSON.parse((await call("read_design_link", { link: `${link}== ` })).text)).toEqual(design());
+    expect(JSON.parse((await call("read_design", { link: `${link}== ` })).text)).toEqual(design());
     /* what the app would refuse, this refuses: punctuation picked up with the link */
-    const stray = await call("read_design_link", { link: `${link}).` });
+    const stray = await call("read_design", { link: `${link}).` });
     expect(stray.isError).toBe(true);
     expect(stray.text).toContain("characters");
-    expect(await call("read_design_link", { link: APP_URL })).toMatchObject({ isError: true });
-    expect(await call("read_design_link", { link: `${APP_URL}#doc=${encodeURIComponent('{"frames":1}')}` })).toMatchObject({ isError: true });
-    expect(await call("read_design_link", {})).toMatchObject({ isError: true });
+    expect(await call("read_design", { link: APP_URL })).toMatchObject({ isError: true });
+    expect(await call("read_design", { link: `${APP_URL}#doc=${encodeURIComponent('{"frames":1}')}` })).toMatchObject({ isError: true });
+    expect(await call("read_design", {})).toMatchObject({ isError: true });
   });
 
   it("writes the prompt the app writes for a design: from its link, its file, or the document", async () => {

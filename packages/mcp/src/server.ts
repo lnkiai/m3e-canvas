@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 import { answerLine, type ServerInfo } from "./protocol";
+import { askHere, runSetup, thisMachine } from "./setup";
 import { INSTRUCTIONS, appUrl, guideFor, toolsOf } from "./tools";
 
 /* The server as a program: one JSON-RPC message per line on stdin, one answer per line on
@@ -19,12 +20,13 @@ const GUIDE = typeof built.__M3E_GUIDE__ === "string" ? built.__M3E_GUIDE__ : re
 const HELP = `m3e-canvas ${VERSION}
 
 A Model Context Protocol server for M3E Canvas (https://lnkiai.github.io/m3e-canvas/).
-It is started by an MCP client, which talks to it over stdin and stdout.
 
-  Claude Code    claude mcp add m3e-canvas -- npx -y m3e-canvas
-  Other clients  command "npx", arguments ["-y", "m3e-canvas"]
-  On Windows     put "cmd /c" in front of npx:
-                 claude mcp add m3e-canvas -- cmd /c npx -y m3e-canvas
+  npx -y m3e-canvas@latest setup     set it up in the AI tools on this computer
+  npx -y m3e-canvas@latest remove    take it out of them again
+
+Name tools to set up only those (claude-code, codex, claude-desktop, cursor, vscode),
+and add --yes to be asked nothing. Without a command it is the server itself, which an
+MCP client starts and talks to over stdin and stdout: npx -y m3e-canvas
 
 Options
   --version   print the version
@@ -38,9 +40,20 @@ Environment
 const flag = process.argv[2];
 if (flag === "--version" || flag === "-v") {
   process.stdout.write(`${VERSION}\n`);
-} else if (flag === "--help" || flag === "-h") {
+} else if (flag === "--help" || flag === "-h" || flag === "help") {
   process.stdout.write(HELP);
+} else if (flag === "setup" || flag === "remove") {
+  const asks = process.stdin.isTTY && process.stdout.isTTY;
+  process.exitCode = await runSetup(flag, process.argv.slice(3), thisMachine(process.platform, homedir(), process.env), {
+    say: (line) => process.stdout.write(`${line}\n`),
+    ask: asks ? askHere : undefined,
+  });
+} else if (flag !== undefined && !flag.startsWith("-")) {
+  process.stderr.write(`m3e-canvas: unknown command: ${flag}\n\n${HELP}`);
+  process.exitCode = 1;
 } else {
+  /* a person, not a client: say what this is rather than wait in silence */
+  if (process.stdin.isTTY) process.stderr.write("m3e-canvas: waiting for an MCP client. To set it up in your AI tools, run: npx -y m3e-canvas@latest setup\n");
   let base: string;
   try {
     base = appUrl(process.env.M3E_CANVAS_URL);

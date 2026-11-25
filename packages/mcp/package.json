@@ -1,6 +1,6 @@
 {
   "name": "m3e-canvas",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Model Context Protocol server for M3E Canvas: an AI agent designs Material 3 Expressive app screens and hands back the link that opens them, or builds the app from a design you made.",
   "license": "MIT",
   "author": "lnkiai",

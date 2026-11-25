@@ -12,6 +12,8 @@ export type Tool = {
   /** the tool only reads: a client may run it without asking first. One that is not, here,
    *  only ever adds a new file. */
   readOnly: boolean;
+  /** answers when called but is not listed: a name an earlier version had */
+  retired?: boolean;
   run: (args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
 };
 
@@ -66,7 +68,7 @@ export async function answer(server: ServerInfo, message: unknown): Promise<Repl
       return ok(id, {});
     case "tools/list":
       return ok(id, {
-        tools: server.tools.map((tool) => ({
+        tools: server.tools.filter((tool) => !tool.retired).map((tool) => ({
           name: tool.name,
           title: tool.title,
           description: tool.description,

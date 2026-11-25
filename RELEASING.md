@@ -21,7 +21,7 @@ The server is one bundled file. At build time it takes a copy of the parts of th
 | `lib/prompt.ts`, `lib/tokens.ts`, `lib/i18n.ts` | The prompt `get_build_prompt` returns |
 | `lib/widths.ts` | The widths of text-sized parts, which the prompt's layout is worked out from |
 
-So after changing the guide, the checks, a part's fields or the prompt, publish the server as well. Use a patch version for fixes and wording, a minor one for a new tool or a new field, and a major one only if a tool is removed or renamed or changes what it means.
+So after changing the guide, the checks, a part's fields or the prompt, publish the server as well. Use a patch version for fixes and wording, a minor one for a new tool or a new field, and a major one only if a tool stops answering or changes what it means. A tool that gets a new name keeps answering to the old one (`retired` in `packages/mcp/src/tools.ts`).
 
 Two rules keep old versions working, and old versions stay in use for a long time because `npx` caches what it has downloaded:
 
@@ -44,9 +44,11 @@ Two rules keep old versions working, and old versions stay in use for a long tim
    claude mcp add m3e-canvas -- node /absolute/path/to/packages/mcp/dist/server.mjs
    ```
 
+   Try `node packages/mcp/dist/server.mjs setup` and `remove` in a terminal too: the tests do not cover the typing.
+
    Ask for a design, open the link, then give the link back and ask for the app to be built. Remove it afterwards with `claude mcp remove m3e-canvas`. To have the links open a local copy of the app, set `M3E_CANVAS_URL` (for example `--env M3E_CANVAS_URL=http://127.0.0.1:3000/`).
 
-4. **Publish the server first.** The app's guide tells people to run `npx -y m3e-canvas`, so the package has to be there before the app that mentions it.
+4. **Publish the server first.** The app's guide tells people to run `npx -y m3e-canvas@latest setup`, so a version that has the command must be on npm before the app that mentions it: 1.0.0 does not know `setup`, and would start the server and wait.
 
    ```bash
    cd packages/mcp

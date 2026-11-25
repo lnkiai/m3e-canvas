@@ -1,5 +1,13 @@
 # Changelog
 
+## MCP server 1.1.0
+
+- **One command sets it up**, on every system: `npx -y m3e-canvas@latest setup` finds Claude Code, Codex, Claude Desktop, Cursor and VS Code, shows which settings would change, and registers the server with the ones you pick. `remove` takes it out again.
+- In Claude Code it is now set up for every folder, not only the one the command was run in. The Windows command of 1.0.0, run in Git Bash, registered a path (`C:/`) in place of `/c`; running `setup` takes out such settings, in every folder they were made for.
+- **`read_design`** takes the place of `read_design_link` and reads a saved file as well as a link.
+- `check_design` is no longer listed: `create_design_link` makes the same check. Both old names still answer.
+- The MCP guide in the app (`/mcp/`) is rebuilt around that command, and laid out for phones.
+
 ## 1.0.0
 
 M3E Canvas now keeps many designs instead of one, and an AI agent can use it directly: to draw the screens for you, and to build the app from the screens you drew.
