@@ -63,7 +63,7 @@ Or let your agent do it: with the [MCP server](packages/mcp) connected, ask for 
 
 <img src="docs/readme/ui/feature-ai.png" width="24" height="24" align="absmiddle" alt="" /> **Optional AI help** — Bring your own key to draft a design or write notes for you, or copy an instruction for a coding agent that replies with a share link. Keys never leave your browser.
 
-<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP integration** — Connect the [`m3e-canvas`](packages/mcp) MCP server and your agent designs the screens for you, then builds the app from the screens you finished: `claude mcp add m3e-canvas -- npx -y m3e-canvas`
+<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP integration** — Connect the [`m3e-canvas`](packages/mcp) MCP server and your agent designs the screens for you, then builds the app from the screens you finished: `npx -y m3e-canvas@latest setup`
 
 <details>
 <summary><b>Everything it can do</b></summary>
@@ -80,7 +80,7 @@ Or let your agent do it: with the [MCP server](packages/mcp) connected, ask for 
 - **AI helper (optional)** – bring your own key for OpenAI, Claude, Gemini or DeepSeek to draft a design from a sentence or write a part's behaviour note and a screen's description. Every rewrite can be undone. The request goes straight from your browser to the provider.
 - **Share links** – copy a link that opens your design on anyone's canvas, or an instruction for Claude Code, Codex or another agent: it reads [agent.md](public/agent.md), sketches what you described, and replies with such a link.
 - **Projects** – keep as many designs as you like. Each is a project in your browser, and a page lists them all: open, rename, duplicate, save as a file or delete one, and add one from a JSON file or a link. A link you open becomes a project of its own instead of replacing your canvas. **Export all** writes every project into one file, and opening that file brings the list back in any browser.
-- **MCP** – connect the [`m3e-canvas`](packages/mcp) MCP server to Claude Code, Codex or another MCP client, and your agent designs the screens itself and hands back the link that opens them, or a JSON file for a very large design: `claude mcp add m3e-canvas -- npx -y m3e-canvas` (on Windows, `cmd /c npx …`). Give it the link of a design you finished, and it gets the prompt this app writes and builds the app from it. It runs on your machine and sends nothing anywhere.
+- **MCP** – connect the [`m3e-canvas`](packages/mcp) MCP server to Claude Code, Codex or another MCP client, and your agent designs the screens itself and hands back the link that opens them, or a JSON file for a very large design: `npx -y m3e-canvas@latest setup`. Give it the link of a design you finished, and it gets the prompt this app writes and builds the app from it. It runs on your machine and sends nothing anywhere.
 - **Everything else** – alignment guides and a 4dp grid, undo and redo, keyboard shortcuts, a keyboard-usable parts panel, favorites, install as an app, and autosave in your browser.
 - **On a phone** – one fixed screen and a buttons-only editor with bottom sheets. The full editor is for desktop browsers.
 

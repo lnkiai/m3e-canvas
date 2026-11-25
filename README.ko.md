@@ -63,7 +63,7 @@ M3E Canvas는 진짜 Material 3 Expressive 부품으로 앱 화면을 그리는 
 
 <img src="docs/readme/ui/feature-ai.png" width="24" height="24" align="absmiddle" alt="" /> **선택형 AI 도움** — 자신의 키로 디자인 초안이나 설명을 쓰게 하거나, 코딩 에이전트용 지시를 복사해 공유 링크로 답을 받을 수 있습니다. 키는 브라우저 밖으로 나가지 않습니다.
 
-<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP 연동** — MCP 서버 [`m3e-canvas`](packages/mcp)를 설정하면 에이전트가 화면을 설계해 링크로 돌려주고, 완성한 디자인으로 앱까지 구현합니다. `claude mcp add m3e-canvas -- npx -y m3e-canvas`
+<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP 연동** — MCP 서버 [`m3e-canvas`](packages/mcp)를 설정하면 에이전트가 화면을 설계해 링크로 돌려주고, 완성한 디자인으로 앱까지 구현합니다. `npx -y m3e-canvas@latest setup`
 
 <details>
 <summary><b>할 수 있는 모든 것</b></summary>
@@ -80,7 +80,7 @@ M3E Canvas는 진짜 Material 3 Expressive 부품으로 앱 화면을 그리는 
 - **AI 도우미(선택)** – OpenAI, Claude, Gemini, DeepSeek 키를 넣으면 한 문장으로 디자인 초안을 만들거나 부품의 동작과 화면 설명을 써 줍니다. 고쳐 쓴 내용은 모두 되돌릴 수 있습니다. 요청은 브라우저에서 제공업체로 직접 전송됩니다.
 - **공유 링크** – 디자인을 다른 사람의 캔버스에서 여는 링크를 복사할 수 있습니다. Claude Code, Codex 같은 에이전트용 지시도 복사할 수 있으며, 에이전트가 [agent.md](public/agent.md)를 읽고 스케치를 만들어 그런 링크로 답합니다.
 - **프로젝트** – 디자인을 원하는 만큼 보관할 수 있습니다. 각각 브라우저 안의 프로젝트가 되며, 목록 페이지에서 열기, 이름 바꾸기, 복제, 파일로 저장, 삭제를 할 수 있고 JSON 파일이나 링크에서 추가할 수도 있습니다. 링크를 열면 캔버스를 바꾸지 않고 별도의 프로젝트가 됩니다. "모두 내보내기"는 모든 프로젝트를 하나의 파일에 저장하며, 그 파일을 열면 어느 브라우저에서든 목록이 돌아옵니다.
-- **MCP 연동** – MCP 서버 [`m3e-canvas`](packages/mcp)를 Claude Code, Codex 같은 MCP 클라이언트에 설정하면 에이전트가 직접 화면을 설계하고 이를 여는 링크(큰 설계는 JSON 파일)를 돌려줍니다. `claude mcp add m3e-canvas -- npx -y m3e-canvas`(Windows에서는 `cmd /c npx …`). 완성한 설계의 링크를 주면 이 앱이 작성하는 프롬프트를 받아 앱을 구현합니다. 사용자의 컴퓨터 안에서만 동작하며 어디에도 전송하지 않습니다.
+- **MCP 연동** – MCP 서버 [`m3e-canvas`](packages/mcp)를 Claude Code, Codex 같은 MCP 클라이언트에 설정하면 에이전트가 직접 화면을 설계하고 이를 여는 링크(큰 설계는 JSON 파일)를 돌려줍니다. `npx -y m3e-canvas@latest setup`. 완성한 설계의 링크를 주면 이 앱이 작성하는 프롬프트를 받아 앱을 구현합니다. 사용자의 컴퓨터 안에서만 동작하며 어디에도 전송하지 않습니다.
 - **그 밖에** – 정렬 안내선과 4dp 그리드, 실행 취소/다시 실행, 키보드 단축키, 키보드로 쓸 수 있는 부품 패널, 즐겨찾기, 앱으로 설치, 브라우저 자동 저장.
 - **휴대전화에서는** – 화면 하나가 고정된 버튼 전용 편집기가 되며 하단 시트에서 편집합니다. 전체 기능은 데스크톱 브라우저용입니다.
 

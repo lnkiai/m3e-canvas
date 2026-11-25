@@ -63,7 +63,7 @@ M3E Canvas 是一个免费、开源的应用界面草图工具，用的是真正
 
 <img src="docs/readme/ui/feature-ai.png" width="24" height="24" align="absmiddle" alt="" /> **可选的 AI 辅助**：使用自己的密钥让 AI 起草设计或撰写说明，或者复制给编程代理的指令，让它以分享链接回复。密钥不会离开你的浏览器。
 
-<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP 集成**：接入 MCP 服务器 [`m3e-canvas`](packages/mcp) 后，代理会替你设计界面并以链接回复，还能根据你完成的设计把应用做出来：`claude mcp add m3e-canvas -- npx -y m3e-canvas`
+<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP 集成**：接入 MCP 服务器 [`m3e-canvas`](packages/mcp) 后，代理会替你设计界面并以链接回复，还能根据你完成的设计把应用做出来：`npx -y m3e-canvas@latest setup`
 
 <details>
 <summary><b>全部功能</b></summary>
@@ -80,7 +80,7 @@ M3E Canvas 是一个免费、开源的应用界面草图工具，用的是真正
 - **AI 辅助（可选）** – 填入自己的 OpenAI、Claude、Gemini 或 DeepSeek 密钥，就能用一句话起草设计，或写出组件的行为说明和屏幕说明。每次改写都可以撤销。请求直接从浏览器发送给服务商。
 - **分享链接** – 复制一个能在他人画布上打开你设计的链接；也可以复制给 Claude Code、Codex 等代理的指令，代理会阅读 [agent.md](public/agent.md)、画出你描述的草图，并以这样的链接回复。
 - **项目** – 想保存多少个设计都可以。每个设计都是浏览器里的一个项目，在项目列表页可以打开、重命名、复制、保存为文件或删除，也可以从 JSON 文件或链接添加。打开的链接会成为一个新项目，而不是替换当前画布。“全部导出”会把所有项目写入一个文件，在任何浏览器里打开这个文件都能恢复列表。
-- **MCP 集成** – 把 MCP 服务器 [`m3e-canvas`](packages/mcp) 接入 Claude Code、Codex 等 MCP 客户端后，代理会自己设计界面，并返回打开设计的链接（设计很大时返回 JSON 文件）：`claude mcp add m3e-canvas -- npx -y m3e-canvas`（在 Windows 上使用 `cmd /c npx …`）。把完成的设计的链接交给它，它会取得本应用所写的提示词并据此构建应用。它只在你的电脑上运行，不会向任何地方发送数据。
+- **MCP 集成** – 把 MCP 服务器 [`m3e-canvas`](packages/mcp) 接入 Claude Code、Codex 等 MCP 客户端后，代理会自己设计界面，并返回打开设计的链接（设计很大时返回 JSON 文件）：`npx -y m3e-canvas@latest setup`。把完成的设计的链接交给它，它会取得本应用所写的提示词并据此构建应用。它只在你的电脑上运行，不会向任何地方发送数据。
 - **其他** – 对齐辅助线和 4dp 网格、撤销与重做、键盘快捷键、可用键盘操作的组件面板、收藏、安装为应用，以及自动保存在浏览器中。
 - **在手机上** – 一个固定屏幕、只有按钮的编辑器，在底部面板中编辑。完整功能请在电脑浏览器中使用。
 

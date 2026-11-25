@@ -63,7 +63,7 @@ M3E Canvas は、本物の Material 3 Expressive の部品でアプリの画面�
 
 <img src="docs/readme/ui/feature-ai.png" width="24" height="24" align="absmiddle" alt="" /> **AI の手助け（任意）**：自分のキーでデザインの下書きや説明文を書かせたり、コーディングエージェント向けの指示をコピーして共有リンクで返してもらったりできます。キーはブラウザの外に出ません。
 
-<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP 連携**：MCP サーバー [`m3e-canvas`](packages/mcp) を設定すると、エージェントが画面を設計してリンクで返し、仕上げたデザインからアプリも実装します。`claude mcp add m3e-canvas -- npx -y m3e-canvas`
+<img src="docs/readme/ui/feature-mcp.png" width="24" height="24" align="absmiddle" alt="" /> **MCP 連携**：MCP サーバー [`m3e-canvas`](packages/mcp) を設定すると、エージェントが画面を設計してリンクで返し、仕上げたデザインからアプリも実装します。`npx -y m3e-canvas@latest setup`
 
 <details>
 <summary><b>できることの一覧</b></summary>
@@ -80,7 +80,7 @@ M3E Canvas は、本物の Material 3 Expressive の部品でアプリの画面�
 - **AI 補助（任意）** – OpenAI、Claude、Gemini、DeepSeek の自分のキーを入れると、ひと言からデザインを下書きしたり、部品の動作や画面の説明を書いたりしてくれます。書き換えはすべて元に戻せます。リクエストはブラウザからプロバイダへ直接送られます。
 - **共有リンク** – デザインを相手のキャンバスで開けるリンクをコピーできます。Claude Code や Codex などのエージェント向けの指示もコピーでき、エージェントは [agent.md](public/agent.md) を読んでスケッチを作り、そのリンクで返してきます。
 - **プロジェクト** – デザインはいくつでも保存できます。それぞれがブラウザ内のプロジェクトになり、一覧ページで開く、名前の変更、複製、ファイルへの保存、削除ができます。JSON ファイルやリンクから追加することもできます。開いたリンクはキャンバスを置き換えず、別のプロジェクトになります。「すべて書き出す」で全プロジェクトを 1 つのファイルに保存でき、そのファイルを開けば別のブラウザでも一覧が戻ります。
-- **MCP 連携** – MCP サーバー [`m3e-canvas`](packages/mcp) を Claude Code や Codex などの MCP クライアントに設定すると、エージェントが自分で画面を設計し、それを開くリンク（大きな設計なら JSON ファイル）を返します。`claude mcp add m3e-canvas -- npx -y m3e-canvas`（Windows では `cmd /c npx …`）。仕上げた設計のリンクを渡せば、このアプリが書くプロンプトを受け取ってアプリを実装します。お使いのパソコンの中だけで動き、どこにも送信しません。
+- **MCP 連携** – MCP サーバー [`m3e-canvas`](packages/mcp) を Claude Code や Codex などの MCP クライアントに設定すると、エージェントが自分で画面を設計し、それを開くリンク（大きな設計なら JSON ファイル）を返します。`npx -y m3e-canvas@latest setup`。仕上げた設計のリンクを渡せば、このアプリが書くプロンプトを受け取ってアプリを実装します。お使いのパソコンの中だけで動き、どこにも送信しません。
 - **そのほか** – 補助線と 4dp グリッド、Undo / Redo、キーボードショートカット、キーボードで使える部品パネル、お気に入り、アプリとしてインストール、ブラウザへの自動保存。
 - **スマホでは** – 1 画面固定のボタン専用エディタになり、ボトムシートで編集します。フル機能は PC のブラウザ向けです。
 
