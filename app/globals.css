@@ -930,12 +930,12 @@ input.m3-number {
   font-weight: 600;
   cursor: pointer;
 }
-/* the head of the sheet: what it is about, with the character beside it */
+/* the head of the sheet: what it is about and the command, with the character beside them */
 .m3e-mcp-hero {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 36px 40px;
+  gap: 32px;
+  padding: 40px;
   border-radius: 32px;
   overflow: hidden;
 }
@@ -955,28 +955,129 @@ input.m3-number {
 }
 .m3e-mcp-lead {
   margin: 0;
-  max-width: 520px;
+  max-width: 560px;
   font-size: 15px;
   line-height: 1.75;
   text-wrap: pretty;
 }
-.m3e-mcp-hero button {
+.m3e-mcp-hint {
+  margin: 0 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+/* a sentence goes to the next line whole */
+.m3e-mcp-hint span {
+  display: inline-block;
+}
+.m3e-mcp-hero-bot {
+  flex: 0 0 auto;
+  margin: -12px 8px -12px 0;
+}
+/* something to copy: the whole of it is the button */
+.m3e-mcp-copy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 8px 8px 24px;
+  border: none;
+  border-radius: 32px;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.m3e-mcp-copy.is-command {
+  max-width: 560px;
+  margin-top: 8px;
+}
+/* a long bar shrinks less when pressed than a small button does */
+.m3e-mcp-copy.m3-press:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.m3e-mcp-copy code,
+.m3e-mcp-copy-words {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.6;
+}
+.m3e-mcp-copy code {
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 15px;
+  text-wrap: balance;
+}
+.m3e-mcp-copy-words {
+  font-size: 14px;
+  text-wrap: pretty;
+}
+.m3e-mcp-copy-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  height: 44px;
-  margin-top: 6px;
-  padding: 0 18px 0 22px;
+  flex: 0 0 auto;
+  height: 48px;
+  padding: 0 20px 0 16px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.m3e-mcp-copy:focus-visible,
+.m3e-mcp-send:focus-visible,
+.m3e-mcp-fold summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+/* sending the page to a computer is of use only on a device that has no terminal */
+.m3e-mcp-send {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 20px 0 16px;
   border: none;
-  border-radius: 22px;
+  border-radius: 24px;
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
-.m3e-mcp-hero-bot {
+@media (hover: none) and (pointer: coarse) {
+  .m3e-mcp-send {
+    display: inline-flex;
+  }
+}
+/* what follows the command, three to a row */
+.m3e-mcp-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.m3e-mcp-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.m3e-mcp-steps li > span {
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
-  margin: -12px 8px -12px 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 700;
 }
 .m3e-mcp-heading {
   margin: 20px 4px 2px;
@@ -984,148 +1085,196 @@ input.m3-number {
   font-weight: 700;
   line-height: 1.4;
 }
-/* three pictures in a row, an arrow between each pair */
-.m3e-mcp-scenes {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: stretch;
-  gap: 6px;
-}
-.m3e-mcp-arrow {
-  display: grid;
-  place-items: center;
-}
-.m3e-mcp-scene {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 12px 18px;
-  border-radius: 24px;
-}
-.m3e-mcp-scene h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-.m3e-mcp-scene p {
-  margin: 0 4px;
-  font-size: 13px;
-  line-height: 1.65;
-  text-wrap: pretty;
-}
-.m3e-mcp-scene > div:nth-child(2) {
-  margin: 4px 4px 0;
-}
-/* where a scene's picture stands */
-.m3e-mcp-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  height: 196px;
-  padding: 14px;
-  border-radius: 14px;
-  overflow: hidden;
-}
-/* what the person says, as a message sent */
-.m3e-mcp-bubble {
-  align-self: flex-end;
-  max-width: 92%;
-  padding: 12px 16px;
-  border-radius: 20px 20px 6px 20px;
-  font-size: 13.5px;
-  font-weight: 500;
-  line-height: 1.6;
-}
-.m3e-mcp-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-.m3e-mcp-chips code,
-.m3e-mcp-linkchip {
-  padding: 4px 10px;
-  border-radius: 10px;
-  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.m3e-mcp-linkchip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  overflow: hidden;
-}
 .m3e-mcp-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   padding: 20px;
-  border-radius: 24px;
-  scroll-margin-top: 16px;
+  border-radius: 28px;
 }
-.m3e-mcp-card h2 {
+.m3e-mcp-use {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: stretch;
+  gap: 24px;
+}
+.m3e-mcp-use-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+.m3e-mcp-use-text h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 1.4;
+  text-wrap: balance;
 }
-.m3e-mcp-card p {
+.m3e-mcp-use-text > p {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
   text-wrap: pretty;
 }
-/* a snippet and its copy button: the button keeps its corner while a long line scrolls under it */
-.m3e-mcp-code {
-  position: relative;
-  border-radius: 16px;
+.m3e-mcp-use-text .m3e-mcp-copy {
+  margin-top: 6px;
 }
-.m3e-mcp-code pre {
-  margin: 0;
-  padding: 16px 16px 16px 18px;
-  overflow-x: auto;
-  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre;
-  /* room for the button on the first line */
-  padding-right: 124px;
+/* where a picture stands */
+.m3e-mcp-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 220px;
+  padding: 14px;
+  border-radius: 20px;
+  overflow: hidden;
 }
-.m3e-mcp-code button {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+.m3e-mcp-in {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+/* what the person says, as a message sent */
+.m3e-mcp-bubble {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 52px;
+  border-radius: 24px 24px 6px 24px;
+}
+.m3e-mcp-app {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+}
+.m3e-mcp-linkchip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px 0 10px;
-  border: none;
-  border-radius: 18px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
   white-space: nowrap;
+}
+/* what is folded away: one run of rows */
+.m3e-mcp-folds {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 12px;
+}
+.m3e-mcp-fold {
+  border-radius: 8px;
+}
+.m3e-mcp-fold:first-child {
+  border-start-start-radius: 24px;
+  border-start-end-radius: 24px;
+}
+.m3e-mcp-fold:last-child {
+  border-end-start-radius: 24px;
+  border-end-end-radius: 24px;
+}
+.m3e-mcp-fold summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 12px 20px;
+  border-radius: inherit;
+  list-style: none;
   cursor: pointer;
-  transition: background 160ms, color 160ms;
+  user-select: none;
+}
+.m3e-mcp-fold summary::-webkit-details-marker {
+  display: none;
+}
+.m3e-mcp-fold h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.m3e-mcp-fold-mark {
+  display: grid;
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.m3e-mcp-fold[open] .m3e-mcp-fold-mark {
+  transform: rotate(180deg);
+}
+.m3e-mcp-fold-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+.m3e-mcp-fold-body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+/* settings by hand: the name and the copy button over the snippet */
+.m3e-mcp-codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.m3e-mcp-code {
+  min-width: 0;
+  padding: 12px 12px 16px 16px;
+  border-radius: 20px;
+}
+.m3e-mcp-code-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.m3e-mcp-code h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.m3e-mcp-code .m3e-mcp-code-head p {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.m3e-mcp-code button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 24px;
+  cursor: pointer;
+}
+.m3e-mcp-code pre {
+  margin: 8px 0 0;
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 /* the tools, two to a row */
 .m3e-mcp-tools {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px 24px;
 }
 .m3e-mcp-tools > div {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px;
-  border-radius: 20px;
 }
 .m3e-mcp-tools code {
   font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
@@ -1136,6 +1285,11 @@ input.m3-number {
   margin: 2px 0 0;
   font-size: 13px;
   line-height: 1.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m3e-mcp-fold-mark {
+    transition: none;
+  }
 }
 @media (max-width: 840px) {
   .m3e-mcp-main {
@@ -1149,40 +1303,115 @@ input.m3-number {
   }
   .m3e-mcp-hero {
     flex-direction: column-reverse;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 4px;
-    padding: 20px 24px 28px;
+    padding: 16px 20px 24px;
+    border-radius: 28px;
+  }
+  .m3e-mcp-hero-text {
+    align-items: stretch;
   }
   .m3e-mcp-hero h1 {
-    font-size: 26px;
+    font-size: 28px;
+    text-align: center;
+  }
+  .m3e-mcp-lead,
+  .m3e-mcp-hint {
+    max-width: none;
+    text-align: center;
+    text-wrap: balance;
   }
   .m3e-mcp-hero-bot {
     align-self: center;
-    margin: -8px 0;
+    margin: 0;
   }
-  /* the pictures one under another, the arrows pointing down */
-  .m3e-mcp-scenes {
+  .m3e-mcp-hero-bot svg {
+    width: 128px;
+    height: 128px;
+  }
+  .m3e-mcp-copy.is-command {
+    max-width: none;
+  }
+  .m3e-mcp-use {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
-  .m3e-mcp-arrow {
-    transform: rotate(90deg);
-    height: 28px;
+  .m3e-mcp-stage {
+    min-height: 168px;
   }
+  .m3e-mcp-codes,
   .m3e-mcp-tools {
     grid-template-columns: 1fr;
   }
-  /* no room beside a snippet for its button: the button stands under it */
-  .m3e-mcp-code {
-    display: flex;
+}
+@media (max-width: 600px) {
+  /* no room beside the words: the button stands under them, as wide as they are */
+  .m3e-mcp-copy {
     flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 16px 10px 10px;
+    border-radius: 28px;
   }
-  .m3e-mcp-code pre {
-    padding-right: 16px;
-    padding-bottom: 8px;
+  .m3e-mcp-copy code {
+    font-size: 14px;
+    text-align: center;
   }
-  .m3e-mcp-code button {
-    position: static;
-    align-self: flex-end;
-    margin: 0 8px 8px 0;
+  .m3e-mcp-copy-words {
+    padding: 0 8px;
+  }
+  .m3e-mcp-steps {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+  .m3e-mcp-steps li {
+    border-radius: 8px;
+  }
+  .m3e-mcp-steps li:first-child {
+    border-start-start-radius: 20px;
+    border-start-end-radius: 20px;
+  }
+  .m3e-mcp-steps li:last-child {
+    border-end-start-radius: 20px;
+    border-end-end-radius: 20px;
+  }
+  .m3e-mcp-card {
+    padding: 16px;
+  }
+  .m3e-mcp-stage {
+    gap: 6px;
+    padding: 12px 8px;
+  }
+  .m3e-mcp-stage > svg {
+    width: 68px;
+    height: 68px;
+  }
+  .m3e-mcp-fold summary {
+    padding: 12px 16px;
+  }
+  .m3e-mcp-fold-body {
+    padding: 0 16px 16px;
+  }
+}
+@media (max-width: 360px) {
+  .m3e-mcp-card {
+    padding: 12px;
+  }
+  .m3e-mcp-card [role="radio"] {
+    padding: 0 4px !important;
+  }
+  .m3e-mcp-stage {
+    gap: 2px;
+  }
+  .m3e-mcp-stage > svg {
+    width: 56px;
+    height: 56px;
+  }
+  .m3e-mcp-linkchip {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+  .m3e-mcp-more {
+    display: none;
   }
 }

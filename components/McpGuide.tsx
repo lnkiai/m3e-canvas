@@ -12,10 +12,13 @@ import { Icon } from "./M3Node";
 import { Segmented } from "./ui";
 
 /* How to use the app with an agent over MCP, as a sheet that opens over whatever is on screen:
- * what happens in three pictures, then which command or setting each client takes. The server
- * itself is packages/mcp, published as m3e-canvas; this only says how to start it. */
+ * the one command that sets it up, what to ask for, and the rest folded away. The server itself
+ * is packages/mcp, published as m3e-canvas; `setup` and `remove` are commands of it. */
 
 const PACKAGE = "m3e-canvas";
+const SETUP = `npx -y ${PACKAGE}@latest setup`;
+const REMOVE = `npx -y ${PACKAGE}@latest remove`;
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const EASE = [0.2, 0, 0, 1] as const;
 
 /** where on the window the sheet opens out from, and closes back to: the control that asked for it */
@@ -25,64 +28,40 @@ export const originOf = (el: Element): SheetOrigin => {
   return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
 };
 
-type Client = "claude" | "desktop" | "vscode" | "codex";
+type Use = "make" | "edit" | "build";
 type System = "unix" | "windows";
 
-/** How a client starts the server. Clients run the command without a shell, and on Windows
- *  `npx` is a script only a shell can run, so there it goes through `cmd /c`. */
-const startOf = (system: System) => (system === "windows" ? { command: "cmd", args: ["/c", "npx", "-y", PACKAGE] } : { command: "npx", args: ["-y", PACKAGE] });
-const quoted = (args: string[]) => `[${args.map((a) => `"${a}"`).join(", ")}]`;
+/** How a client that keeps a settings file starts the server. Older ones run the command without
+ *  a shell, and on Windows `npx` is a script only a shell can run. */
+const settings = (field: "mcpServers" | "servers", system: System) =>
+  JSON.stringify({ [field]: { [PACKAGE]: system === "windows" ? { command: "cmd", args: ["/c", "npx", "-y", PACKAGE] } : { command: "npx", args: ["-y", PACKAGE] } } }, null, 2)
+    /* the arguments on one line, as anyone would write them */
+    .replace(/\[\s+([^\]]*?)\s+\]/g, (_, args: string) => `[${args.replace(/\s*\n\s*/g, " ")}]`);
 
-/** each client: its name, where the snippet goes (a file, or nothing for a terminal), and the snippet */
-const CLIENTS: { key: Client; label: string; file: string | null; code: (system: System) => string }[] = [
-  { key: "claude", label: "Claude Code", file: null, code: (system) => `claude mcp add m3e-canvas -- ${[startOf(system).command, ...startOf(system).args].join(" ")}` },
-  {
-    key: "desktop",
-    label: "Claude Desktop / Cursor",
-    file: "mcpServers",
-    code: (system) => `{
-  "mcpServers": {
-    "m3e-canvas": {
-      "command": "${startOf(system).command}",
-      "args": ${quoted(startOf(system).args)}
-    }
-  }
-}`,
-  },
-  {
-    key: "vscode",
-    label: "VS Code",
-    file: ".vscode/mcp.json",
-    code: (system) => `{
-  "servers": {
-    "m3e-canvas": {
-      "command": "${startOf(system).command}",
-      "args": ${quoted(startOf(system).args)}
-    }
-  }
-}`,
-  },
-  {
-    key: "codex",
-    label: "Codex",
-    file: "~/.codex/config.toml",
-    code: (system) => `[mcp_servers.m3e-canvas]
-command = "${startOf(system).command}"
-args = ${quoted(startOf(system).args)}`,
-  },
+/** setting it up by hand: each client, the file the snippet goes into or nothing for a terminal, and the snippet */
+const CLIENTS: { label: string; file: string | null; code: (system: System) => string }[] = [
+  { label: "Claude Code", file: null, code: () => `claude mcp add --scope user ${PACKAGE} -- npx -y ${PACKAGE}` },
+  { label: "Codex", file: null, code: () => `codex mcp add ${PACKAGE} -- npx -y ${PACKAGE}` },
+  { label: "VS Code", file: ".vscode/mcp.json", code: (system) => settings("servers", system) },
+  { label: "Claude Desktop / Cursor", file: "mcpServers", code: (system) => settings("mcpServers", system) },
 ];
 
 const TOOLS = [
   ["get_guide", "menu_book", "mcpToolGuide"],
-  ["check_design", "fact_check", "mcpToolCheck"],
   ["create_design_link", "add_link", "mcpToolCreate"],
   ["save_design_file", "save", "mcpToolSave"],
-  ["read_design_link", "link", "mcpToolRead"],
+  ["read_design", "draft", "mcpToolRead"],
   ["get_build_prompt", "deployed_code", "mcpToolPrompt"],
 ] as const;
 
-/** a block of text to copy as it is, with the button that copies it */
-function Code({ p, lang, text, onCopied }: { p: Palette; lang: Lang; text: string; onCopied: () => void }) {
+const USES = {
+  make: { tab: "mcpMakeTab", title: "mcpMakeTitle", body: "mcpMakeBody", example: "mcpExample" },
+  edit: { tab: "mcpEditTab", title: "mcpEditTitle", body: "mcpEditBody", example: "mcpEditExample" },
+  build: { tab: "mcpBuildTab", title: "mcpBuildTitle", body: "mcpBuildBody", example: "mcpBuildExample" },
+} as const;
+
+/** copies on request, and says for a moment that it has */
+function useCopy(text: string, onCopied: () => void) {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
@@ -96,40 +75,82 @@ function Code({ p, lang, text, onCopied }: { p: Palette; lang: Lang; text: strin
       onCopied();
     } catch {}
   };
+  return [copied, copy] as const;
+}
+
+/** code that breaks only where it has a space, never at a hyphen, when it does not fit on one line */
+function Words({ text }: { text: string }) {
+  return text.split(/(\s+)/).map((word, i) => (i % 2 ? word : <span key={i} style={{ whiteSpace: "nowrap" }}>{word}</span>));
+}
+
+/** Something to copy with one press anywhere on it: a command, or words to say to an agent. Words
+ *  that a link is pasted after are copied with the space that goes between. */
+function CopyBar({ p, lang, text, kind, link, onCopied }: { p: Palette; lang: Lang; text: string; kind: "command" | "words"; link?: boolean; onCopied: () => void }) {
+  const [copied, copy] = useCopy(link ? `${text} ` : text, onCopied);
   return (
-    <div className="m3e-mcp-code" style={{ background: p.surfaceContainerHighest, color: p.onSurface }}>
-      <pre>{text}</pre>
-      <button onClick={copy} className="m3-press" title={t("copy", lang)} style={{ background: copied ? p.primary : p.secondaryContainer, color: copied ? p.onPrimary : p.onSecondaryContainer }}>
-        <Icon name={copied ? "check" : "content_copy"} size={18} />
+    <button onClick={copy} className={`m3e-mcp-copy is-${kind} m3-press`} style={{ background: kind === "command" ? p.surface : p.surfaceContainerHigh, color: p.onSurface }}>
+      {kind === "command" ? (
+        <code>
+          <Words text={text} />
+        </code>
+      ) : (
+        <span className="m3e-mcp-copy-words">{text}</span>
+      )}
+      <span className="m3e-mcp-copy-pill" style={{ background: p.primary, color: p.onPrimary }}>
+        <Icon name={copied ? "check" : "content_copy"} size={20} />
         <span aria-live="polite">{copied ? t("copied", lang) : t("copy", lang)}</span>
-      </button>
+      </span>
+    </button>
+  );
+}
+
+/** a block of settings to copy as it is, under the name of what it is for */
+function Code({ p, lang, title, note, text, onCopied }: { p: Palette; lang: Lang; title: string; note: string; text: string; onCopied: () => void }) {
+  const [copied, copy] = useCopy(text, onCopied);
+  return (
+    <div className="m3e-mcp-code" style={{ background: p.surfaceContainer }}>
+      <div className="m3e-mcp-code-head">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3>{title}</h3>
+          <p style={{ color: p.onSurfaceVariant }}>{note}</p>
+        </div>
+        <button onClick={copy} className="m3-press" title={t("copy", lang)} aria-label={`${t("copy", lang)}: ${title}`} style={{ background: copied ? p.primary : p.secondaryContainer, color: copied ? p.onPrimary : p.onSecondaryContainer }}>
+          <Icon name={copied ? "check" : "content_copy"} size={20} />
+        </button>
+      </div>
+      <pre>
+        <Words text={text} />
+      </pre>
     </div>
   );
 }
 
-/** One moment of the story: a picture of it, its number, and a line or two under it. */
-function Scene({ p, n, title, body, children }: { p: Palette; n: number; title: string; body: string; children: ReactNode }) {
+/** what is not needed to begin, shut until it is asked for */
+function Fold({ p, icon, title, children }: { p: Palette; icon: string; title: string; children: ReactNode }) {
   return (
-    <div className="m3e-mcp-scene" style={{ background: p.surface }}>
-      <div className="m3e-mcp-stage" style={{ background: p.surfaceContainerLow }} aria-hidden>
+    <details className="m3e-mcp-fold" style={{ background: p.surface }}>
+      <summary>
+        <span aria-hidden style={{ display: "grid", color: p.primary }}>
+          <Icon name={icon} size={24} />
+        </span>
+        <h2>{title}</h2>
+        <span className="m3e-mcp-fold-mark" aria-hidden style={{ color: p.onSurfaceVariant }}>
+          <Icon name="keyboard_arrow_down" size={24} />
+        </span>
+      </summary>
+      <div className="m3e-mcp-fold-body" style={{ color: p.onSurfaceVariant }}>
         {children}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span aria-hidden style={{ width: 26, height: 26, flex: "0 0 auto", display: "grid", placeItems: "center", borderRadius: 13, background: p.primary, color: p.onPrimary, fontSize: 13, fontWeight: 700 }}>
-          {n}
-        </span>
-        <h3>{title}</h3>
-      </div>
-      <p style={{ color: p.onSurfaceVariant }}>{body}</p>
-    </div>
+    </details>
   );
 }
 
 /** a small phone screen, drawn from a few bars: what a design looks like from far off */
-function MiniScreen({ p, tint, lines }: { p: Palette; tint: string; lines: number }) {
+function MiniScreen({ p, tint, lines, search }: { p: Palette; tint: string; lines: number; search?: boolean }) {
   return (
     <span style={{ width: 54, height: 96, flex: "0 0 auto", display: "flex", flexDirection: "column", gap: 5, padding: "7px 6px", borderRadius: 12, background: p.surface, boxShadow: `inset 0 0 0 2.5px ${p.inverseSurface}` }}>
       <span style={{ height: 9, borderRadius: 3, background: tint }} />
+      {search && <span style={{ height: 11, borderRadius: 6, background: p.tertiaryContainer, boxShadow: `0 0 0 1.5px ${p.primary}` }} />}
       {Array.from({ length: lines }, (_, i) => (
         <span key={i} style={{ height: 11, borderRadius: 5, background: p.surfaceContainerHighest }} />
       ))}
@@ -139,39 +160,109 @@ function MiniScreen({ p, tint, lines }: { p: Palette; tint: string; lines: numbe
   );
 }
 
+/** what goes in, the character at work on it, and what comes out */
+function Picture({ p, use }: { p: Palette; use: Use }) {
+  const arrow = (
+    <span style={{ display: "grid", color: p.outline }}>
+      <Icon name="arrow_forward" size={22} />
+    </span>
+  );
+  const link = (
+    <span className="m3e-mcp-linkchip" style={{ background: p.surface, color: p.primary }}>
+      <Icon name="link" size={16} />
+      #docz=…
+    </span>
+  );
+  return (
+    <div className="m3e-mcp-stage" style={{ background: p.surfaceContainer }} aria-hidden>
+      {use === "make" ? (
+        <span className="m3e-mcp-bubble" style={{ background: p.primary, color: p.onPrimary }}>
+          <Icon name="chat_bubble" size={22} fill />
+        </span>
+      ) : (
+        <span className="m3e-mcp-in">
+          <MiniScreen p={p} tint={p.primary} lines={3} />
+          {link}
+        </span>
+      )}
+      {arrow}
+      <Bot p={p} size={84} mood="thinking" />
+      {arrow}
+      {use === "build" ? (
+        <span className="m3e-mcp-app" style={{ background: p.primary, color: p.onPrimary }}>
+          <Icon name="android" size={36} />
+        </span>
+      ) : (
+        <span className="m3e-mcp-in">
+          <span style={{ display: "flex", gap: 6 }}>
+            <MiniScreen p={p} tint={p.primary} lines={use === "edit" ? 2 : 3} search={use === "edit"} />
+            {use === "make" && (
+              <span className="m3e-mcp-more">
+                <MiniScreen p={p} tint={p.tertiaryContainer} lines={2} />
+              </span>
+            )}
+          </span>
+          {link}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** what the sheet says, once it is open */
 function Guide({ p, lang, onClose }: { p: Palette; lang: Lang; onClose: () => void }) {
-  const [client, setClient] = useState<Client>("claude");
-  /* the snippets start out for the computer the guide is read on */
-  const [system, setSystem] = useState<System>(() => (typeof navigator !== "undefined" && /Windows/.test(navigator.userAgent) ? "windows" : "unix"));
+  const [use, setUse] = useState<Use>("make");
+  /* the settings are written for the computer the guide is read on */
+  const [system] = useState<System>(() => (typeof navigator !== "undefined" && /Windows/.test(navigator.userAgent) ? "windows" : "unix"));
   /* the character is pleased for a moment whenever something is copied */
   const [pleased, setPleased] = useState(0);
   const [mood, setMood] = useState<Mood>("idle");
-  const setup = useRef<HTMLElement>(null);
+  const [sent, setSent] = useState(false);
   useEffect(() => {
     if (!pleased) return;
     setMood("happy");
     const id = setTimeout(() => setMood("idle"), 1700);
     return () => clearTimeout(id);
   }, [pleased]);
+  useEffect(() => {
+    if (!sent) return;
+    const id = setTimeout(() => setSent(false), 1600);
+    return () => clearTimeout(id);
+  }, [sent]);
 
-  const chosen = CLIENTS.find((c) => c.key === client) ?? CLIENTS[0];
   const copied = () => setPleased((n) => n + 1);
-  const arrow = (
-    <span className="m3e-mcp-arrow" aria-hidden style={{ color: p.outline }}>
-      <Icon name="arrow_forward" size={22} />
-    </span>
-  );
+  /* a phone has no terminal to run the command in: the page goes to a computer instead */
+  const send = async () => {
+    const url = `${window.location.origin}${BASE}/mcp/`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${t("mcpTitle", lang)} · M3E Canvas`, url });
+        return;
+      } catch (error) {
+        /* put away without choosing anywhere to send it */
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setSent(true);
+    } catch {}
+  };
+  const chosen = USES[use];
   return (
     <div className="m3e-mcp-main">
-      {/* the character and what this is about */}
+      {/* what this is, and the one thing to do */}
       <section className="m3e-mcp-hero" style={{ background: p.primaryContainer, color: p.onPrimaryContainer }}>
         <div className="m3e-mcp-hero-text">
           <h1>{t("mcpTitle", lang)}</h1>
           <p className="m3e-mcp-lead">{t("mcpLead", lang)}</p>
-          <button onClick={() => setup.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="m3-press" style={{ background: p.primary, color: p.onPrimary }}>
-            {t("mcpSeeSteps", lang)}
-            <Icon name="arrow_downward" size={18} />
+          <CopyBar p={p} lang={lang} text={SETUP} kind="command" onCopied={copied} />
+          <p className="m3e-mcp-hint">
+            <span>{t("mcpRun", lang)}</span> <span>{t("mcpNode", lang)}</span>
+          </p>
+          <button onClick={send} className="m3e-mcp-send m3-press" style={{ background: p.surface, color: p.primary }}>
+            <Icon name={sent ? "check" : "computer"} size={20} />
+            <span aria-live="polite">{sent ? t("copied", lang) : t("mcpSend", lang)}</span>
           </button>
         </div>
         <div className="m3e-mcp-hero-bot" onPointerEnter={() => setMood((m) => (m === "happy" ? m : "curious"))} onPointerLeave={() => setMood((m) => (m === "happy" ? m : "idle"))}>
@@ -179,112 +270,66 @@ function Guide({ p, lang, onClose }: { p: Palette; lang: Lang; onClose: () => vo
         </div>
       </section>
 
-      {/* what happens, as three pictures in a row */}
-      <h2 className="m3e-mcp-heading">{t("mcpHowTitle", lang)}</h2>
-      <div className="m3e-mcp-scenes">
-        <Scene p={p} n={1} title={t("mcpStep2Title", lang)} body={t("mcpStep2Body", lang)}>
-          <span className="m3e-mcp-bubble" style={{ background: p.primary, color: p.onPrimary }}>
-            {t("mcpExample", lang)}
-          </span>
-        </Scene>
-        {arrow}
-        <Scene p={p} n={2} title={t("mcpSceneAgentTitle", lang)} body={t("mcpSceneAgentBody", lang)}>
-          <Bot p={p} size={92} mood="thinking" />
-          <span className="m3e-mcp-chips">
-            {["get_guide", "create_design_link"].map((name) => (
-              <code key={name} style={{ background: p.secondaryContainer, color: p.onSecondaryContainer }}>
-                {name}
-              </code>
-            ))}
-          </span>
-        </Scene>
-        {arrow}
-        <Scene p={p} n={3} title={t("mcpStep3Title", lang)} body={t("mcpStep3Body", lang)}>
-          <span className="m3e-mcp-linkchip" style={{ background: p.surface, color: p.primary }}>
-            <Icon name="link" size={16} />
-            …/#docz=hZBBb9sw…
-          </span>
-          <span style={{ display: "flex", gap: 8 }}>
-            <MiniScreen p={p} tint={p.primary} lines={3} />
-            <MiniScreen p={p} tint={p.tertiaryContainer} lines={2} />
-            <MiniScreen p={p} tint={p.secondaryContainer} lines={4} />
-          </span>
-        </Scene>
-      </div>
-
-      <section ref={setup} className="m3e-mcp-card" style={{ background: p.surface }}>
-        <h2>{t("mcpStep1Title", lang)}</h2>
-        <p style={{ color: p.onSurfaceVariant }}>{t("mcpStep1Body", lang)}</p>
-        {/* the names keep their full width: on a narrow window the run scrolls sideways */}
-        <div style={{ overflowX: "auto", margin: "0 -4px", padding: "0 4px" }}>
-          <div style={{ minWidth: "max-content" }}>
-            <Segmented options={CLIENTS.map((c) => ({ key: c.key, label: c.label }))} value={client} onChange={setClient} p={p} label={t("mcpStep1Title", lang)} />
-          </div>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 12px" }}>
-          <Segmented<System>
-            options={[
-              { key: "unix", label: "macOS / Linux" },
-              { key: "windows", label: "Windows" },
-            ]}
-            value={system}
-            onChange={setSystem}
-            p={p}
-            height={36}
-            grow={false}
-          />
-          <p style={{ flex: "1 1 240px", color: p.onSurfaceVariant, fontSize: 13 }}>
-            {chosen.file ? t("mcpAddTo", lang).replace("{file}", chosen.file) : t("mcpRun", lang)}
-            {system === "windows" ? ` ${t("mcpWindowsHint", lang)}` : ""}
-          </p>
-        </div>
-        <Code p={p} lang={lang} text={chosen.code(system)} onCopied={copied} />
-      </section>
-
-      <section className="m3e-mcp-card" style={{ background: p.surface }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span aria-hidden style={{ display: "grid", color: p.primary }}>
-            <Icon name="edit_note" size={24} />
-          </span>
-          <h2>{t("mcpEditTitle", lang)}</h2>
-        </div>
-        <p style={{ color: p.onSurfaceVariant }}>{t("mcpEditBody", lang)}</p>
-      </section>
-
-      <section className="m3e-mcp-card" style={{ background: p.surface }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span aria-hidden style={{ display: "grid", color: p.primary }}>
-            <Icon name="deployed_code" size={24} />
-          </span>
-          <h2>{t("mcpBuildTitle", lang)}</h2>
-        </div>
-        <p style={{ color: p.onSurfaceVariant }}>{t("mcpBuildBody", lang)}</p>
-      </section>
-
-      <h2 className="m3e-mcp-heading">{t("mcpToolsTitle", lang)}</h2>
-      <div className="m3e-mcp-tools">
-        {TOOLS.map(([name, icon, key]) => (
-          <div key={name} style={{ background: p.surface }}>
-            <span aria-hidden style={{ width: 40, height: 40, flex: "0 0 auto", display: "grid", placeItems: "center", borderRadius: 14, background: p.secondaryContainer, color: p.onSecondaryContainer }}>
-              <Icon name={icon} size={22} />
+      {/* what happens after that */}
+      <ol className="m3e-mcp-steps">
+        {(["mcpNextRun", "mcpNextPick", "mcpNextAsk"] as const).map((key, i) => (
+          <li key={key} style={{ background: p.surface }}>
+            <span aria-hidden style={{ background: p.secondaryContainer, color: p.onSecondaryContainer }}>
+              {i + 1}
             </span>
-            <div style={{ minWidth: 0 }}>
-              <code>{name}</code>
-              <p style={{ color: p.onSurfaceVariant }}>{t(key, lang)}</p>
-            </div>
-          </div>
+            {t(key, lang)}
+          </li>
         ))}
-      </div>
+      </ol>
 
+      {/* what to ask for */}
+      <h2 className="m3e-mcp-heading">{t("mcpUseTitle", lang)}</h2>
       <section className="m3e-mcp-card" style={{ background: p.surface }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span aria-hidden style={{ display: "grid", color: p.primary }}>
-            <Icon name="lock" size={22} />
-          </span>
-          <h2>{t("mcpPrivacyTitle", lang)}</h2>
+        <Segmented<Use> options={(Object.keys(USES) as Use[]).map((key) => ({ key, label: t(USES[key].tab, lang) }))} value={use} onChange={setUse} p={p} height={48} label={t("mcpUseTitle", lang)} />
+        <div className="m3e-mcp-use">
+          <Picture p={p} use={use} />
+          <div className="m3e-mcp-use-text">
+            <h3>{t(chosen.title, lang)}</h3>
+            <p style={{ color: p.onSurfaceVariant }}>{t(chosen.body, lang)}</p>
+            {/* a fresh one for each use, so "copied" does not carry over to words that were not */}
+            <CopyBar key={use} p={p} lang={lang} text={t(chosen.example, lang)} kind="words" link={use !== "make"} onCopied={copied} />
+          </div>
         </div>
-        <p style={{ color: p.onSurfaceVariant }}>{t("mcpPrivacyBody", lang)}</p>
       </section>
+
+      <div className="m3e-mcp-folds">
+        <Fold p={p} icon="tune" title={t("mcpManualTitle", lang)}>
+          <p>{t("mcpManualBody", lang)}</p>
+          <div className="m3e-mcp-codes">
+            {CLIENTS.map((c) => (
+              <Code key={c.label} p={p} lang={lang} title={c.label} note={c.file ? t("mcpAddTo", lang).replace("{file}", c.file) : t("mcpTerminal", lang)} text={c.code(system)} onCopied={copied} />
+            ))}
+          </div>
+        </Fold>
+        <Fold p={p} icon="build" title={t("mcpHelpTitle", lang)}>
+          <p>{t("mcpHelpCheck", lang)}</p>
+          <p>{t("mcpHelpUpdate", lang)}</p>
+          <Code p={p} lang={lang} title={t("mcpHelpRemove", lang)} note={t("mcpTerminal", lang)} text={REMOVE} onCopied={copied} />
+        </Fold>
+        <Fold p={p} icon="handyman" title={t("mcpToolsTitle", lang)}>
+          <div className="m3e-mcp-tools">
+            {TOOLS.map(([name, icon, key]) => (
+              <div key={name}>
+                <span aria-hidden style={{ width: 40, height: 40, flex: "0 0 auto", display: "grid", placeItems: "center", borderRadius: 14, background: p.secondaryContainer, color: p.onSecondaryContainer }}>
+                  <Icon name={icon} size={22} />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <code style={{ color: p.onSurface }}>{name}</code>
+                  <p>{t(key, lang)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Fold>
+        <Fold p={p} icon="lock" title={t("mcpPrivacyTitle", lang)}>
+          <p>{t("mcpPrivacyBody", lang)}</p>
+        </Fold>
+      </div>
 
       {/* at the foot too, so there is no way back up to climb after reading */}
       <button onClick={onClose} className="m3e-mcp-done m3-press" style={{ background: p.secondaryContainer, color: p.onSecondaryContainer }}>
